@@ -1,0 +1,896 @@
+/*
+Auto updater class
+By Jason SantaAna-White
+
+You may use this class in your games. All I ask is that you give credit where credit is due.
+*/
+
+class auto_updater
+{
+bool enable_caching; // Used to cache the version file if a new version is found but not immedietly installed.
+bool cache_size; // You can save a very small amount of bandwidth by caching the file size of the update. However, if you release updates more than once a week, it's probably a bad idea to enable this.
+bool enable_queries; // Used to enable or disable download queries to be sent to the callback while the file is being downloaded. This can be used to give your users the option to abort the download without actually killing your game.
+bool enable_friendly_sizes; // Whether to send sizes to the callback with the UE_AVAILABLE call in KB/MB/GB/TB, E.G. 45.16MB, or in bytes, E.G. 47353693.
+calendar next_update_check; // The next time that an update check should be performed.
+double current_game_version; // The current version of the game being run. Supplied in call to init().
+double game_version; // The version information restored from the registry. This property should not be modified by your game.
+int cache_lifetime; // Number of days that the cache file should continue to be valid. When the cache expires, it will be deleted the next time an update check is performed. Default is 2 days.
+int progress_interval; // Seconds between download progress report calls.
+int mode; // Mode that the updater should run in.
+int report_type; // Progress report to use when downloading the update. Default is UPR_PERCENTAGE.
+settings@ settings_handle; // Settings object to use to store updater and version settings.
+string cache_file; // Path and filename to save the cache file to.
+string cmdline_args; // Command line arguments to pass to the updater executable.
+string download_url; // URL of the folder or script to retrieve the update from.
+// Examples: "http://mysite.com/updates/" or "http://mysite.com/get_update.php?"
+// The actual file to retrieve or parameters to supply will be specified by the version file downloaded from your server.
+string save_path; // The directory to save the updater to.
+// Default is DIRECTORY_TEMP.
+// Clear this to have the file saved to the same directory as the game itself, though this may fail if the game executable is in the program files directory.
+string temp_file; // The name of the file updater executable.
+// Used so that we can delete the file once the update is complete.
+string version_url; // URL of the version file to check.
+// This can point either directly to a remote file, or a script with parameters passed to it.
+string key; // Encryption key. Specified by call to init().
+updater_callback@ callback; // The update callback to be used by your game.
+
+/*
+auto_updater()
+
+Class constructor.
+*/
+
+auto_updater()
+{
+// Set defaults.
+this.cache_lifetime = 1;
+this.enable_friendly_sizes = true;
+this.progress_interval = 10;
+this.report_type = UPR_PERCENTAGE;
+this.save_path = DIRECTORY_TEMP;
+} // auto_updater
+
+/*
+~auto_updater()
+
+Class destructor.
+*/
+
+~auto_updater()
+{
+if (@this.settings_handle != null && this.settings_handle.active)
+{
+this.save_settings();
+} // if
+} // ~auto_updater
+
+/*
+init(updater_callback@ new_callback, settings@ settings_handle, double game_version, string encryption_key = "") = void
+
+Initialize the updater by giving it the updater callback to call for certain events, a settings object to use, the current version of your game, and an optional encryption key.
+Also checks for updates if updater_mode is not UM_OFF.
+*/
+
+void init(updater_callback@ new_callback, settings@ settings_handle, double game_version, string encryption_key = "")
+{
+calendar now;
+
+@this.callback = @new_callback;
+this.current_game_version = game_version;
+this.key = encryption_key;
+@this.settings_handle = @settings_handle;
+this.restore_settings();
+if (this.current_game_version > this.game_version)
+{
+this.complete_update();
+} // if
+else
+{
+if (this.mode != UM_OFF && now >= next_update_check)
+{
+this.check();
+} // if
+} // else
+} // init
+
+/*
+restore_settings() = void
+
+Tries to restore settings from the registry.
+*/
+
+void restore_settings()
+{
+bool result = false;
+double version;
+int year;
+int month;
+int day;
+int hour;
+int minute;
+int second;
+int mode;
+string data;
+string temp_file;
+string[] calendar_data;
+
+if (this.settings_handle.exists("update_next_check"))
+{
+// Try to read updater data from the registry.
+data = this.settings_handle.read_string("update_next_check");
+if (this.key != "")
+{
+data = string_decrypt(data, this.key);
+} // if
+if (data != "")
+{
+if (this.set_calendar_data(next_update_check, data))
+{
+result = true;
+} // if
+} // if
+} // if
+if (result == false)
+{
+this.next_update_check.reset();
+} // if
+result = false;
+if (this.settings_handle.exists("update_mode"))
+{
+data = this.settings_handle.read_string("update_mode");
+if (this.key != "")
+{
+data = string_decrypt(data, this.key);
+} // if
+if (data != "")
+{
+mode = string_to_number(data);
+if (get_last_error() != -14 && mode >= 0 && mode <= 2)
+{
+this.mode = mode;
+result = true;
+} // if
+} // if
+} // if
+if (result == false)
+{
+this.mode = UM_NOTIFY;
+} // if
+result = false;
+if (this.settings_handle.exists("version"))
+{
+data = this.settings_handle.read_string("version");
+if (this.key != "")
+{
+data = string_decrypt(data, this.key);
+} // if
+if (data != "")
+{
+version = string_to_number(data);
+if (get_last_error() != -14)
+{
+this.game_version = version;
+result = true;
+} // if
+} // if
+} // if
+if (result == false)
+{
+this.game_version = this.current_game_version;
+} // if
+if (this.settings_handle.exists("updater_file"))
+{
+data = this.settings_handle.read_string("updater_file");
+if (this.key != "")
+{
+data = string_decrypt(data, this.key);
+} // if
+if (data != "")
+{
+this.temp_file = data;
+} // if
+} // if
+} // restore_settings
+
+/*
+save_settings() = void
+
+Attempts to save updater settings to the registry.
+*/
+
+void save_settings()
+{
+string check_date;
+string mode;
+string version;
+
+check_date = this.next_update_check.year + "/" + this.next_update_check.month + "/" + this.next_update_check.day + "/" + this.next_update_check.hour + "/" + this.next_update_check.minute + "/" + this.next_update_check.second;
+mode = "" + this.mode;
+version = "" + this.current_game_version;
+string updater_file = this.temp_file;
+if (this.key != "")
+{
+check_date = string_encrypt(check_date, this.key);
+mode = string_encrypt(mode, this.key);
+version = string_encrypt(version, this.key);
+updater_file = string_encrypt(updater_file, this.key);
+} // if
+if (check_date != "" && mode != "" && version != "")
+{
+this.settings_handle.write_string("update_next_check", check_date);
+this.settings_handle.write_string("update_mode", mode);
+this.settings_handle.write_string("version", version);
+} // if
+if (updater_file != "")
+{
+this.settings_handle.write_string("updater_file", updater_file);
+} // if
+} // save_settings
+
+/*
+check(bool silent = true) = void
+
+Checks for updates, and optionally installs the update, based on update mode setting or callback response.
+*/
+
+void check(bool silent = true)
+{
+dictionary update_data;
+double file_size = 0.0;
+double version = 0.0;
+string data;
+string hash;
+string full_version; // For support for versions like 2.0, instead of just 2.
+string full_current_version; // Same for the current version and string replacements in updater_file.
+string updater_file;
+string whatsnew;
+
+if (this.version_url != "" && this.download_url != "")
+{
+if (this.enable_caching == true && this.cache_file != "" && file_exists(this.cache_file))
+{
+update_data = check_cache();
+} // if
+if (!this.enable_caching || update_data.get_keys().length() == 0)
+{
+if (silent == false)
+{
+this.callback(this, UE_CHECKING, "");
+} // if
+data = url_get(this.version_url);
+update_data = get_update_data(data);
+} // else
+if (get_last_error() == 0)
+{
+update_data.get("version", version);
+update_data.get("file", updater_file);
+update_data.get("whatsnew", whatsnew);
+update_data.get("hash", hash);
+if (version != 0.0 && updater_file != "")
+{
+if (whatsnew == "")
+{
+whatsnew = "No information provided.";
+} // if
+// I do this next part so that when the version and current_version doubles are converted to string, if they're integral, they aren't converted as if they were ints.
+// For example, 2.0, instead of just 2.
+if (round(version, 0) == version)
+{
+full_version = version + ".0";
+} // if
+else
+{
+full_version = "" + version;
+} // if
+if (round(this.current_game_version, 0) == this.current_game_version)
+{
+full_current_version = this.current_game_version + ".0";
+} // if
+else
+{
+full_current_version = "" + this.current_game_version;
+} // if
+// Do string substitutions so that the old and new versions can be in the filename retrieved from the server.
+updater_file = string_replace(updater_file, "<ov>", full_current_version, true);
+updater_file = string_replace(updater_file, "<OV>", full_current_version, true);
+updater_file = string_replace(updater_file, "<nv>", full_version, true);
+updater_file = string_replace(updater_file, "<NV>", full_version, true);
+if (version > this.current_game_version)
+{
+// Get size of the update.
+if (update_data.exists("size"))
+update_data.get("size", file_size);
+if (file_size == 0.0)
+{
+// Get size from the server.
+file_size = get_update_size(updater_file);
+if (file_size == 0.0)
+{
+this.callback(this, UE_DOWNLOAD_FAILURE, "Unable to get file size.");
+return;
+} // if
+} // if
+if (this.ok_to_update(full_version, whatsnew, file_size, silent))
+{
+this.perform_update(updater_file, file_size, hash);
+} // if
+else
+{
+if (this.enable_caching == true && this.cache_file != "")
+{
+if (this.cache_size == true)
+{
+// Put the file size in the dictionary so it's cached.
+update_data.set("size", file_size);
+} // if
+this.create_cache(update_data);
+} // if
+} // else
+} // if
+else
+{
+this.next_update_check.add_days(1);
+if (silent == false)
+{
+this.callback(this, UE_UNAVAILABLE, "");
+} // if
+} // else if
+} // if
+else
+{
+this.callback(this, UE_CHECK_FAILURE, "Invalid version file.");
+} // if
+} // if
+else
+{
+string error_text;
+
+error_text = get_last_error_text();
+if (data != "")
+{
+error_text += ": " + data;
+} // if
+this.callback(this, UE_CHECK_FAILURE, error_text);
+} // if
+} // if
+} // check
+
+// Private functions.
+
+/*
+get_update_size(string filename) = double
+
+Gets the size of the update, in bytes.
+Returns 0.0 on failure.
+*/
+
+double get_update_size(string filename)
+{
+double size = 0.0;
+http downloader;
+string head_result;
+string[] headers;
+
+head_result = downloader.get_headers(this.download_url + filename);
+if(get_last_error()<0)
+{
+return size;
+} // if
+while (downloader.progress)
+{
+downloader.request();
+if(get_last_error()<0)
+{
+return size;
+} // if
+wait(5);
+} // while
+headers = string_split(downloader.headers, "\n", true);
+string current_header;
+for (int h = 0; h < headers.length(); h++)
+{
+current_header = string_to_lower_case(headers[h]);
+if (current_header == "content-length")
+{
+size = string_to_number(headers[h + 1]);
+break;
+} // if
+} // for
+return size;
+} // get_update_size
+
+/*
+get_friendly_size(double bytes) = string
+
+Takes a file size in bytes and returns a friendlier representation.
+*/
+
+string get_friendly_size(double bytes)
+{
+double new_size;
+int s;
+string result;
+
+// Note: File sizes are displayed as they would be by Windows, which aren't always standards compliant.
+// I had to declare the arrays globally, so I tried to give them names that wouldn't conflict with any variables that might be used in the game that this class is being used in.
+
+for (s = 0; s < UPDATER_UNIT_SIZES.length(); s++)
+{
+if (bytes / UPDATER_UNIT_SIZES[s] < 1023.9 || s == UPDATER_UNIT_SIZES.length() - 1)
+{
+break;
+} // if
+} // for
+new_size = bytes / UPDATER_UNIT_SIZES[s];
+if (s == 0)
+{
+// Bytes, so we don't want decimals.
+new_size = round(new_size, 0);
+} // if
+// Add decimals to the string representation if size is integral.
+if (s > 0 && round(new_size, 0) == new_size)
+{
+result = new_size + ".00";
+} // if
+else
+{
+result = "" + new_size;
+} // else
+if (s > 0)
+{
+// Truncate size to two decimal points if necessary.
+int decimal = string_contains(result, ".", 1);
+if (result.length() > decimal + 2)
+{
+result = string_left(result, decimal + 3);
+} // if
+} // if
+result += UPDATER_UNIT_NAMES[s];
+return result;
+} // get_friendly_size
+
+/*
+ok_to_update(string version, string whatsnew, double size, bool silent) = bool
+
+Notifies callback of update availability and returns callback response.
+Modified to be called regardless of mode, and only to get a response from the callback if mode is UM_NOTIFY or silent is true (automatic updating).
+If silent is false, we're probably being called directly by the game, probably from a "check for updates" menu option or something.
+*/
+
+bool ok_to_update(string version, string whatsnew, double file_size, bool silent)
+{
+string size;
+
+if (silent == false || this.mode == UM_NOTIFY)
+{
+if (this.enable_friendly_sizes)
+{
+size = this.get_friendly_size(file_size);
+} // if
+else
+{
+size = "" + file_size;
+} // else
+return this.callback(this, UE_AVAILABLE, version + "~~" + whatsnew + "~~" + size);
+} // if
+else
+{
+return true;
+} // if
+} // notify
+
+/*
+get_update_data(string data) = dictionary
+
+Takes formatted version data and returns a dictionary.
+*/
+
+dictionary get_update_data(string data)
+{
+dictionary result;
+string[] update_data;
+
+update_data = string_split(data, "\r\n", true);
+if (update_data[0] != data)
+{
+for (int x = 0; x < update_data.length(); x++)
+{
+string[] parameter_data = string_split(update_data[x], "=", true);
+if (parameter_data[0] != update_data[x] && parameter_data.length() == 2)
+{
+if (parameter_data[0] == "version" || parameter_data[0] == "size")
+{
+result.set(parameter_data[0], string_to_number(parameter_data[1]));
+} // if
+else if (parameter_data[0] == "whatsnew" || parameter_data[0] == "file" || parameter_data[0] == "hash" || parameter_data[0] == "expiry")
+{
+result.set(parameter_data[0], parameter_data[1]);
+} // else if
+} // if
+else
+{
+result.delete_all();
+break;
+} // else
+} // for
+} // if
+return result;
+} // get_update_data
+
+/*
+check_cache() = dictionary
+
+Checks the cache file for update data.
+*/
+
+dictionary check_cache()
+{
+bool success = false;
+calendar expiry_date;
+calendar now;
+dictionary data;
+file cache_file;
+string[] expiry_data;
+string expiry;
+string file_contents;
+string mode;
+
+if (this.enable_caching && this.cache_file != "")
+{
+if (this.key != "")
+{
+mode = "rb";
+} // if
+else
+{
+mode = "r";
+} // else
+if (file_exists(this.cache_file))
+{
+if (cache_file.open(this.cache_file, mode))
+{
+file_contents = cache_file.read();
+cache_file.close();
+if (this.key != "")
+{
+file_contents = string_decrypt(file_contents, this.key);
+} // if
+data = get_update_data(file_contents);
+if (data.get_keys().length() > 0)
+{
+data.get("expiry", expiry);
+if (this.set_calendar_data(expiry_date, expiry))
+{
+if (now < expiry_date)
+{
+success = true;
+} // if
+else
+{
+data.delete_all();
+} // if
+} // if
+else
+{
+data.delete_all();
+} // else
+} // if
+} // if
+} // if
+if (!success)
+{
+if (file_exists(this.cache_file))
+{
+file_delete(this.cache_file);
+} // if
+} // if
+} // if
+return data;
+} // check_cache
+
+/*
+create_cache(dictionary data) = void
+
+Caches the update data to the cache file.
+*/
+
+void create_cache(dictionary data)
+{
+calendar expiry_date;
+file cache_file;
+string[] keys;
+string file_contents;
+string mode;
+string value;
+
+if (this.enable_caching && this.cache_file != "" && !file_exists(this.cache_file) && data.exists("version") && data.exists("file"))
+{
+expiry_date.add_days(this.cache_lifetime);
+if (this.key != "")
+{
+mode = "wb";
+} // if
+else
+{
+mode = "w";
+} // else
+data.set("expiry", expiry_date.year + "/" + expiry_date.month + "/" + expiry_date.day + "/" + expiry_date.hour + "/" + expiry_date.minute + "/" + expiry_date.second);
+// We need to print all keys and their values to the file.
+// However, version and size are doubles, and we can't do conversions when retrieving values from a dictionary, forcing me to resort to a rather nasty hackish workaround.
+double version;
+data.get("version", version);
+data.set("version", "" + version);
+if (data.exists("size"))
+{
+double size;
+data.get("size", size);
+data.set("size", "" + size);
+} // if
+keys = data.get_keys();
+for (int k = 0; k < keys.length(); k++)
+{
+data.get(keys[k], value);
+file_contents += keys[k] + "=" + value + "\r\n";
+} // for
+if (this.key != "")
+{
+file_contents = string_encrypt(file_contents, this.key);
+} // if
+if (file_contents != "")
+{
+if (cache_file.open(this.cache_file, mode))
+{
+cache_file.write(file_contents);
+cache_file.close();
+} // if
+} // if
+} // if
+} // create_cache
+
+/*
+perform_update(string updater_filename, double file_size, string hash) = void
+
+Downloads and executes the updater file.
+*/
+
+void perform_update(string updater_filename, double file_size, string hash = "")
+{
+double bytes_downloaded = 0.0;
+double download_percentage = 0.0;
+double last_percentage_report = 0.0;
+calendar now;
+calendar last_progress_report;
+file updater_file;
+http downloader;
+string file_contents;
+string head_result;
+string local_file;
+
+if (this.save_path != "")
+{
+local_file = this.save_path + "\\" + updater_filename;
+} // if
+else
+{
+local_file = updater_filename;
+} // else
+if (this.download_url != "")
+{
+if (file_size == 0.0)
+{
+this.callback(this, UE_DOWNLOAD_FAILURE, "Invalid file size.");
+return;
+} // if
+this.callback(this, UE_DOWNLOADING, "");
+file_contents = downloader.get(this.download_url + updater_filename);
+if(get_last_error()<0)
+{
+this.callback(this, UE_DOWNLOAD_FAILURE, file_contents);
+return;
+} // if
+updater_file.open(local_file, "wb");
+if (updater_file.active==false)
+{
+this.callback(this, UE_DOWNLOAD_FAILURE, "Output file couldn't be opened.");
+return;
+}
+while(downloader.progress)
+{
+if (this.enable_queries == true && this.callback(this, UE_DOWNLOAD_QUERY, "") == false)
+{
+// Callback (user) aborted the download.
+updater_file.close();
+file_delete(local_file);
+this.callback(this, UE_DOWNLOAD_ABORT, "");
+return;
+} // if
+if (this.report_type == UPR_PERCENTAGE)
+{
+// We need to put the new bytes from the request call into a temporary buffer first, so we can add the length to the bytes_downloaded variable.
+string temporary_buffer = downloader.request();
+bytes_downloaded += temporary_buffer.length();
+file_contents += temporary_buffer;
+} // if
+else
+{
+file_contents += downloader.request();
+} // if
+if (get_last_error() < 0)
+{
+updater_file.close();
+file_delete(local_file);
+this.callback(this, UE_DOWNLOAD_FAILURE, "Download interrupted unexpectedly. " + get_last_error_text());
+return;
+} // if
+if(file_contents.length()>=8192)
+{
+// Flush contents of file_contents to disk.
+updater_file.write(file_contents);
+file_contents="";
+}
+if (this.report_type == UPR_TIMED)
+{
+now.reset();
+if (now.diff_seconds(last_progress_report) >= this.progress_interval)
+{
+last_progress_report.reset();
+this.callback(this, UE_DOWNLOAD_PROGRESSING, "");
+} // if
+} // if
+else if (this.report_type == UPR_PERCENTAGE)
+{
+// Calculate download completion percentage, making sure that it is rounded down.
+download_percentage = floor((bytes_downloaded / file_size) * 100.0);
+if (download_percentage % this.progress_interval == 0 && last_percentage_report != download_percentage)
+{
+last_percentage_report = download_percentage;
+this.callback(this, UE_DOWNLOAD_PROGRESSING, "" + download_percentage);
+} // if
+} // else if
+wait(5);
+}
+if(file_contents != "")
+{
+// Write the rest of the file to disk.
+updater_file.write(file_contents);
+}
+updater_file.close();
+if ((hash == "") || (hash != "" && file_hash(local_file, 2, false) == hash))
+{
+this.callback(this, UE_INSTALLING, "");
+if (!run(local_file, this.cmdline_args, false, false))
+{
+this.callback(this, UE_INSTALL_FAILURE, "Could not run file.");
+file_delete(local_file);
+} // if
+else
+{
+this.temp_file = updater_filename;
+exit();
+} // if
+} // if
+else
+{
+// Hashes don't match! Kill the cache file, if it exists.
+this.callback(this, UE_INSTALL_FAILURE, "File integrity check failure.");
+file_delete(local_file);
+if (this.enable_caching && file_exists(this.cache_file))
+file_delete(this.cache_file);
+} // else
+} // if
+} // perform_update
+
+/*
+complete_update() = void
+
+Completes the update process by deleting the updater executable, the cache file and the temporary registry value.
+*/
+
+void complete_update()
+{
+int tries = 0;
+string local_file;
+
+if (this.save_path != "")
+{
+local_file = this.save_path + "\\" + this.temp_file;
+} // if
+else
+{
+local_file = this.temp_file;
+} // else
+// If we faile to delete the updater file, try a few more times. It might still be finishing up.
+while (tries <= 4)
+{
+wait(250);
+if (!file_delete(local_file))
+{
+++tries;
+} // if
+else
+{
+break;
+} // else
+} // while
+if (this.enable_caching && file_exists(this.cache_file))
+file_delete(this.cache_file);
+this.settings_handle.remove_value("updater_file");
+this.temp_file = "";
+this.callback(this, UE_COMPLETE, "");
+} // complete_update
+
+/*
+set_calendar_data(calender@ the_calendar, string data) = bool
+
+Takes calendar data delimited by slash characters, and tries to set the calendar to that date and time.
+*/
+
+bool set_calendar_data(calendar@ the_calendar, string data)
+{
+int year, month, day, hour, minute, second;
+string[] calendar_data;
+
+calendar_data = string_split(data, "/", true);
+if (calendar_data[0] != data && calendar_data.length() == 6)
+{
+year = string_to_number(calendar_data[0]);
+month = string_to_number(calendar_data[1]);
+day = string_to_number(calendar_data[2]);
+hour = string_to_number(calendar_data[3]);
+minute = string_to_number(calendar_data[4]);
+second = string_to_number(calendar_data[5]);
+if (the_calendar.set(year, month, day, hour, minute, second) && the_calendar.valid)
+{
+return true;
+} // if
+} // if
+return false;
+} // set_calendar_data
+
+} // class auto_updater
+
+enum updater_modes
+{
+UM_OFF,
+UM_NOTIFY,
+UM_AUTO
+}
+
+enum update_events
+{
+UE_CHECKING,
+UE_CHECK_FAILURE,
+UE_UNAVAILABLE,
+UE_AVAILABLE,
+UE_DOWNLOADING,
+UE_DOWNLOAD_QUERY,
+UE_DOWNLOAD_PROGRESSING,
+UE_DOWNLOAD_FAILURE,
+UE_DOWNLOAD_ABORT,
+UE_INSTALLING,
+UE_INSTALL_FAILURE,
+UE_COMPLETE
+}
+
+enum update_progress_report_types
+{
+UPR_TIMED,
+UPR_PERCENTAGE
+}
+
+/*
+Callback:
+
+You must set a callback to be used when updater events are fired.
+
+The form is:
+
+bool my_updater_callback(auto_updater@ calling_updater, int event_type, string event_data)
+*/
+
+funcdef bool updater_callback(auto_updater@, int, string);
+
+// Global vars
+
+const string[] UPDATER_UNIT_NAMES = {"B", "KB", "MB", "GB", "TB"};
+const double[] UPDATER_UNIT_SIZES = {1.0, 1024.0, 1048576.0, 1073741824.0, 1099511627776};

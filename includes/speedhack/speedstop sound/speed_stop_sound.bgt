@@ -1,0 +1,45 @@
+sound SPEEDSTOP_SOUND;
+string SPEEDSTOP_SOUND_FILE="silence.wav";
+timer SPEEDSTOP_TIMER_MAIN;
+bool SPEEDSTOP_ENABLE_DISABLE_MAIN=true;
+int SPEEDSTOP_TRIES_MAIN=0;
+void speed_stop_reset(bool initial=false) // should be called before you want to start use in order to prevent accedental speedhack protection
+{
+SPEEDSTOP_SOUND.stop();
+if(initial)
+SPEEDSTOP_SOUND.load(SPEEDSTOP_SOUND_FILE);
+SPEEDSTOP_SOUND.play();
+SPEEDSTOP_TIMER_MAIN.restart();
+SPEEDSTOP_TRIES_MAIN=0;
+}
+bool speed_stop_is_hacking(int slack_time=50) // true if hack detected. 
+{
+if(SPEEDSTOP_ENABLE_DISABLE_MAIN==false)
+return false;
+if(SPEEDSTOP_SOUND.playing==false)
+{
+int orig_ss_tries=SPEEDSTOP_TRIES_MAIN;
+if(SPEEDSTOP_TIMER_MAIN.elapsed>1000+slack_time or SPEEDSTOP_TIMER_MAIN.elapsed<1000-slack_time)
+{
+SPEEDSTOP_TRIES_MAIN++;
+if(SPEEDSTOP_TRIES_MAIN>1)
+return true;
+}
+SPEEDSTOP_SOUND.stop();
+SPEEDSTOP_SOUND.play();
+SPEEDSTOP_TIMER_MAIN.restart();
+if(orig_ss_tries==SPEEDSTOP_TRIES_MAIN)
+SPEEDSTOP_TRIES_MAIN=0;
+return false;
+}
+return false;
+}
+void speed_stop_disable() //pauses the speed_stop checks. 
+{
+SPEEDSTOP_ENABLE_DISABLE_MAIN=false;
+}
+void speed_stop_enable() //unpauses/enables speed_stop checks. 
+{
+SPEEDSTOP_ENABLE_DISABLE_MAIN=false;
+speed_stop_reset();
+}

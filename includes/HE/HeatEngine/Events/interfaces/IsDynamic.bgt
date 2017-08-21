@@ -1,0 +1,6 @@
+interface IsDynamic
+{
+	bool isSolid();//Can the object take part to the geometry?
+	void collide();//Called when an object collide an other
+	void receivesCollision();//Called when an object is touched by an other
+}

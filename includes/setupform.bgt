@@ -1,0 +1,19 @@
+void setupform(audio_form@ handle)
+{
+if (screen_reader_is_running(1))
+{
+handle.set_output_mode(JAWS);
+}
+if (screen_reader_is_running(2))
+{
+handle.set_output_mode(WINDOW_EYES);
+}
+if (screen_reader_is_running(3))
+{
+handle.set_output_mode(SYSTEM_ACCESS);
+}
+if (screen_reader_is_running(4))
+{
+handle.set_output_mode(NVDA);
+}
+}

@@ -1,0 +1,219 @@
+#include "Case.bgt"
+#include "include\\HE_sound_pool.bgt"
+//#include "V3D\\FMODExSoundManager.bgt"
+
+class Scene
+{
+	/*
+	Utilisez cette liste pour itérer sur les BaseObject
+	EN: use this array to iterate
+	*/
+	BaseObject@[] objects;
+	dictionary objectsByName;
+	
+	Case[][] map;
+	WorldBox@ worldbox;
+	
+	bool useGeometry = false;
+	
+	HE_sound_pool se;
+
+	void setSoundEnvironment()
+	{
+		//SoundManager.setLoadingDirectory("HeatEngine\\V3D\\bin\\");
+		//SoundManager.load();
+		
+		this.se.max_distance=70;
+		this.se.behind_pitch_decrease=5;
+		this.se.pause_all();
+		
+	}
+	
+	void debugDisplay()
+	{
+		string message = "Content of the scene:\n";
+		for(int i=0; i<objects.length; i++)
+		{
+			message = message + "- "+objects[i].getName()+" ("+objects[i].getClassName()+", ID="+objects[i].getID()+")\n";
+		}
+		
+		message = message + "(Total: "+objects.length+" objects)";
+		alert("Scene Content", message);
+	}
+	
+	void debugDisplayList()
+	{
+		for(int i=0; i<objects.length; i++)
+		{
+			alert("Objects list detail", objects[i].toString());
+		}
+	}
+	
+	void debugDisplayGrid()
+	{
+		if(this.useGeometry==false)
+			exception("Can't display geometry grid: use game.scene.generateGeometry() first!");
+		
+		string message = "";
+		for(int i=0; i<map[0].length; i++)
+		{
+			string line="";
+			for(int j=0; j<map.length; j++)
+			{
+				line = line + "["+map[j][i].objects.length+"]";
+			}
+			message = "\n" + line + message;
+		}
+		
+		alert("Scene Content", "Content of the grid:\n"+message);
+	}
+	
+	/*
+	Fonction ajoutant un nouvel acteur à la scène.
+	NOTE: la clef "className" contient le nom de la classe à instancier, et la clef "name" contient le nom de l'objet en lui-même
+	EN: This function adds a new actor to the scene
+	INFO: the key "class" contains the name of the class to use, and the key "name" contains the name of the object itself
+	*/
+	BaseObject@ addActor(dictionary infos)
+	{
+		BaseObject@ o = actorCreationLinker(infos);
+		objects.insert_last(@o);
+		
+		objectsByName.set(o.name, @o);
+		
+		return @o;
+	}
+	
+	void removeActor(BaseObject@ o)
+	{
+		objects.remove_at(objects.find(0, o));
+		deleteNameReference(o.name);
+		
+		StaticActor@ sa = cast<StaticActor>(o);
+		if(@sa!=null)
+		{
+			map[sa.getX()][sa.getY()].deleteActor(sa);
+		}
+	}
+	
+	
+	Event@ addEvent(dictionary infos)
+	{
+		Event@ e = eventCreationLinker(infos);
+		game.events.insert_last(@e);
+		
+		return @e;
+	}
+	
+	/*
+	Renvoie la référence du BaseObject dont le nom correspond à name
+	EN: return the name of the BaseObject having the given name
+	*/
+	BaseObject@ getActorByName(string name)
+	{
+		BaseObject@ o;
+		objectsByName.get(name, @o);
+		return @o;
+	}
+	
+	/*
+	Cette fonction actualise la référence d'un BaseObject dans le dictionary objectsByName
+	EN: this function updates the reference of a BaseObject in the objectsByName dictionary
+	*/
+	BaseObject@ changeNameReference(string name, string newName)
+	{
+		BaseObject@ o;
+		@o = getActorByName(name);
+			
+		@o = getActorByName(name);
+		deleteNameReference(name);
+		
+		if(newName!="")
+			objectsByName.set(newName, @o);
+		
+		return @o;
+	}
+	
+	/*
+	Supprime un BaseObject du dictionary objectsByName
+	EN: delete a BaseObject from the objectsbyName dictionary
+	*/
+	void deleteNameReference(string name)
+	{
+		objectsByName.set(name, null);
+	}
+	
+	
+	void setWorldBox(int width, int length)
+	{
+		WorldBox@ wb = WorldBox("WorldBox", "worldbox", width, length);
+		@this.worldbox = wb;
+	}
+	
+	int getWorldBoxLength()
+	{
+		return this.worldbox.getLength();
+	}
+	
+	int getWorldBoxWidth()
+	{
+		return this.worldbox.getWidth();
+	}
+	
+	void setWorldBoxWidth(int width)
+	{
+		this.worldbox.setWidth(width);
+	}
+	
+	void setWorldBoxLength(int length)
+	{
+		this.worldbox.setLength(length);
+	}
+	
+	/*
+	Cette fonction génère la géométrie de la map (la grille de collisions)
+	EN: this function generates the geometry of the map. (the collision grid)
+	*/
+	void generateGeometry()
+	{
+		if(@worldbox==null)
+			exception("No Worldbox has been set, can't calculate the world limits to generate collision grid.");
+		
+		int width = worldbox.getWidth();
+		int length = worldbox.getLength();
+		map.resize(width);
+		for(int i=0;i<width;i++) 
+		{
+			map[i].resize(length);
+		}
+		
+		this.useGeometry = true;
+		
+		for(int i=0; i<this.objects.length; i++)
+		{
+			StaticActor@ sa=null;
+			@sa = cast<StaticActor>(objects[i]);
+			if(@sa!=null)
+				sa.updatePosition(sa.getX(), sa.getY());
+		}
+	}
+	
+	
+	void updateActorPosition(StaticActor@ sa)
+	{
+		/*
+		Case@ c = @sa.positionReference;
+		if(@c==null || c.x != sa.getX() || c.y != sa.getY())
+		{
+			Case@ newC = @map[sa.getIntX()][sa.getIntY()];
+			if(@c!=null)
+			{
+				c.deleteActor(sa);
+			}
+			newC.addActor(sa);
+			@sa.positionReference = @newC;
+		}
+		*/
+		//Pour chaque coordonnée entière trouvée pour l'objet, voir s'il est dedans
+	}
+}

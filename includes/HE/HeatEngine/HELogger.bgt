@@ -1,0 +1,12 @@
+#include "logger.bgt"
+
+class HELogger : logger
+{
+	HELogger()
+	{
+		super();
+		footer_text="End of the game session.";
+		date_all_entries=true;
+		date_format="[<dd>/<mm>/<y>, <HH>:<nn>:<ss>]";
+	}
+}

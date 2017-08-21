@@ -1,0 +1,13 @@
+#include "transltr.bgt"
+transltr tr;
+void main()
+{
+string target = input_box("target","Enter the target language, for example EN for English");
+string destination = input_box("Destination","Enter the destination language you want the text translated to");
+string txt = input_box("text","Enter the text to be translated");
+
+tr.set_php_script_url("http://www.megadimensao.com.br/transltr.php");
+tr.set_from_language(target);
+tr.set_language_to(destination);
+alert("Translated Text", tr.translate(txt));
+}

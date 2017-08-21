@@ -1,0 +1,46 @@
+/*
+Ce fichier est utilisé pour inclure toutes les classes de l'arbre des classes qui pourraient être ajoutées à la scène en jeu.
+NOTE: Toutes ces classes devraient hériter au final de la classe BaseObject au minimum.
+
+EN: this file is used to include all the classes of the classtree that could be spawned in game
+INFO: All classes should herit from the first class BaseObject.
+*/
+
+#include "Event.bgt"
+	#include "CollisionEvent.bgt"
+	#include "GameStartedEvent.bgt"
+	
+//INTERFACES
+#include "interfaces\\GameStarted.bgt"//Event: GameStartedEvent
+#include "interfaces\\IsDynamic.bgt" //Event: CollisionEvent
+#include "interfaces\\Usable.bgt"
+#include "interfaces\\Equipable.bgt"
+
+Event@ eventCreationLinker(dictionary param)
+{
+	Event@ e = null;
+	string className;
+	param.get("className", className);
+	
+	
+	
+	if(className == "Event")
+		@e = Event();
+	
+		else if(className == "GameStartedEvent")
+			@e = GameStartedEvent();
+		
+		else if(className=="CollisionEvent")
+			@e = CollisionEvent();
+		
+	if(@e==null) 
+	{
+		exception("The class "+className+" has no link in the eventCreationLinker()");
+		return null;
+	}
+	else 
+	{
+		e.load(param);
+		return e;
+	}
+}

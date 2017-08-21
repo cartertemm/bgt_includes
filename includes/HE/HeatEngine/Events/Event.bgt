@@ -1,0 +1,105 @@
+/*
+Cette classe est la classe mère de tout évènement apparaissant en jeu. Elle implémente les méthodes de base de tout évènement
+EN: this class is the root class of every event that could appear in the game. It implements all the basic methods.
+*/
+class Event
+{
+	int PARTIALLY_PROCESSED = 0;
+	int TOTALLY_PROCESSED = 1;
+	
+	string className;
+	
+	Event()
+	{
+	
+	}
+	
+	/*
+	Méthode qui charge les informations reçues d'un dico
+	EN: This method loads the informations of the dictionary
+	*/
+	void load(dictionary infos)
+	{
+		if(infos.exists("className"))
+			infos.get("className", this.className);
+	}
+	
+	/*
+	Méthode qui enregistre les informations dans un dico et le renvoie
+	EN: This method save the object informations into a dictionary and return it
+	*/
+	dictionary parseObject()
+	{
+		dictionary infos;
+		infos.set("className", this.className);
+		
+		return infos;
+	}
+	
+	/*
+	Cette méthode sauvegarde un objet dans le fichier donné en argument, respectant la convention de sauvegarde/chargement des fichiers map
+	EN: This method saves an object into the given file stream, following the schema of the map files
+	*/
+	void save(file saveFile)
+	{
+		dictionary infos = this.parseObject();
+		string className;
+		string name;
+		
+		infos.get("className", className);
+		infos.delete("className");
+		
+		string[] keys = infos.get_keys();
+		int length = keys.length();
+		
+		saveFile.write(className+"\n");
+		
+		for(int i=0; i<length; i++)
+		{
+			string value;
+			infos.get(keys[i], value);
+			saveFile.write(keys[i]+"="+value+"\n");
+		}
+	}
+	
+	string getClassName()
+	{
+		return this.className;
+	}
+	
+	
+	/*
+	Retourne si l'objet est sujet à ce type d'event ou non
+	EN: returns if this object can be influed by this kind of event or not
+	*/
+	bool isActiveOn(BaseObject@ o)
+	{
+		/*
+		Faire ici les vérifications d'interface
+		EN: do here interface verifications when you herit from this class
+		*/
+		
+		return true;
+	}
+	
+	/*
+	Opère les opérations de l'event sur l'objet touché. La valeur de retour indique s'il faut continuer à traiter l'event ou de si cet event doit être considéré comme entièrement traité et donc retiré pour passer au suivant
+	Valeurs de retour:
+	0/PARTIALLY_PROCESSED: continuer
+	1/TOTALLY_PROCESSED: arrêter
+	
+	NOTE: Au moment où cette fonction est appelée, nous savons déjà que l'objet est sujet à ce type d'évènement. Cette vérification de base n'est pas nécessaire dans cette méthode.
+	
+	EN: process the event operations on the given object. The return value tells if this event should be processed on the other events or if it should be considered as totally processed and then deleted, in order to process the next event.
+	Return values:
+	0/PARTIALLY_PROCESSED: continue
+	1/TOTALLY_PROCESSED: stop processing after this
+	
+	NOTE: At this point, if we call this method, it is because we know that the given object is influed by this kind of event
+	*/
+	int process(dictionary[]@ editList)
+	{
+		
+		return 0;
+	}
+}

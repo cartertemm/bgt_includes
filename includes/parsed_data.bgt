@@ -1,0 +1,74 @@
+class parsed_data
+{
+string[] peramitors;
+string[] values;
+string source;
+string decryption_key;
+parsed_data(string text,string decryption_key,bool filename=true)
+{
+source=text;
+this.decryption_key=decryption_key;
+if(filename)
+{
+parse_data_from_file();
+}
+else
+{
+parse_data_from_string();
+}
+}
+void parse_data_from_file()
+{
+file f;
+bool success=f.open(source,"rb");
+if(!success)
+return;
+else
+{
+string d;
+if(decryption_key!="")
+d=string_decrypt(f.read(),decryption_key);
+else
+d=f.read();
+string[] parseddata=string_split(d,"\r\n",true);
+for(int i=0; i<parseddata.length; i++)
+{
+string[] parseddata2=string_split(parseddata[i],"=",true);
+if(parseddata2.length!=2)
+continue;
+else
+{
+peramitors.insert_last(parseddata2[0]);
+values.insert_last(parseddata2[1]);
+}
+}
+}
+}
+void parse_data_from_string()
+{
+string d;
+if(decryption_key!="")
+d=string_decrypt(source,decryption_key);
+else
+d=source;
+string[] parseddata=string_split(d,"\r\n",true);
+for(int i=0; i<parseddata.length; i++)
+{
+string[] parseddata2=string_split(parseddata[i],"=",true);
+if(parseddata2.length!=2)
+continue;
+else
+{
+peramitors.insert_last(parseddata2[0]);
+values.insert_last(parseddata2[1]);
+}
+}
+}
+string get_value(string peramitor)
+{
+if(peramitors.find(peramitor)!=-1)
+return values[peramitors.find(peramitor)];
+else
+return "";
+}
+}

@@ -1,0 +1,50 @@
+//dice class
+//This includes dice, flip coin and other things.
+class dice {
+int die;
+int[] rolled;
+bool coin;
+int sides;
+dice() {
+sides=6;
+die=1;
+}
+void reset() {//rest dice sides to 6 and 1 dice.
+die=1;
+sides=6;
+}
+void set(int dices, int side) {
+sides=side;
+die=dices;
+}
+int[] roll() {
+//roll using default values.
+int[] rolling(die);
+for(uint i=0;i<=rolling.length()-1;i++) {
+rolling[i]=random(1,sides);
+}
+return rolling;
+}
+
+int[] roll(int dices,int side) {
+//roll using custom values. This won't change the default values! To change the default values use the set method.
+int[] rolling(dices);
+for(uint i=0;i<=rolling.length()-1;i++) {
+rolling[i]=random(1,side);
+}
+return rolling;
+}
+double average(int[] arr) {
+//get average of an array of numbers
+double calc=0;
+for(uint i=0;i<=arr.length()-1;i++) {
+calc=calc+arr[i];
+}
+return calc/arr.length();
+}
+bool flip() {
+uint16 flipping=random(1,2);
+if(flipping==1) return true;
+else return false;
+}
+}

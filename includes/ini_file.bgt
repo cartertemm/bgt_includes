@@ -1,0 +1,225 @@
+class ini_file
+{
+
+string filename;
+
+void delete(string key, string section = "")
+{
+string[] ini_data = this.get_data();
+int key_position;
+if(ini_data.length() > 0)
+{
+key = string_replace(key, " ", "", true);
+if(key != "")
+{
+if(section == "")
+{
+key_position = this.get_key_position(key);
+}
+else
+{
+key_position = this.get_key_position(key, section);
+}
+if(key_position != -1)
+{
+ini_data[key_position] = "";
+this.write_data(ini_data);
+}
+}
+}
+}
+
+string[] get_data()
+{
+string[] ini_data(0);
+if(this.filename != "")
+{
+file ini_file;
+ini_file.open(this.filename, "r");
+string[] file_data = string_split(ini_file.read(), "\r\n", false);
+for(uint counter = 0; counter < file_data.length(); counter ++)
+{
+while(string_left(file_data[counter], 1) == " ")
+{
+file_data[counter] = string_trim_left(file_data[counter], 1);
+}
+while(string_right(file_data [counter], 1) == " ")
+{
+file_data[counter] = string_trim_right(file_data[counter], 1);
+}
+ini_data.resize(ini_data.length() + 1);
+if(file_data[counter].length() > 0 && file_data[counter][1] != "=")
+{
+if(string_left(file_data[counter], 1) == "[" && string_right(file_data[counter], 1) == "]")
+{
+file_data[counter] = string_replace(file_data[counter], " ", "", false);
+ini_data[counter] = file_data[counter];
+}
+else
+{
+if(string_contains(file_data[counter], "=", 1) != -1)
+{
+int position = string_contains(file_data[counter], "=", 1) - 1;
+while(file_data[counter][position] == " ")
+{
+file_data[counter] = string_replace(file_data[counter], " =", "=", false);
+position = string_contains(file_data[counter], "=", 1) - 1;
+}
+ini_data[counter] += file_data[counter];
+}
+}
+}
+else
+{
+ini_data[counter] = file_data[counter];
+}
+}
+ini_file.close();
+}
+return ini_data;
+}
+
+int get_key_position(string key, string section = "")
+{
+string[] ini_data = this.get_data();
+if(ini_data.length() > 0)
+{
+if(section == "")
+{
+for(uint counter = 0; counter < ini_data.length(); counter ++)
+{
+string[] test = string_split(ini_data[counter], "=", false);
+if(test[0] == key)
+{
+return counter;
+}
+}
+}
+else
+{
+int section_position = this.get_section_position(section);
+if(section_position != -1)
+{
+for(uint counter = section_position; counter < ini_data.length(); counter ++)
+{
+string[] test = string_split(ini_data[counter], "=", false);
+if(test[0] == key)
+{
+return counter;
+}
+}
+}
+}
+}
+return -1;
+}
+
+int get_section_position(string section)
+{
+string[] ini_data = this.get_data();
+if(ini_data.length() > 0 && section != "")
+{
+for(uint counter = 0; counter < ini_data.length(); counter ++)
+{
+if(string_mid(ini_data[counter], 1, section.length() + 2) == "[" + section + "]")
+{
+return counter;
+}
+}
+}
+return -1;
+}
+
+ini_file(string filename = "")
+{
+if(filename != "")
+{
+this.filename = filename;
+}
+}
+
+string read(string key, string section = "")
+{
+string[] ini_data = this.get_data();
+int key_position;
+if(ini_data.length() > 0)
+{
+key = string_replace(key, " ", "", true);
+if(key != "")
+{
+if(section == "")
+{
+key_position = this.get_key_position(key);
+}
+else
+{
+key_position = this.get_key_position(key, section);
+}
+if(key_position != -1)
+{
+return string_replace(ini_data[key_position], key + "=", "", false);
+}
+}
+}
+return "";
+}
+
+void write(string key, string value, string section = "")
+{
+int key_position;
+string[] ini_data = this.get_data();
+int section_position;
+if(ini_data.length() == 0)
+{
+ini_data.resize(1);
+ini_data[0] = "";
+}
+key = string_replace(key, " ", "", true);
+if(key != "")
+{
+if(section == "")
+{
+key_position = this.get_key_position(key);
+}
+else
+{
+key_position = this.get_key_position(key, section);
+}
+section_position = this.get_section_position(section);
+if(key_position != -1)
+{
+ini_data[key_position] = key + "=" + value;
+}
+else if(section != "" && section_position != -1)
+{
+ini_data[section_position] = "[" + section + "]\r\n" + key + "=" + value;
+}
+else if(section != "" && section_position == -1)
+{
+ini_data[ini_data.length() - 1] = "[" + section + "]\r\n" + key + "=" + value;
+}
+else
+{
+ini_data[0] = key + "=" + value + "\r\n" + ini_data[0];
+}
+this.write_data(ini_data);
+}
+}
+
+void write_data(string[] ini_data)
+{
+string file_data;
+for(uint counter = 0; counter < ini_data.length(); counter ++)
+{
+if(ini_data[counter] != "")
+{
+file_data += ini_data[counter] + "\r\n";
+}
+}
+file ini_file;
+ini_file.open(this.filename, "w");
+ini_file.write(file_data);
+ini_file.close();
+}
+
+}

@@ -1,0 +1,392 @@
+/*voice over scrypt version 1 2:01 PM 6/21/2014 coded by Valiant8086
+
+Copyright (c) 2014 Aaron T. Spears http://valiant8086.com
+
+This software is provided 'as-is', without any express or implied   warranty.  In no event will the authors be held liable for any damages   arising from the use of this software. 
+
+Permission is granted to anyone to use this software for any purpose,   including commercial applications, and to alter it and redistribute it   freely, subject to the following restrictions:
+
+1. The origin of this software must not be misrepresented; you must not      claim that you wrote the original software. If you use this software      in a product, an acknowledgment in the product documentation would be      appreciated but is not required. 
+
+2. Altered source versions must be plainly marked as such, and must not be      misrepresented as being the original software. 
+
+3. This notice may not be removed or altered from any source  distribution.
+
+Last updated on June 21, 2012 at 1:55PM eastern standard time.
+
+descryption: This is Valiant8086's speech output system coded in bgt that facilitates the playback of speech in the proper order. It efficiently handles speaking of whole numbers up to 18 digits long not including any number of decimal digits. It can spell strings supplied to it automatically in the event there are no speech files that have the same name as the text to be spoken, plus the spell method can be called manually. It can be instructed to speak a whole number or the speakDigits method can be used directly from your script to force it to read out a series of digits digit by digit. Speech output can be panned on the stereo field using the same rules as the sound object, and the same applies for pitch and volume. There is the ability to play the next speech file some time before the existing one is finished, which is a great way to speed up the speech output and try to make it less choppy, a common problem with recorded voiceover playback in games.
+
+If you have any questions or comments email valiant8086@gmail.com
+*/
+
+class voClass //we define our object of type voClass.
+{
+string[] buffer; //we create an array into which we will queue strings to be spoken
+string speechDir; //this variable of type string will point to the path relative to the voiceover script in which the sounds for this object to use for speech are located. It is possible to create multiple voiceover objects and modify this property to run it on speech files in alternative directories.
+string extention; //what is the file extention, by default we will use .wav (see the constructors below).
+int delay; //this is the integer variable that will tell us how long before the currently playing file is playing we will start playing the next one. Not to confuse this with processDelay.
+int processDelay; //This is used by the delayProcessing method and the process method to keep track of whether we are being instructed to hold off on speech output for some time.
+bool interrupt; //this is a boolian variable that, if set to true by any of the methods later on, will inform the script that we need to interrupt any ongoing speech.
+string errorState; //do not know what this is yet
+sound voSound1; sound voSound2; //we create two sound objects for speech output. We use two because they will take turns playing each file. This is used to handle the delay thingy see the delay variable created above.
+int soundSelected; //this is an integer variable that we use to figure out which sound object we last used (see above) this way we know which one to use next.
+double pan; //this decimal variable lets us know where in the stereo field the sound objects will play the speech files.
+double volume; //see above and apply the same idea to volume.
+double pitch; //and while we're at it, let's do pitch too. 
+
+voClass () //raa! here goes our constructor to be used if no parameters are specified by the script that creates the voClass object.
+{
+speechDir="speech/"; extention=".wav"; soundSelected = 1; delay=60; interrupt = false; errorState = "0"; pan = 0; volume = 0; pitch = 100;
+}
+
+voClass (string initDir, string initExtention, int initDelay) //the alternative constructor that allows scripts creating voClass objects to specify the path to the speech files, the file extention and the delay time before the end of the currently playing file that the next file will play.
+{
+speechDir=initDir; extention=initExtention; soundSelected = 1; delay=initDelay; interrupt = false; errorState = "0"; pan = 0; volume = 0; pitch = 100;
+}
+
+void process () //we start our method that scripts using voClass objects must call in a farely high resolution loop to keep the code in this script opperational. Failure of scripts to call this method on every iteration of a loop will result in absolute failure to speak.
+{
+if (processDelay<=0)
+{//make sure there is not a delay timer set. If there isn't, we can process now. otherwise we do nothing except decrement the delay value so we'll eventually hit 0 and then be able to run this part of the code.
+if (buffer.length() > 0) //is there anything in our speechQueue that needs to be spoken?
+{
+if (file_exists(speechDir+buffer[0]+extention)) {output ();} //we check if a file exists who's name is the same as the text in the first item in our queue, if so we run our output method created below to play it.
+else {alert("Voiceover script error", "File "+speechDir+buffer[0]+extention+" doesn't exist. Program will now exit."); exit();} //if no sound can be found who's name is the same as the text of the first item in our queue we throw an error and kill the program.
+}
+} //end of the code pertaining to process delay being 0 in which we process speech as normal
+else
+{ //our delay was not less than or equal to 0 meaning someone has set things up for us to wait a certain amount of time before we start speaking what's in our queue. Here we subtract time from the value given, heading for 0. As seen above, when we hit 0 the main part of the code runs and speech is processed as normal.
+processDelay-=5; //in order for the delay to be accurate to what the code calling the delay method specifies, make sure the process method is, well, processed, every 5ms. Only important if you care whether specifying a delay of 1800ms really turns out to be pretty close to 1800ms.
+} //end of the code pertaining to our delay being greater than 0 where we subtract the delay and don't process yet
+voSound1.pan=pan;voSound2.pan=pan;voSound1.pitch=pitch;voSound2.pitch=pitch;voSound1.volume=volume;voSound2.volume=volume; //remember this is getting called in a loop so setting all of these sound object's properties like this means that a script calling the process method can modify the pitch volume and pan properties in this object and yield such changes in realtime. In other words you can use one of these objects to facilitate a 3rd person player character on the game speaking and make it follow them along as they move by setting the associated properties in this object to the same as you would set the associated properties to your own sound objects that you play the character's footstep sounds or what ever with. Cool huh?
+}
+
+void delayProcessing(int howLong)
+{ //this is how we handle setting a delay timer that causes the process method to not actually process anything just decrement the value supplied here. Keep calling process in the loop from the main code and when the timer has reached 0 the main code of the process method will run. Note that calling delayProcessing, or setting the processDelay property directly, repeatedly will result in the first timer being lost. Call process() every 5ms from the main code or figure out what the multiplication or division should be to get the timer to be more accurate as it decrements 5 every how ever many ms you call it. Or if you don't care about that just test it and change the delay amount from the main code.
+processDelay=howLong; //5 line discription for a 1 line method. Brilliant!
+} //this is the end of delayProcessing
+
+void output () //this is the function that actually runs our sound objects and really results in speech actually being heard.
+{
+if (soundSelected == 1) //not much explanation for this, see below
+{
+if (voSound2.length - voSound2.position < delay || !voSound2.playing && !voSound2.paused) //is the current playback position in the sound less than delay in distance from the end of the sound or is the sound not playing any more?
+{
+voSound1.load (speechDir+buffer[0]+extention); //load our sound into the first sound object
+voSound1.play(); //play it
+buffer.remove_at(0); //remove the now playing file from the beginning of our buffer so next time we process (see above process function) we'll then be opperating on the next string to be handled.
+soundSelected = 2; //this is object 1 we're playing so now we will set soundSelected to 2 which will cause our fellow sound object to handle the next sound that comes along.
+}
+}
+else if (soundSelected == 2) //see if we have selected to have our second sound object run next.
+{
+if (voSound1.length - voSound1.position < delay || !voSound1.playing && !voSound1.paused) //see the similar line above
+{
+voSound2.load (speechDir+buffer[0]+extention); //see the similar line above
+voSound2.play(); //see the similar line above
+soundSelected = 1; //and now that we have the second sound object off and running we'll cycle back to using the first sound object for the next one.
+buffer.remove_at(0); //just like above we remove the item we just played from the buffer so the process method above won't just make us play the same sound again.
+}
+}
+}
+
+void queue (string voFile) //our speak methods all use this method here to get strings of text added to the end of our speech buffer to be acted upon by our process method above when it has a chance.
+{
+if (file_exists(speechDir+voFile+extention)) {buffer.insert_last(voFile); errorState = "0";} //see if there's a sound the same as the text to be queued.
+else {errorState = "File "+speechDir+voFile+extention+" doesn't exist";} //we make note of an error.
+}
+
+string spell(string toSpell) //and now we get to our spell method which, obviously enough will take care of spelling strings character by character. This is called by other methods automatically if they can't find files who's names match the text they're trying to speak but can also be called directly by the script that created the object to force the spelling of something. And btw, toSpell is the string variable that stores the string to spell.
+{
+while (toSpell != "") //loop until there is nothing left to spell in the string.
+{
+string character=string_left(toSpell, 1); //create a string variable called character and assign the first letter of our string to it.
+/*the lines below handle speaking of punctuation. For instance the first one is and &. We have a speech file called and.wav, or we hope we do anyway, so we queue the word and. Make sense? anyway no more comments until all of these are done because it's kind of self explanatory.*/
+if (character=="&") {queue("and");}
+else if (character=="'") {queue("apostrophe");}
+else if (character == "@") {queue("at");}
+else if (character == "\\") {queue("back slash");}
+else if (character == "^") {queue("carot");}
+else if (character == ":") {queue("colon");}
+else if (character==",") {queue("comma");}
+else if (character=="-") {queue("dash");}
+else if (character=="$") {queue("dollar");}
+else if (character==".") {queue("dot");}
+else if (character=="=") {queue("equals");}
+else if (character=="!") {queue("exclaim");}
+else if (character=="`") {queue("grave accent");}
+else if (character==">") {queue("greater than");}
+else if (character=="{") {queue("left brace");}
+else if (character=="[") {queue("left bracket");}
+else if (character=="(") {queue("left parenthesis");}
+else if (character=="<") {queue("less than");}
+else if (character=="#") {queue("number");}
+else if (character=="%") {queue("percent");}
+else if (character=="+") {queue("plus");}
+else if (character == "?") {queue("question");}
+else if (character == "\"") {queue("quote");}
+else if (character == "}") {queue("right brace");}
+else if (character == "]") {queue("right bracket");}
+else if (character == ")") {queue("right parenthesis");}
+else if (character == ";") {queue("semicolon");}
+else if (character == "/") {queue("slash");}
+else if (character==" ") {queue("space");}
+else if (character == "*") {queue("star");}
+else if (character == "~") {queue("tilda");}
+else if (character=="_") {queue("underline");}
+else if (character == "|") {queue("vertical line");}
+/*whew, that's all english punctuation that I could think of btw, other things will probably cause the program to crash or maybe it just won't say anything. Well actually other things except alphabetical letters that can be properly handled by the below line*/
+else {queue(character);} //ok, what ever we have that didn't turn out to be a punctuation symbol that we recognized, just queue it up as is. If that happens to be a letter or a number, we hope we have a file who's name is the same as that, r.wav or 0.wav for instance.
+toSpell = string_trim_left(toSpell, 1); //strip the character we just did all that work to deal with from the left side of our string that we're spelling so the next time the loop goes around we don't just do the same character again.
+}
+return(errorState); //let any callers to this method know if we had errors.
+}
+
+string speakWholeNumber(string number) //this is our method that handles speaking a whole number up to 18 digits long not counting the leading minus sign and any trailing decimal places. The main program can use this directly if required but it should never be needed.
+{
+string decimals = ""; //this string variable will hold all numbers to the right of the first period so they can be sent to the speakDigits method (see below).
+if (string_contains(number, ".", 1) != -1) //if there is a period in the string, in other words is it a decimal number? Remember, the string variable called number was created at the start of this method as an argument.
+{
+decimals = string_trim_left(number, string_contains(number, ".", 1)); //assign the digits to the right of the first period to the decimal variable
+number = string_left(number, string_contains(number, ".", 1)); //keep only the digits left of the first period in our number variable for whole number processing in the number variable. Remember the rest of it is now in the decimal variable.
+}
+if (string_len(number) == 18) //do we have us an 18 digit long number?
+{
+queue(string_left(number, 1)); number=string_trim_left(number, 1); //send the first digit which will be in the 100 quadrillionth place to be spoken then remove that digit from the left side of number so the next one doesn't run the same number.
+queue("hundred"); //remember it's 100 quadrillion so let's speak hundred now
+if (string_left(number, 1) == "0") {number=string_trim_left(number, 1);} //in the 10 quadrillionth place if we have a 0 we don't speak anything in english, so remove any 0's in the 10 quadrillionth place.
+if (string_left(number, 1) == "0") {number=string_trim_left(number, 1); queue("quadrillion");} //we don't speak the 1 quadrillionth place either if it is a 0 so strip a 0 in that spot out too. Then this line speaks quadrillion. You'll find below quadrillion is played by the 17 and 16 digit procedures too because if the 1 quadrillionth place digit right here wasn't a 0 it would not have been spoken by this procedure yet.
+while (string_left(number, 1) == "0") {number = string_trim_left(number, 1);} //for that matter, we never speak any 0's when doing a whole number in the english language, so we strip all 0's that may be on the left end of the string after we did our work above.
+}
+
+if (string_len(number) == 17) //10 quadrillionth place digit
+{
+if (string_left(number, 1) == "1") //is a teen, take the number plus that to the right to get something like 12
+{queue (string_left(number, 2)); number = string_trim_left(number, 2); queue("quadrillion");} //this guy and the one above work together to grab a number in the teens, 10 to 19, and remove both digits from the number variable. Remember, you can't speak the 1 digit, then speak a 9 later that would just say 1 9 so we have to take both so we have a 19 to speak. Got it? good. Oh yeah and if we did have a teen, it would take both the 10 and 1 quadrillionth places, so we'll speak quadrillion while we're at it.
+else //Number not a teen, speak with 0 appended, like 20
+{queue (string_left(number, 1) + "0"); number = string_trim_left(number, 1); //Woo! This one is still working on our 10 quadrillionth place, but remember we're not working on something that is not a teen. And you know that anything in the 10th place that is not a teen in the english language is spoken with a 0 appended, even though the next digit to it's right, in the 1's place, may not be 0. So we take our 10th place digit which we know is not a 1, and add a 0 and speak it. So if we have a 2, we will speak 20. Also, this number will never be a 0 when it reaches the 10's places because the 0 that may have been here would have been stripped by the 100's place handling code above, so this particular brance of code would not have even been fired because we would jump down to the 1's position, or maybe even the 100 trillionth if that was also a 0, you get the point?
+if (string_left(number, 1) == "0") //have to remove following 0 if there is 1, and queue thousand to be spoken we already said 20 for example, so by this point we don't add it to the 2, since it already has a 0, we'd get 20 0. So bye bye 0.
+{number = string_trim_left(number, 1); queue("quadrillion");} //I said we'd have a quadrillion again and here we are. This particular statement would only be fired if we're speaking a teen 10 quadrillion or a number who's 10's place is not 0 or 1 and 1's place is 0 like 20 quadrillion so there's our example of 20 again.
+}
+while (string_left(number, 1) == "0") {number = string_trim_left(number, 1);} //never speak 0's when doing whole numbers in english, so nuke any more 0's that wouldn't apply. Yeah I know doing this in the 10's place would be a bad idea, but that's why we wait till we're done saying 220 quadrillion or what ever it is before we run this code. 
+}
+
+if (string_len(number) == 16) //We are now working on the 1 quadrillionth place.
+{
+queue (string_left(number, 1)); number=string_trim_left(number, 1); queue("quadrillion"); //we just queue the digit in this place without bothering to find out what it is, strip it from the beginning of our string of digits, and then queue quadrillion. Remember, this particular section of code would not be fired if any of the above were in a position to remove the 1 quadrillion's place digit. There can't be a 0 at this particular position because as I just said the above code would have already eaten it so this could wouldn't have fired. Do you get it? This! wouldn't! have! fired!
+while (string_left(number, 1) == "0") {number = string_trim_left(number, 1);} //there goes that loop to eat any unlucky leading 0's. 0 'em out!
+}
+
+//from now on for the rest of this function, commenting will become scarce because it's all repetition of the above save with slight modifications to say trillion, billion, million, thousand, etc.
+if (string_len(number) == 15)//100 trillion's place
+{
+queue(string_left(number, 1)); number=string_trim_left(number, 1);
+queue("hundred");
+if (string_left(number, 1) == "0") {number=string_trim_left(number, 1);}
+if (string_left(number, 1) == "0") {number=string_trim_left(number, 1); queue("trillion");}
+while (string_left(number, 1) == "0") {number = string_trim_left(number, 1);}
+}
+
+if (string_len(number) == 14) //10 trillion's place
+{
+if (string_left(number, 1) == "1") //is a teen, take the number plus that to the right to get something like 12
+{queue (string_left(number, 2)); number = string_trim_left(number, 2); queue("trillion");}
+else //Number not a teen, speak with 0 appended, like 20
+{queue (string_left(number, 1) + "0"); number = string_trim_left(number, 1);
+if (string_left(number, 1) == "0") //have to remove following 0 if there is 1, and queue thousand to be spoken
+{number = string_trim_left(number, 1); queue("trillion");}
+}
+while (string_left(number, 1) == "0") {number = string_trim_left(number, 1);}
+}
+
+if (string_len(number) == 13) //1 trillion's place
+{
+queue (string_left(number, 1)); number=string_trim_left(number, 1); queue("trillion");
+while (string_left(number, 1) == "0") {number = string_trim_left(number, 1);}
+}
+
+if (string_len(number) == 12) //100 billion's place
+{
+queue(string_left(number, 1)); number=string_trim_left(number, 1);
+queue("hundred");
+if (string_left(number, 1) == "0") {number=string_trim_left(number, 1);}
+if (string_left(number, 1) == "0") {number=string_trim_left(number, 1); queue("billion");}
+while (string_left(number, 1) == "0") {number = string_trim_left(number, 1);}
+}
+
+if (string_len(number) == 11) //10 billion's place
+{
+if (string_left(number, 1) == "1") //is a teen, take the number plus that to the right to get something like 12
+{queue (string_left(number, 2)); number = string_trim_left(number, 2); queue("billion");}
+else //Number not a teen, speak with 0 appended, like 20
+{queue (string_left(number, 1) + "0"); number = string_trim_left(number, 1);
+if (string_left(number, 1) == "0") //have to remove following 0 if there is 1, and queue thousand to be spoken
+{number = string_trim_left(number, 1); queue("billion");}
+}
+while (string_left(number, 1) == "0") {number = string_trim_left(number, 1);}
+}
+
+if (string_len(number) == 10) //1 billion's place
+{
+queue (string_left(number, 1)); number=string_trim_left(number, 1); queue("billion");
+while (string_left(number, 1) == "0") {number = string_trim_left(number, 1);}
+}
+
+if (string_len(number) == 9) //100 million's place
+{
+queue(string_left(number, 1)); number=string_trim_left(number, 1);
+queue("hundred");
+if (string_left(number, 1) == "0") {number=string_trim_left(number, 1);}
+if (string_left(number, 1) == "0") {number=string_trim_left(number, 1); queue("million");}
+while (string_left(number, 1) == "0") {number = string_trim_left(number, 1);}
+}
+
+if (string_len(number) == 8) //10 million's place
+{
+if (string_left(number, 1) == "1") //is a teen, take the number plus that to the right to get something like 12
+{queue (string_left(number, 2)); number = string_trim_left(number, 2); queue("million");}
+else //Number not a teen, speak with 0 appended, like 20
+{queue (string_left(number, 1) + "0"); number = string_trim_left(number, 1);
+if (string_left(number, 1) == "0") //have to remove following 0 if there is 1, and queue thousand to be spoken
+{number = string_trim_left(number, 1); queue("million");}
+}
+while (string_left(number, 1) == "0") {number = string_trim_left(number, 1);}
+}
+
+if (string_len(number) == 7) //1 million's place
+{
+queue (string_left(number, 1)); number=string_trim_left(number, 1); queue("million");
+while (string_left(number, 1) == "0") {number = string_trim_left(number, 1);}
+}
+
+if (string_len(number) == 6) //100 thousand's place
+{
+queue(string_left(number, 1)); number=string_trim_left(number, 1);
+queue("hundred");
+if (string_left(number, 1) == "0") {number=string_trim_left(number, 1);}
+if (string_left(number, 1) == "0") {number=string_trim_left(number, 1); queue("thousand");}
+while (string_left(number, 1) == "0") {number = string_trim_left(number, 1);}
+}
+
+if (string_len(number) == 5) //10 thousand's place
+{
+if (string_left(number, 1) == "1") //is a teen, take the number plus that to the right to get something like 12
+{queue (string_left(number, 2)); number = string_trim_left(number, 2); queue("thousand");}
+else //Number not a teen, speak with 0 appended, like 20
+{queue (string_left(number, 1) + "0"); number = string_trim_left(number, 1);
+if (string_left(number, 1) == "0") //have to remove following 0 if there is 1, and queue thousand to be spoken
+{number = string_trim_left(number, 1); queue("thousand");}
+}
+while (string_left(number, 1) == "0") {number = string_trim_left(number, 1);}
+}
+
+if (string_len(number) == 4) //1 thousand's place
+{
+queue (string_left(number, 1)); number = string_trim_left(number, 1);
+queue ("thousand");
+while (string_left(number, 1) == "0") {number = string_trim_left(number, 1);}
+}
+
+if (string_len(number) == 3) //100's place
+{
+queue (string_left(number, 1));
+queue ("hundred");
+number = string_trim_left(number, 1);
+if (string_left(number, 1) == "0") {number = string_trim_left(number, 1);}
+if (string_left(number, 1) == "0") {number = string_trim_left(number, 1);}
+}
+
+if (string_len(number) == 2) //10's place
+{
+if (string_left(number, 1) == "1") //is a teen, take the number plus that to the right to get something like 12
+{queue (string_left(number, 2)); number = string_trim_left(number, 2);}
+else //Number not a teen, speak with 0 appended, like 20
+{queue (string_left(number, 1) + "0"); number = string_trim_left(number, 1);
+if (string_left(number, 1) == "0") {number = string_trim_left(number, 1);} //have to remove following 0 if there is 1
+}
+}
+
+if (string_len(number) == 1) //omg! that's it! the 1's place! woooohoooo!!! Raa! yes! yes!
+{queue (string_left(number, 1));}
+
+if (decimals != "") {speakDigits(decimals);} //remember that decimal variable we dumped all of the digits trailing our first period if any present in about 300 years ago? Well who cares if you do, point is this code runs the below speakDigits method and supplies those decimal numbers to it.
+return(errorState);
+}
+
+string speakDigits(string number) //This method is going to handle speaking of individual digits.
+{
+while (number != "") //loop until that number variable that was created in the line of code above is empty.
+{
+if (string_left(number, 1) == ".") {queue ("point"); number = string_trim_left(number, 1);} //decimal points anybody? Well this handles that. Speaking of which, the above method for speaking whole numbers will send it's decimal place digits to us with the leading decimal point on it, so this function is the one that will say point. In that way it is possible to speak something like point 8 8 from scratch without a whole number being involved at all.
+else {queue(string_left(number, 1)); number = string_trim_left(number, 1);} //anything besides the decimal point gets queued up and removed from the number variable.
+}
+return(errorState);
+}
+
+void cancelSpeech() //this method can be called by the script that created the object to stop any ongoing speech.
+{
+buffer.resize(0); voSound1.close(); voSound2.close(); //easy enough, we resize the buffer to 0 which affectively deletes all strings that might have been queued for speaking, then we stop both sound objects from playing anything that they may have been playing at the time.
+}
+
+void pauseSpeech() //this method can be called by the script that created the object to pause any ongoing speech.
+{
+voSound1.pause(); voSound2.pause(); //we pause both sound objects playing. Since the script waits for these sounds to be finished playing in order to continue, this will actually hault speech properly.
+}
+
+void resumeSpeech() //this method can be called by the script that created the object to pause any ongoing speech.
+{
+if (buffer.length>0)
+{
+if (soundSelected == 1) {voSound2.play();}
+else {voSound1.play();}
+}
+}
+
+string speakInterrupt(string what) //Aha, now we're gettin' to the fun stuff. This one is our speakInterrupt method yeah I know you know already.
+{
+cancelSpeech(); speak(what); return(errorState); //Oo, cool! It runs the above created cancelSpeech method, then it runs the speak method defined below, then it does that return error state thing
+}
+
+bool speaking() //method that can be called by the including program to find out if the object is actively producing speech.
+{
+if (!voSound1.playing && !voSound2.playing) {return false;} else {return true;} //if we have nothing in our buffer and neither sound object is playing we say no otherwise yes.
+}
+
+string speakWait(string what) //This one is kind of interesting. It's our speakWait function that haults all processing of code in the program that is using this object until speech is complete. Note that this means cancelSpeech won't work while this one is running.
+{
+speak(what); //we use the speak method defined below to make it say it
+do //aha, we're gonna make us a loop right here. This loop is going to run until speech is done.
+{
+process(); //This runs our process method defined about 50 miles up from here.
+wait(5); //slow down the loop a bit so we don't use too much cpu time.
+}
+while (speaking()); //remember that speaking method made above? This function uses that and keeps doing the loop here as long as that function returns true, when it returns false this statement will become false and the loop stops, effectively returning the whole program back to it's normal running state and unpausing it. Nifty, huh?
+return errorState;
+}
+
+string speak (string what) //This is the most likely used method and just handles, well, speaking, in general. You'll notice that speakWait and speakInterrupt use this method themselves after they perform certain activities to facilitate what ever it is that they do differently.
+{
+if (file_exists(speechDir+what+extention)) //is there a file who's name is the same as the text in the what variable which you'll recall was assigned as an argument to this method?
+{queue (what); what = "";} //if there is a file with the right name, add it to the queue and null out the what variable.
+else
+{int test = 0; string test2 = what; //this particular section of code is confusing to me and I made it.
+if (string_left(test2, 1) == "-") {test2 = string_trim_left(test2, 1);} //we're trying to figure out if we have a minus or dash sign at the beginning of test2, which holds the same value as what at this point.
+while (test2 != "") //until test2 is empty
+{if (string_is_digits(string_left(test2, 1)) || string_left(test2, 1) == ".") {test = 1;} //we set test to 1 if test2 variable's first character is a digit or a period.
+else {test = 0; break;} //it's not a digit or a period.
+test2 = string_trim_left(test2, 1);} //remove that first character we were just examining from the beginning of test2.
+
+if (test == 1) //it's 1 if we had a period or a digit at the beginning of our string above.
+{
+string number = what; //create a variable of type string and call it number and assign the value of the what variable to it.
+if (string_left(number, 1) == "-") {queue("negative"); number = string_trim_left(number, 1);} //if it's a minus sign at the beginning of the string speak negative and remove the minus sign from the number variable.
+if (string_left(number, 1) == "0" || string_len(string_left(number, string_contains(number, ".", 1))) > 18) {speakDigits (number);} //if it's more than 18 digits long before any decimal points or the end of the number we can't handle it as a whole number so we just say it digit by digit.
+else {speakWholeNumber(number);} //and otherwise we probably can handle it so we try to use the speakWholeNumber method.
+}
+else {spell(what);} //and if it's not determined to be a number we try to spell it. Remember we attempt to find a file who's name is the same as the what variable before this point, so if that fails we get to this point where we resort to making an attempt to spell it.
+}
+return (errorState);
+}
+}
+
+//holy crap! That's it? Wow!

@@ -1,0 +1,12 @@
+#include "dice.bgt"
+dice go;
+void main() {
+go.set(5,8);
+int[] heh=go.roll(40,800);
+string str;
+for(uint i=0;i<=heh.length()-1;i++) {
+str=str+heh[i]+"+";
+}
+alert("result","was "+str);
+alert ("average","is "+go.average(heh));
+}

@@ -1,0 +1,6 @@
+#include "Controler.bgt"
+#include "FPControler.bgt"
+#include "FPSControler.bgt"
+
+//useless var to avoid compilation warnings
+bool debug=false;

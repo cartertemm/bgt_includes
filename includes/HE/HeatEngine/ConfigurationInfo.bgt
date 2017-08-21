@@ -1,0 +1,55 @@
+class ConfigurationInfo
+{
+	/*
+	Pourquoi utiliser un dictionnaire derrière? Parce que les fonctins de serialisation permettent en une seule ligne de serialiser un dictionnaire pour le donner au serveur dédié par exemple.
+	EN: Why using a dictionnary? Because there are functions that serialize a dictionnary in one line, and we need to give it to the dedicated server.
+	*/
+	dictionary configuration;
+	
+	
+	
+	ConfigurationInfo()
+	{
+		configuration.set("mapFile", "");
+		configuration.set("multiHost", false);
+		configuration.set("port", -1);
+		configuration.set("hostProgramName", "");
+		configuration.set("hostAdress", "");
+	}
+	
+	/*
+	Charge les éventuelles informations de jeu contenues dans le dictionnaire en écrasant les précédentes.
+	EN: This loads the informations of the given dictionary, overriding the precedent values
+	*/
+	void load(dictionary global_info)
+	{
+		
+	
+	}
+	
+	
+	void setMapFile(string filename)
+	{
+		this.configuration.set("mapFile", filename);
+	}
+	
+	string getMapFile()
+	{
+		string mapFile;
+		this.configuration.get("mapFile", mapFile);
+		return mapFile;
+	}
+	
+	
+	void setMultiHost(bool param)
+	{
+		this.configuration.set("multiHost", param);
+	}
+	
+	bool getMultiHost()
+	{
+		bool res;
+		this.configuration.get("multiHost", res);
+		return res;
+	}
+}

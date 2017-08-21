@@ -1,0 +1,22 @@
+sound@[] load_folder(string path) {
+string[] files=find_files(path+"/*.*");
+if (files.length==0) {
+alert("no files","no files were found to load on "+path+".");
+}
+sound@[]arr(files.length());
+for(int x=0;x<files.length;x++){
+sound temp;
+string filename=path+"/"+files[x];
+if(temp.load(filename)==false) {
+alert("Error", "Could not load "+path+". Please resize or make sure the files are named correctly.");
+}//if
+else
+{
+@arr[x]=temp;//x-1
+}
+}//for
+return arr;
+}//func
+void progress_pan(sound@ handle, int current, int max) {
+handle.pan=(current*200/max)-100;
+}

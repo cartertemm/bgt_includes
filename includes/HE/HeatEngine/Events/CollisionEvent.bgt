@@ -1,0 +1,92 @@
+/*
+Cette event est généré directement par le moteur quand une méthode run...() est lancée
+EN: this event is automatically created by the engine when a run...() method is called
+*/
+class CollisionEvent : Event
+{
+	BaseObject@ t1;
+	BaseObject@ t2;
+	
+	CollisionEvent(BaseObject@ o1, BaseObject@ o2)
+	{
+		super();
+		
+		@this.t1 = @o1;
+		@this.t2 = @o2;
+		
+		className="CollisionEvent";
+	}
+	
+	CollisionEvent(string name1, string name2)
+	{
+		super();
+		
+		@this.t1 = game.scene.getActorByName(name1);
+		@this.t2 = game.scene.getActorByName(name2);
+		
+		className="CollisionEvent";
+	}
+	
+	//Used by the EventsClassTree. WARNING. Always use load after creating this object, if @t1 or @t2 == null you will get exceptions
+	CollisionEvent()
+	{
+		super();
+		
+		className="CollisionEvent";
+	}
+	
+	void load(dictionary infos)
+	{
+		Event::load(infos);
+		
+		string st1="";
+		string st2="";
+		if(infos.exists("t1"))
+		{
+			infos.get("t1", st1);
+			@t1 = game.scene.getActorByName(st1);
+		}
+		
+		if(infos.exists("t2"))
+		{
+			infos.get("t2", st2);
+			@t2 = game.scene.getActorByName(st2);
+		}
+	}
+	
+	dictionary parseObject()
+	{
+		dictionary infos = Event::parseObject();
+		infos.set("t1", t1.getName());
+		infos.set("t2", t2.getName());
+		
+		return infos;
+	}
+	
+	bool isActiveOn(BaseObject@ o)
+	{
+		/*
+		Test de compatibilité
+		EN: compatibility test
+		*/
+		IsDynamic@ i;
+		@i = cast<IsDynamic>(o);
+		
+		if(@i!=null)
+		{
+			if(i.isSolid() == true)
+				return true;
+		}
+		return false;
+	}
+	
+	int process(dictionary[]@ editList)
+	{
+		/*GameStarted@ i;
+		@i = cast<GameStarted>(o);
+		
+		i.gameStarted();
+		*/
+		return 0;
+	}
+}

@@ -1,0 +1,44 @@
+class reader {
+uint8 found;
+bool found_reader;
+tts_voice ntts;
+int init() {
+found_reader=false;
+for(int counter=1; counter<5; counter++)
+{
+if(screen_reader_is_running(counter))
+{
+found_reader=true;
+found=counter;
+break;
+}//if is running
+}//for
+if (!found_reader) {
+found=5;
+
+return 0;
+}//if found
+else {
+return found;
+}//else
+}//for
+
+void say(string text, int interrupt=0) {
+if (found<5) {
+if (interrupt==0) {
+screen_reader_speak(found, text);
+}//interrupt
+else {
+screen_reader_speak_interrupt(found, text);
+}//interrupt else
+}//found
+else {
+if (interrupt==0) {
+ntts.speak_wait(text);
+}//interrupt
+else {
+ntts.speak_interrupt_wait(text);
+}//interrupt else
+}//found SAPI
+}//function
+}//class

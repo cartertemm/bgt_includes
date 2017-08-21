@@ -1,0 +1,1 @@
+This folder is only for people who maybe wish to do more with the camlorn audio wrapper. It contains files from the python wrapper so that you can go threw and wrap other functions etc. One note. The handles passed by camlorn audio are void*, in bgt pass these as intigers, or things may not work out that well. View the code that has been wrapped in bgt to see if this works. 

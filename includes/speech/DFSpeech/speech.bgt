@@ -1,0 +1,194 @@
+//DFSpeech
+//By DarkFlier Productions
+//Created on 06-19-2016 through 06-20-2016
+
+class DFSpeech
+{
+string filename; //The filename of the save file for speech settings.
+int bpos; //The buffer position
+string[] b; //The buffer array
+string buffer="log.txt"; //the variable for the filename of output buffer.
+int output; //Internal variable specifying the output mode.
+tts_voice t; //Internal TTS variable
+int mode=0; //Variable for either SAPI or Auto SR output
+int voice;
+int rate;
+int pitch;
+int volume;
+bool say(string text, int interrupt=1, bool wait=false)
+{
+//Speak function
+if (buffer!="")
+{
+file f;
+f.open(buffer,"ab");
+f.write(text+"\r\n");
+f.close();
+b.insert_last(text);
+}
+if (mode==0)
+output=check_available_outputs();
+else
+output=0;
+if (output==0)
+{
+if (interrupt==1)
+{
+if (wait==true)
+return t.speak_interrupt_wait(text);
+else if (wait==false)
+return t.speak_interrupt(text);
+}
+else
+{
+if (wait==true)
+return t.speak_wait(text);
+else if (wait==false)
+return t.speak(text);
+}
+}
+else
+{
+if (interrupt==1)
+return screen_reader_speak_interrupt(output,text);
+else if (interrupt==0)
+return screen_reader_speak(output,text);
+}
+return false;
+}
+int check_available_outputs()
+{
+//function to check for running screen readers.
+if (screen_reader_is_running(1))
+//jaws
+return 1;
+//Skip over Window-Eyes, as it has errors.
+else if (screen_reader_is_running(3))
+//SA
+return 3;
+else if (screen_reader_is_running(4))
+//NVDA
+return 4;
+return 0;
+}
+void bufferloop()
+{
+//A loop you can implement for using the buffer.
+if (key_pressed(KEY_PRIOR))
+{
+if (key_down(KEY_LCONTROL) or key_down(KEY_RCONTROL))
+bpos=b.length()-1;
+else
+{
+if (bpos>=b.length()-1)
+bpos=b.length()-1;
+else
+bpos++;
+}
+string tb=buffer;
+buffer="";
+say(b[bpos]);
+buffer=tb;
+}
+if (key_pressed(KEY_NEXT))
+{
+if (key_down(KEY_LCONTROL) or key_down(KEY_RCONTROL))
+bpos=0;
+else
+{
+if (bpos<=0)
+bpos=0;
+else
+bpos--;
+}
+string tb=buffer;
+buffer="";
+say(b[bpos]);
+buffer=tb;
+}
+}
+bool set_voice(int v)
+{
+//Function for setting the SAPI voice.
+voice=v;
+return t.set_current_voice(v);
+}
+int select_voice()
+{
+//Spawns a menu where the user can select a SAPI voice.
+string[] vn=t.get_voice_names();
+int vp=-1;
+while(true)
+{
+if (key_pressed(KEY_UP) and vp>0)
+{
+vp--;
+say(vn[vp]);
+}
+if (key_pressed(KEY_DOWN) and vp<=vn.length())
+{
+vp++;
+say(vn[vp]);
+}
+if (key_pressed(KEY_RETURN))
+{
+return vp;
+}
+}
+return -1;
+}
+bool save()
+{
+//Save our properties.
+file f;
+f.open(filename,"wb");
+f.write(voice+";;"+rate+";;"+pitch+";;"+volume+";;"+mode);
+f.close();
+return true;
+}
+bool load()
+{
+//Load our properties.
+file f;
+if (file_exists(filename))
+{
+f.open(filename,"rb");
+string d=f.read();
+f.close();
+string[] d2=string_split(d,";;",true);
+if (d2.length()==5)
+{
+voice=string_to_number(d2[0]);
+rate=string_to_number(d2[1]);
+pitch=string_to_number(d2[2]);
+volume=string_to_number(d2[3]);
+mode=string_to_number(d2[4]);
+set_voice(voice);
+t.rate=rate;
+t.pitch=pitch;
+t.volume=volume;
+return true;
+}
+else
+return false;
+}
+else
+return false;
+}
+void set_speech_params(int r, int p, int v)
+{
+//Set the parameters for the tts voice. R is rate, P is pitch, V is volume.
+t.pitch=p;
+t.volume=v;
+t.rate=r;
+rate=r;
+pitch=p;
+volume=v;
+}
+void set_speech_mode(int m)
+{
+//Set the speech mode. 0 is auto, 1 is SAPI.
+mode=m;
+}
+//I think that's it. If you need anything else implemented, let me know.
+}

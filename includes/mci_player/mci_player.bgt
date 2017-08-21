@@ -1,0 +1,83 @@
+//Multimedia file player for BGT using MCI (Media Control Interface)
+//Based on the ultrarec class
+//By Gabriel Schuck on 26 may 2017
+const string mci_call="int mciSendStringA(char*, char*, int, int);";
+const string mci_result_call="int mciGetErrorStringA(int, char*, int);";
+library dll;
+string filename, error_mci;
+string send_command(string command)
+{
+//Original function of ultrarec class, for sending mci commands With few modifications
+if(!dll.active)
+{
+if(!dll.load("winmm.dll"))
+{
+return "DLL load failure";
+}
+}
+string test;
+string error;
+test.resize(255);
+error.resize(255);
+dictionary@ result=dll.call(mci_call, command, test, test.length(), 0);
+test="";
+int ret=0;
+result.get("2", test);
+test=string_replace(test, "\0", "", true);
+result.get("0", ret);
+if(ret!=0)
+{
+@result=dll.call(mci_result_call, ret, error, error.length());
+error="";
+result.get("2", error);
+error_mci=error;
+error=string_replace(error, "\0", "", true);
+if(test!="") test+="\r\n";
+test+=error;
+}
+return test;
+}
+
+bool play(){
+//Play a file with the MCI. Can be of any format that is supported (mp3, for example)
+string result=send_command ("play soundfile");
+if(result=="1") return true;
+else return false;
+}
+
+bool load(string f=""){
+//Loads a multimedia file. For example: test.mp3, music.wav or music.mid
+if(f.is_empty() or !file_exists(f)) return false;
+else{
+filename=f;
+string result=send_command ("open "+filename+" alias soundfile");
+if(result=="1") return true;
+else return false;
+}
+}
+
+bool play_wait(){
+// Play the previously loaded file, without waiting for the playback to finish
+string result=send_command ("play soundfile");
+result=send_command ("status soundfile mode");
+while (result=="playing"){
+result=send_command ("status soundfile mode");
+wait (100);
+}
+if(!result.is_empty()) return true;
+else return false;
+}
+
+bool is_playing(){
+//Returns true if the file is playing or false otherwise
+string result=send_command ("status soundfile mode");
+if(result=="playing") return true;
+else return false;
+}
+
+bool stop(){
+//For file playback
+string result=send_command ("stop soundfile");
+if(result=="1") return true;
+else return false;
+}

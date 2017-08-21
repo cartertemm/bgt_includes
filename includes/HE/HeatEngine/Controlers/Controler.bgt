@@ -1,0 +1,21 @@
+class Controler
+{
+	bool local;
+	ControlableActor@ target;
+	
+	Controler(string target, bool isLocal=false)
+	{
+		this.local = isLocal;
+		
+		@this.target = cast<ControlableActor>(game.scene.getActorByName(target));
+	}
+	
+	/*
+	Cette fonction à overrider va générer des actions en fonction des entrées clavier utilisateur
+	EN: method to overrid in order to generate events and act on the game, with the keyboard inputs
+	*/
+	void processInputs()
+	{
+		
+	}
+}

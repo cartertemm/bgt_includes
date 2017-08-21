@@ -1,0 +1,65 @@
+pack_file pfile;
+bool encrypt;
+string encryption_key;
+string filename;
+string foldername;
+string[] fol;
+void main()
+{
+filename=input_box("pack creater", "enter the name of the pack you wish to create");
+if (filename=="")
+{
+exit();
+}
+foldername=input_box("pack creater", "enter the path that the files you wish to pack are contained.");
+if (foldername=="")
+{
+exit();
+}
+int answer=question("pack creater", "would you like these files to be encrypted");
+if (answer==1)
+{
+encrypt=true;
+encryption_key=input_box("file encrypter", "enter the encryption key you wish to use.");
+if (encryption_key=="")
+{
+exit();
+}
+}
+else
+{
+encrypt=false;
+}
+show_game_window("creating pack file...");
+pfile.create(filename);
+if (!directory_exists(foldername))
+{
+alert("error", "folder does not exist!");
+exit();
+}
+if (encrypt==true and !directory_exists(foldername+"/encrypted"))
+{
+directory_create(foldername+"/encrypted");
+}
+fol=find_files(foldername+"/*");
+alert("pack creater", "there are "+fol.length()+" files in the pack. Hit OK to start packing!");
+for (uint i=0; i<fol.length(); i++)
+{
+show_game_window("packing file "+i+" of "+fol.length());
+if (encrypt==true)
+{
+file_encrypt(foldername+"/"+fol[i], foldername+"/encrypted/"+fol[i], encryption_key);
+pfile.add_file(foldername+"/encrypted/"+fol[i], fol[i]);
+}
+else
+{
+pfile.add_file(foldername+"/"+fol[i], fol[i]);
+}
+}
+if (encrypt==true)
+{
+directory_delete(foldername+"/encrypted");
+}
+alert("success!", "Files were added successfully!");
+exit();
+}

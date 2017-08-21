@@ -1,0 +1,16 @@
+#include "mci_player.bgt"
+void main(){
+load("teste.mp3");
+alert("Welcome!","I will now show how it is possible to play mp3 with bgt using mci.");
+play_wait();
+alert ("Did you see?","I played this song normally. Now I'm going to open the cd drive drawer");
+string open=send_command("set cdaudio door open");
+if (open=="") alert ("Ready!","I opened the cd drawer. Now I'm going to close!");
+else{
+alert ("Oooops ... ","I could not open the cd drawer .... I'll close ... I was so sad ... Bye!");
+exit();
+}
+string close=send_command ("set cdaudio door closed");
+if(close=="") alert ("Ready!","I closed the cd drawer. With that, I'll end up here. Goodbye!");
+else alert ("Hmmmm","I could not close the cd drawer. You are probably using a portable computer and will have to do this normally");
+}

@@ -1,0 +1,176 @@
+/*
+Cette classe est la classe parent des ControlableActor, des PickableActor et de tout autre object dynamique
+*/
+class Actor : StaticActor, IsDynamic
+{
+	vector speed(0.0, 0.0);
+	bool solid;
+	float rotation = 0.0;
+	float lastRotation = 0.0;
+	int movingTimer=0;
+	
+	Actor(string className="Actor", string name="")
+	{
+		super(className, name);
+		solid = false;
+	}
+	
+	void load(dictionary infos)
+	{	
+		StaticActor::load(infos);
+		
+		string tmp="";
+		if(infos.exists("solid"))
+		{
+			infos.get("solid", tmp);
+			this.solid=str_to_bool(tmp);
+		}
+		
+		if(infos.exists("speed_x"))
+		{
+			infos.get("speed_x", tmp);
+			this.speed.x = string_to_number(tmp);
+		}
+		
+		if(infos.exists("speed_y"))
+		{
+			infos.get("speed_y", tmp);
+			this.speed.y = string_to_number(tmp);
+		}
+		
+		this.setWidth(1.0);
+		this.setLength(1.0);
+		if(infos.exists("rotation"))
+		{
+			infos.get("rotation", tmp);
+			this.rotation = string_to_number(tmp);
+		}
+		
+		if(infos.exists("lastRotation"))
+		{
+			infos.get("lastRotation", tmp);
+			this.lastRotation = string_to_number(tmp);
+		}
+		
+		if(infos.exists("movingTimer"))
+		{
+			infos.get("movingTimer", tmp);
+			this.movingTimer = string_to_number(tmp);
+		}
+	}
+	
+	dictionary parseObject()
+	{
+		dictionary infos = StaticActor::parseObject();//Ici on récupère les valeurs de la classe mère récurvisement / EN: here we gather the values of the mother class
+		
+		infos.set("solid", bool_to_str(this.solid));
+		infos.set("speed_x", ""+this.speed.x);
+		infos.set("speed_y", ""+this.speed.y);
+		infos.set("rotation", ""+this.rotation);
+		infos.set("lastRotation", ""+this.lastRotation);
+		infos.set("movingTimer", ""+this.movingTimer);
+		
+		infos.set("className", this.className);//toujours réécrire cette valeur EN: Always override this value
+		infos.set("name", this.name);//toujours réécrire cette valeur EN: Always override this value
+		
+		return infos;
+	}
+	
+	void setSpeed(vector s)
+	{
+		this.speed = s;
+	}
+	
+	void setSpeedX(float v)
+	{
+		this.speed.x = v;
+	}
+	
+	void setSpeedY(float v)
+	{
+		this.speed.y = v;
+	}
+	
+	void setRotation(float rot)
+	{
+		this.rotation = rot;
+	}
+	
+	float getRotation()
+	{
+		return rotation;
+	}
+	
+	float getLastRotation()
+	{
+		return lastRotation;
+	}
+	
+	
+	bool isSolid()
+	{
+		return this.solid;
+	}
+	
+	void setSolid(bool value)
+	{
+		this.solid = value;
+	}
+	
+	void updateListener()
+	{
+		if(game.listener_x!=this.getX() || game.listener_y!=this.getY() || this.getRotation()!=this.getLastRotation())
+		{
+			game.listener_x = this.getX();
+			game.listener_y = this.getY();
+			
+			game.scene.se.update_listener_2d(game.getListenerX(), game.getListenerY(), this.getRotation());
+			
+			this.lastRotation = this.rotation;
+		}
+	}
+	
+	//INTERFACES
+	
+	void collide()
+	{
+	
+	}
+	
+	void receivesCollision()
+	{
+	
+	}
+	
+	void tick()
+	{
+		StaticActor::tick();
+		
+		if(game.tick.elapsed-movingTimer>50)
+		{
+			movingTimer = game.tick.elapsed;
+			if(speed.length()!=0)//Si objet en mouvement
+			{
+				float delta_x=0;
+				float delta_y=0;
+				
+				//Test collision nouvelle position?
+				if(this.isSolid()==true)
+				{
+					
+				}
+				else
+				{
+					delta_x = this.speed.x/20;
+					delta_y = this.speed.y/20;
+				}
+				
+				this.setX(this.getX()+delta_x);
+				this.setY(this.getY()+delta_y);
+				this.updatePosition(this.getX(), this.getY());
+			}
+			
+			game.scene.se.update_sound_2d(this.getCpSoundID(), this.getX(), this.getY());
+		}
+	}
+}

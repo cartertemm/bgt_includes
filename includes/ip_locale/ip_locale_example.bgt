@@ -1,0 +1,32 @@
+// example for the ip_locale class. 
+
+
+// include the script. 
+#include "ip_locale.bgt"
+// make an instance of the class. 
+ip_locale l;
+void main()
+{
+string ip;
+// do we want a custom IP? 
+int custom=question("example", "Do you want a custom IP?");
+if(custom==1)
+{
+ip=input_box("example", "please enter valid IP/hostname here");
+if(ip=="") exit();
+}
+// now point the class to that IP. 
+if(ip=="")
+l.set_ip();
+else
+l.set_ip(ip);
+// now request and check for errors. 
+bool success=l.request();
+if(!success)
+{
+alert("example", "Error checking for geolocation info! Please make sure your using a valid IP/Hostname and try again! ");
+exit();
+}
+// now let's spit out some data! 
+alert("example", "Detected IP address is "+l.get_ip_address()+" from "+l.get_country_code()+". your from "+l.get_city()+", "+l.get_state()+" "+l.get_country_name()+" "+l.get_zipcode()+". Your latitude and longitude coordinates are "+l.get_latitude()+", "+l.get_longitude()+". Your timezone is GMT "+l.get_time_zone()+". ");
+}

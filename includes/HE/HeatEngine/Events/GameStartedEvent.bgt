@@ -1,0 +1,40 @@
+/*
+Cette event est généré directement par le moteur quand une méthode run...() est lancée
+EN: this event is automatically created by the engine when a run...() method is called
+*/
+class GameStartedEvent : Event
+{
+	GameStartedEvent()
+	{
+		super();
+		className="GameStartedEvent";
+	}
+	
+	bool isActiveOn(BaseObject@ o)
+	{
+		/*
+		Test de compatibilité
+		EN: compatibility test
+		*/
+		GameStarted@ i;
+		@i = cast<GameStarted>(o);
+		
+		if(@i!=null)
+		{
+			return true;
+		}
+		return false;
+	}
+	
+	int process(dictionary[]@ editList)
+	{
+		for(int j=0; j<game.scene.objects.length; j++)
+		{
+			GameStarted@ i;
+			@i = cast<GameStarted>(game.scene.objects[j]);
+			
+			i.gameStarted();
+		}
+		return 0;
+	}
+}

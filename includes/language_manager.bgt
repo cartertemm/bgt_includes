@@ -1,0 +1,126 @@
+//===================================================================================
+//
+//	LANGUAGE MANAGER (VERSION 1) / GESTOR DE IDIOMA (VERSIÓN 1)
+//
+//===================================================================================
+/* English Description:
+Started: August 15, 2015.
+Finished: August 17, 2015.
+Developed by: Camilo Ortiz of Graffi Games.
+Web: www.graffigames.cl
+
+Details:
+1) This library allows you enable multilanguage games. To do it, you only need the language files and the folder that content they.
+2) The name of the language file must be the name of the language (for example, "english.txt". 
+3) The extension of the file (.txt, .yourgame, etc.) is not important, but it must be created in notepad.
+4) Each message into the language file must starts with the number and equal sign (=) to identifier the message. The number of the first message must be the 1. For example, 1=Hello world!
+5) When you finish the message, you must press Enter and repeat the previos step until finish all messages into your file.
+6) To use library in your game, include the library like any library (#include) and in void main() initialize the function writing this:
+	language_manager("Language_Folder_Name");
+The "Language_Folder_Name" is the path of the folder that contents the language files.
+7) If you have two o more language files, a menu is activated automatically to select a language file. And if you have only one language file, it is selected automatically without active the menu.
+8) The more important: To show the messages into your game, call the array voice[position], where "position" is the number of the message. For example, voice[1];
+
+
+Descripción en español:
+Fecha de inicio: 15 de agosto de 2015.
+Fecha de término: 17 de agosto de 2015.
+Desarrollado por: Camilo Ortiz de Graffi Games.
+Web: www.graffigames.cl
+
+Detalles:
+1) Esta librería te permite activar juegos con multiidioma. Para hacerlo necesitas solo de los archivos de idioma y la carpeta que los contenga.
+2) Los nombres de los archivos de idioma deben ser el nombre del idioma (por ejemplo, "español.txt").
+3) La extensión del archivo (.txt, .tujuego, etc.) no es importante, pero debe ser creado en el bloc de notas.
+4) Cada mensaje dentro del archivo de idioma debe comenzar con el número y el signo igual (=) para identificar el mensaje. El número del primer mensaje debe ser el 1. Por ejemplo, 1=¡Hola mundo!
+5) Cuando finalices el mensaje, debes presionar Enter y repetir el paso anterior hasta terminar con todos los mensajes en tu archivo.
+6) Para usar la librería en tu juego, incluye la librería como cualquier librería (#include) y en el void main() inicializa la función escribiendo esto
+	language_manager("nombre_carpeta_idioma");
+El "nombre_carpeta_idioma" es la ruta de la carpeta que contiene los archivos de idioma.
+7) Si tienes dos o más archivos de idioma, se activa un menú para seleccionar un archivo de idioma. Y si tienes solo un archivo de idioma, se selecciona automáticamente sin activar el menú.
+8) Lo más importante: Para mostrar los mensajes en tu juego, llama al array voice[posicion], donde "posicion" es el número del mensaje. Por ejemplo, voice[1];
+*/
+
+
+
+
+// Global variables. Variables Globales
+string[] voice; // The array that contents the messages. El array que contiene los mensajes
+
+// Language Manager Function. Funcionamiento del Gestor de idioma
+void language_manager(string folder_name)
+  {
+  int voice_size=0; // Total messages into language file (this is calculated automatically later). Total de mensajes en el archivo de idioma (se calcula automáticamente después)
+  string filename; // The current language file used. Archivo de idioma usado actualemnte
+  file language; // File object. Objeto file
+  string[] language_files; // List of the language files. Lista de los archivos de idioma
+
+  language_files=find_files(folder_name+"\\*.*"); // Searching language files. Buscamos los arhivos de idioma
+  if(language_files.length()==0) // Files not found. No se encontraron los archivos
+    {
+    alert("Error", "Language files not found in directory "+folder_name+". Los archivos de idioma no se encontraron en el directorio "+folder_name);
+    exit();
+    }
+  if(language_files.length()==1) filename=folder_name+"\\"+language_files[0]; // Only 1 language file. Solo 1 archivo de idioma
+  if(language_files.length()>1) // Two or more language files. If it is, a menu is opened. Dos o más archivos de idioma. Si es así, se abre un menú
+    {
+    string[] menu_items(language_files.length()); // This array contains the name of language files. Este array contiene los nombres de los archivos de idioma
+    for(int i=0; i<language_files.length(); i++) // Loop to adding items into menu. Bucle para añadir objetos al menú
+      {
+      menu_items[i]=language_files[i]; // Adding new item. Añadimos un nuevo objeto
+      wait(5); // Like to don't overload the CPUE. Bueno para no sobrecargar la CPU
+      }
+    tts_voice speech; // Voice object. Objeto de voz
+    speech.speak_interrupt("Select your language using up and down keys and press Enter. Elige tu idioma usando las flechas de arriba y abajo y, luego, pulsa Enter."); // Speaking menu's description. Verbalizando descripción del menú
+    int position=-1; // Position that you have in the menu. Posición que tenemos en el menú
+    while(filename=="") // Loop used until a language file is selected. Bucle usado hasta que elegimos un archivo de idioma
+      {
+      if(key_pressed(KEY_DOWN)) // Down key. Flecha de abajo
+        {
+        position++;
+        if(position==menu_items.length()) position=0; // Move to initial position if you go to end. Te mueve a la posición inicial si vas al final
+        speech.speak_interrupt(menu_items[position]); // Speaking the item of menu. Verbalizamos el objeto del menú
+        }
+      if(key_pressed(KEY_UP)) // Up key. Flecha arriba
+        {
+        position--;
+        if(position<0) position=menu_items.length()-1; // Move to final position if you go to start. Te mueve a la posición final si vas al inicio
+        speech.speak_interrupt(menu_items[position]); // Speaking the item of menu. Verbalizamos el objeto del menú
+        }
+      if(key_pressed(KEY_RETURN)) // You select the language file into menu. Seleccionas un archivo de idioma
+        {
+        if(position<0) position=0; // If you press Enter without select a file. Si pulsas Enter sin elegir un archivo
+        filename=folder_name+"\\"+menu_items[position]; // Setting the name of language file. Establecimos el nombre del archivo de idioma
+        }
+      wait(5); // Like to don't overload the CPU. Bueno para no sobrecargar la CPU
+      }
+    }
+
+  // Setting total number of messages. Estableciendo el número total de mensajes
+  language.open(filename,"r"); // Opening language file selected. Abrimos el archivo de idioma seleccionado
+  while(!language.reached_end) // Loop until end of file. Bucle hasta el fin del archivo
+    {
+    language.read_until("\n", true); // Finding messages. The end of any message is the key "Enter". Encontramos mensajes. El fin de cada mensajes es la tecla "Enter"
+    voice_size++; // Up the counter of messages. Subimos el contador de mensajes
+    wait(5); // Like to don't overload the CPU. Bueno para no sobrecargar la CPU
+    }
+  voice.resize(voice_size+1); // Resizing list of messages to definitely size. Redimensionamos la lista de mensajes a un tamaño definitivo
+
+
+  // Setting messages into the voice array. Estableciendo mensajes en el array de voz
+  language.seek(0); // Cursor in start of file. Cursor en el inicio del archivo
+  for(int i=1; i<voice_size; i++) // Searching messages into language file (except last message). Buscamos los mensajes dentro del archivo de idioma (excepto el último mensaje)
+    {
+    language.read_until(i, true); // Positioning cursor in current message number. Posicionamos el cursor en el número del mensaje actual
+    language.read_until("=", true); // Positioning cursor in current message. Posicionamos el cursor en el mensaje actual
+    voice[i]=language.read_until("\n", true); // Adding new message to voice array. Añadimos el nuevo mensaje al array de voz
+    voice[i].resize(voice[i].length()-1); // Erase Enter key code. Elimina código de tecla Enter
+    wait(5); // Like to don't overload the CPU. Bueno para no sobrecargar la CPU
+    }
+  language.read_until(voice_size, true); // Positioning cursor in last message number. Posicionamos el cursor en el número del último mensaje
+  language.read_until("=", true); // Positioning cursor in last message. Posicionamos el cursor en el último mensaje
+  voice[voice_size]=language.read(); // Adding last message and finish the proccess. Añadimos el último mensaje y finalizamos el proceso
+
+  language.close(); // Closing language file selected. Cerramos el archivo de idioma seleccionado
+  }
+//---------------------------------------------------------------------------------------

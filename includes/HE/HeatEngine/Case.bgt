@@ -1,0 +1,21 @@
+#include "Actors\\BaseObject.bgt"
+
+class Case
+{
+	int x;
+	int y;
+	
+	StaticActor@[] objects;
+
+	void addActor(StaticActor@ sa)
+	{
+		this.objects.insert_last(@sa);
+	}
+	
+	void deleteActor(StaticActor@ sa)
+	{
+		int pos = this.objects.find(@sa);
+		if(pos!=-1)
+			this.objects.remove_at(pos);
+	}
+}

@@ -1,0 +1,37 @@
+/*
+Cette classe sert de limite au monde
+EN: this class is used as the world limit
+*/
+class WorldBox : Actor
+{
+	
+	WorldBox(string className="WorldBox", string name="", int width=0, int length=0)
+	{
+		super(className, name);
+		this.width=width;
+		this.length=length;
+	}
+	
+	/*
+	Méthode qui charge les informations reçues d'un dico
+	EN: This method loads the informations of the dictionary
+	*/
+	void load(dictionary infos)
+	{
+		StaticActor::load(infos);
+	}
+	
+	/*
+	Méthode qui enregistre les informations dans un dico et le renvoie
+	EN: This method save the object informations into a dictionary and return it
+	*/
+	dictionary parseObject()
+	{
+		dictionary infos = StaticActor::parseObject();//Ici on récupère les valeurs de la classe mère récurvisement / EN: here we gather the values of the mother class
+		
+		infos.set("className", this.className);//toujours réécrire cette valeur EN: Always override this value
+		infos.set("name", this.name);//toujours réécrire cette valeur EN: Always override this value
+		
+		return infos;
+	}
+}

@@ -1,0 +1,102 @@
+/*voice over script test program version 1 2:01 PM 6/21/2014 written by Valiant8086.
+
+Copyright (c) 2014 Aaron T. Spears http://valiant8086.com
+
+This software is provided 'as-is', without any express or implied   warranty.  In no event will the authors be held liable for any damages   arising from the use of this software. 
+
+Permission is granted to anyone to use this software for any purpose,   including commercial applications, and to alter it and redistribute it   freely, subject to the following restrictions:
+
+1. The origin of this software must not be misrepresented; you must not      claim that you wrote the original software. If you use this software      in a product, an acknowledgment in the product documentation would be      appreciated but is not required. 
+
+2. Altered source versions must be plainly marked as such, and must not be      misrepresented as being the original software. 
+
+3. This notice may not be removed or altered from any source  distribution.
+
+Last updated on Wednesday October 31, 2012 at 8:10Pm eastern standard time.
+
+description: This is the bgt source code for the test program that exists for the soul purpose of testing some of the functions available in Valiant8086's voiceover scrypt.
+
+summery: when running the program, press q or escape to close the program, r to prompt for new strings to test on, t to test the speak method, i to test the speakInterrupt method, c to cancel any ongoing speech or d to get an input box into which to type in milla seconds the amount of time before the end of the currently playing speech file the next one will start.
+
+notes: there should be a readme.txt file in the same folder as this one that will give a lot more detail.
+*/
+
+
+
+#include "voiceover.bgt" //include this before being able to use voiceover
+string[] queue; //we create an array that will store all the strings the user types to be spoken
+voClass vo; //create our voiceover object
+
+void main () //start our main function
+{
+show_game_window("testing voiceover");
+
+vo.delay=5; //set the time before the end of the current file that the next file will start playing to 60ms
+getInput(); //our function below that handles prompting the user for what to say
+speak(); //our function below that handles the output of speech
+
+while (true) //infinit loop that keeps the program running
+{
+if (key_pressed(KEY_ESCAPE)) exit(); //close the program if the user hits escape
+if (key_pressed(KEY_Q)) exit(); //also close if they press q as in quit
+if (key_pressed(KEY_D)) //if the user presses d as in delay
+{
+vo.delay=string_to_number(input_box("Change delay", "Input the new delay time you want")); //this whopper prompts the user to enter a number, then sets the delay property of the voiceover class to this number.
+}
+if (key_pressed(KEY_T)) //if the user presses t as in test
+{
+speak(); //run the speak method that is defined below with no parameters, so default will be not to interrupt ongoing speech
+}
+if (key_pressed(KEY_R)) //if the user presses r as in retry
+{
+getInput(); //prompt the user to input text to be spoken
+speak(1); //speak with interrupt the text that was input in the above procedure
+}
+if (key_pressed(KEY_C)) //if the user presses c as in cancel speech
+{
+vo.cancelSpeech(); //yeah, cancel speech, obviously
+}
+if (key_pressed(KEY_I)) //if the user presses i as in interrupt
+{
+speak(1); //interrupt any ongoing speech and speak the text in the queue array. Tests speakInterrupt.
+}
+vo.process(); //This is called in our infinit loop to keep the voiceover script running and is required for it to opperate at all
+wait(5); //put in a small delay so our test program doesn't use all of the computer's cpu core
+}
+}
+
+void getInput() //we define our function that handles the prompting of the user to input text to test speech with
+{
+queue.resize(0); //reset our queue array back to nothing so stuff the user types won't get added onto the end of what may have already been in there
+string text; //create a variable of type string called text into which we'll soon place the lines of text the user types before dumping them from text into the queue array.
+do //starting a do while loop that'll keep prompting the user for text until they hit enter on the input box without typing anything or just press escape.
+{
+text= input_box("speech", "Type what should be queued, press enter without typing anything when done"); //prompt the user to type in some text to add to the queue and dump the user's response into the text variable
+ queue.insert_last(text); //now place the response stored in text at the end of the queue array
+}
+while (text!=""); //this says while the user inputs something besides a blank string. So every time they type something and press enter the prompt appears again. If they hit enter without typing anything, or just hit escape, the loop will stop and no more prompts for more text will appear.
+} //this is the end of our getInput method
+
+void speak(int interrupt=0) //and now we define our method that will handle the actual speaking of the text stored in the queue array. We have an argument of type integer called interrupt to which we assign a default value of 0 do not interrupt but that can be overridden if a user specifies a 1 at which point we will interrupt any ongoing speech.
+{
+for (int i=0; i<queue.length-1; i++) //start a for loop, initialize an integer variable called i with value 0, and step the value by positive 1 until the value is the same as the length of the queue array minus 1, which is to say until we run out of strings stored in array remember arrays start at 0 so if the user typed 3 strings we want to stop this loop at 2.
+{
+if (i==0) //we're going to perform some special steps if this happens to be the first step of our loop the first time it looped see below
+{
+switch (interrupt) //here goes a switch statement that finds out whether the caller to the function wants the output speech to interrupt any that may be already ongoing and act accordingly.
+{
+case 0: //no interrupt
+vo.speak(queue[i]); //call our voiceover scrypt's speak method and supply the first item in queue to it for speech processing. Remember we're in an if statement that requires that the i variable is 0 before we process this so that's how we know this is the first string in the queue.
+break; //exit out of the switch statement
+case 1: //interrupt
+vo.speakInterrupt(queue[i]); //we're calling our voiceover scrypt's speakInterrupt method now and supplying the first string in queue. Expected result is the first thing spoken will be called with the interrupt method effectively haulting any ongoing speech. Subsequent strings that are handled below will not need to use interrupt. If they did, the only thing heard by the user would be the last string in the queue, nothing before that.
+break; //yeah, exit out of the switch statement
+} //end of the switch
+} //end of the if i=0 statement
+else //so this would mean if i is not 0
+{
+vo.speak(queue[i]); //send the string indicated by i, which remember is set by our step counter at the beginning of this for loop, in our queue array to voiceover's speak method.
+} // end of the loop
+} // end of the else statement
+} // end of the speak method
+//wo, that's all?

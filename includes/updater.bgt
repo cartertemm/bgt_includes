@@ -1,0 +1,91 @@
+/*
+Auto updater
+**Initialisation**
+First, include the file:
+#include "updater.bgt"
+Or a full path:
+#include "path/to/updater.bgt"
+Somewhere at the top of your game, initialise the object:
+updater update(string URL, bool autorun=true, string directory="");
+set autorun to false only if you specify a directory for the setup to go into. Otherwise, terrible things may happen to the users filesystem.
+**Functions**
+updater::download()
+A string function returning an absolute path if the download was successful. If autorun is set to true which is default, it will proceed to call run(). Otherwise, will pop up a dialog telling the user where the file is saved.
+updater::run_exe(string filename)
+A function that returns nothing and will run the specifyed setup file, usually called automatically by the download() function. This can be used, for example, to run the setup later from within a games menu.
+**Note**
+I have not included a check function. This is because many people use different versions of an update check. Some will use floating points, some will use version files, some will just make the file download without checking. It is up to you, the programmer, to code a check function. This is just a wrapper to make some menial tasks easyer. Enjoy!
+*/
+
+//Create an HTTP object to handle download requests:
+http downloads;
+//Create the class its self:
+class updater
+{
+//Declare variables:
+bool autorun;
+string url;
+string directory;
+string filename;
+//Constructor -- empty, returns an error:
+updater()
+{
+alert("Error", "This class has been initialised without proper values. Exiting program...");
+exit();
+//Note: Remove this line if you want your code to continue with the error.
+}
+//Constructor -- with parems, does stuff:
+updater(string url, bool autorun=true, string directory="")
+{
+this.url=url;
+this.autorun=autorun;
+this.directory=directory;
+//Note: Do not set the .filename property. This is internal and should not be used externally!
+}
+
+string download()
+{
+string data = downloads.get(this.url);
+if(get_last_error() != 0)
+{
+alert("Oops", "Something has gone wrong. Contact the developer!");
+return data;
+}
+else
+{
+while(downloads.progress)
+{
+data+=downloads.request();
+wait(5);
+}
+if(this.directory != "")
+{
+this.filename = this.directory+"setup.exe";
+}
+else
+{
+this.filename = "c:/tmp/setup.exe";
+}
+file f;
+f.open(this.filename, "wb");
+f.write(data);
+f.close();
+if(this.autorun)
+{
+alert("Running executeable", "Now running setup program. This program will exit when OK is clicked.");
+this.run_exe(this.filename);
+exit();
+}
+else
+{
+alert("Setup file", "The setup file is located in "+this.filename+".");
+}
+return this.filename;
+}
+}
+
+void run_exe(string filename)
+{
+run(filename, "", false, false);
+}
+}

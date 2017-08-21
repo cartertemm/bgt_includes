@@ -1,0 +1,92 @@
+
+/*
+ * this interface defines an intity with multiple states,
+ * in which only one is possible at any given time, and behavior is determined based on that state and the passage of time.
+ */
+
+interface FiniteStateMachine {
+
+bool setState(int s);
+ int getState();
+ void step(double dt);
+ void descending(double dt);
+ void fromAbove();
+ void ascending(double dt);
+ void fromBelow();
+ void always(double dt); // movement, mostly.
+ void addSound(string fn);
+}
+
+/*
+ * This is an extremely basic FiniteStateMachine class
+ * The purpose of this class is to provide a default framework that can be overridden as necessary.
+ * For example, a derived class would only need to replace setState and any of the handler methods that are needed.
+ */
+
+class FSM : FiniteStateMachine {
+ int state;
+ double counter;
+ FSM() {state=0; counter=0;}
+ void reset() {state=0; counter=0;}
+ string[] sounds;
+
+bool setState(int s) {
+
+ state=s;
+
+ return state==s;
+}
+
+ int getState() { return state;}
+ void step(double dt) {
+
+ if(counter>0.0) {counter-=dt;
+ if(counter<=0.0) {counter=0.0;
+ fromAbove();
+ }
+ else {
+ descending(dt);
+ }
+ }// Descending.
+ else if(counter<0.0) {counter+=dt; if(counter>=0) {
+ counter=0.0;
+ fromBelow();
+ }
+ else {
+ ascending(dt);
+ }
+}// ascending
+
+ always(dt);
+
+}// Step.
+ void descending(double dt) {
+ // What happens while counter is descending.
+ // This is a good place to put continuous attacks, or movement if it is state-based.
+ }
+
+ void fromAbove() {
+ // At the end of an action.
+ // Generally, state will change.
+ // For this example, we just return state to 0.
+ state=0;
+}// Zero from above.
+ void ascending(double dt) {
+ // What to do if counter is less than 0?
+ // Typically this implies a stunned character.
+}// Ascending.
+ void fromBelow() {
+ // What to do if counter reaches 0 from below?
+ // Usually it's this:
+ state=0;
+ }// Zero from below.
+ void always(double dt) {
+ // movement, mostly.
+ // This works if an object's velocity is independent of its state.
+ // There may be other effects worth putting here, such as environmental reactions, health-drain from poison, etc.
+}
+ void addSound(string fn) {
+ sounds.insert_last(fn);
+}
+
+}

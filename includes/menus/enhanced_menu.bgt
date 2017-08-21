@@ -1,0 +1,861 @@
+/*
+Enhanced Menu Class.
+
+Modified by Jason SantaAna-White.
+This include provides a fully dynamic and extendable menu system. It is set up to use both audio and Microsoft Sapi 5, even in one and the same menu. The enhanced_menu_item class holds all the parameters that are needed for each item, currently just a string which will either be the filename of the sound which should be played or the text that should be spoken when the user cycles over that option, plus a boolean that tells whether the option is text or a filename. Note that you should not make instances of the enhanced_menu_item class yourself.
+Now with support for sounds when the menu opens, closes, when moving through options, "bounce" sounds when the beginning or the end of the menu is reached, a sound when the menu raps, etc.
+Also support for grid-style menus, with sound panning. As a consequence of this change, menu naming is no longer optional. The run functions now return the item name, rather than the index.
+*/
+
+class enhanced_menu_item
+{
+string option;
+bool is_filename;
+bool active=false;
+string name;
+
+enhanced_menu_item()
+{
+option="";
+is_filename=true;
+name="";
+}
+}
+
+class enhanced_menu
+{
+private bool is_2d;
+bool wrap_x, wrap_y, showErrors=true;
+bool allow_escape;
+bool enable_home_and_end;
+bool wait_for_move_sound;
+bool play_sounds;
+int max_x=0, max_y=0, max_pan=40;
+string open_path;
+string close_path;
+string move_path;
+string wrap_path;
+string bounce_path;
+enhanced_menu()
+{
+running=false;
+reset(true);
+}
+
+string currentItem(bool name=true) {
+if(name) return item_list[menu_position_x-1][menu_position_y-1].name;
+if(!name) return item_list[menu_position_x-1][menu_position_y-1].option;
+return "";
+}
+string firstItem(bool name=true) {
+if(name) return item_list[0][0].name;
+if(!name) return item_list[0][0].option;
+return "";
+}
+bool resize(int max_x, int max_y)
+{
+if(running==true)
+{
+return false;
+}
+else
+{
+item_list.resize(max_x);
+for(int x=0; x<max_x; x++)
+{
+item_list[x].resize(max_y);
+}
+max_x=max_x;
+max_y=max_y;
+is_2d=true;
+return true;
+}
+}
+
+
+int add_item_1d(string filename, string name)
+{
+return add_item_extended(filename, true, name, -1, -1)[1];
+}
+
+int add_item_tts_1d(string text, string name)
+{
+return add_item_extended(text, false, name, -1, -1)[1];
+}
+
+int[] add_item_2d(string filename, string name, int x=-1, int y=-1)
+{
+return add_item_extended(filename, true, name, x, y);
+}
+
+int[] add_item_tts_2d(string text, string name, int x=-1, int y=-1)
+{
+return add_item_extended(text, false, name, x, y);
+}
+
+bool set_speech_mode(int speech_output)
+{
+if((speech_output<0)||(speech_output>4))
+{
+return false;
+}
+this.speech_output=speech_output;
+return true;
+}
+
+int get_item_count()
+{
+return (item_list.length() * item_list[0].length());
+}
+
+int get_position_1d()
+{
+if(running==false)
+{
+return -1;
+}
+return menu_position_y;
+}
+
+int[] get_position_2d()
+{
+int[] result;
+
+if(running==false)
+{
+return result;
+}
+result.resize(2);
+result[0] = menu_position_x;
+result[1] = menu_position_y;
+return result;
+}
+
+bool is_running()
+{
+return running;
+}
+
+bool set_tts_object(tts_voice@ handle)
+{
+if(running==true)
+{
+return false;
+}
+@tts_handle=@handle;
+return true;
+}
+
+bool set_sound_object(sound@ handle)
+{
+if(running==true)
+{
+return false;
+}
+@sound_handle=@handle;
+return true;
+}
+
+bool set_callback(menu_callback@ callback, string user_data)
+{
+if(running==true)
+{
+return false;
+}
+@callback_handle=@callback;
+callback_data=user_data;
+return true;
+}
+
+int[] get_item_index(string name)
+{
+int[] result = {-1, -1};
+
+for (int x=0; x<item_list.length; x++)
+{
+for (int y=0; y<item_list[x].length(); y++)
+{
+if(item_list[x][y].name == name && item_list[x][y].active)
+{
+result[0] = x+1;
+result[1] = y+1;
+return result;
+}
+}
+}
+return result;
+}
+
+string run(string intro, bool is_intro_tts)
+{
+return run_extended(intro, is_intro_tts, "", false);
+}
+
+string run_extended(string intro, bool is_intro_tts, string start_item, bool auto_speak_first)
+{
+if(running==true)
+{
+if(showErrors) alert("","the menu is already running.");
+return "err";
+}
+bool wrapped = false;
+int item_count=get_item_count();
+sound close_sound, open_sound, move_sound, wrap_sound, bounce_sound;
+if(item_count==0)
+{
+if(showErrors) alert("","no items");
+return "err";
+}
+if (start_item != "")
+{
+int[] index = get_item_index(start_item);
+if (index[0] >= 0 && index[1] >= 0)
+{
+menu_position_x = index[0];
+menu_position_y = index[1];
+}
+else
+{
+if(showErrors) alert("","the start values are wrong somehow.");
+return "err";
+}
+}
+else
+{
+menu_position_x = 1;
+menu_position_y = 0;
+}
+bool speak_item=false;
+if(menu_position_y<1 && auto_speak_first==true)
+{
+if(showErrors) alert("","tried to speak the first item but the menu position y was too low.");
+return "err";
+}
+bool initial=auto_speak_first;
+sound@ internal_sound;
+tts_voice@ internal_tts;
+if(@sound_handle==null)
+{
+sound temp_sound;
+@internal_sound=temp_sound;
+}
+else
+{
+@internal_sound=sound_handle;
+}
+bool has_tts_items=is_intro_tts;
+if(has_tts_items==false)
+{
+for(int x=0;x<max_x;x++)
+{
+for (int y=0; y<max_y; y++)
+{
+if(item_list[x][y].is_filename==false)
+{
+has_tts_items=true;
+break;
+}
+}
+}
+}
+if(speech_output==0 and has_tts_items==true)
+{
+if(@tts_handle==null)
+{
+tts_voice temp_voice;
+@internal_tts=temp_voice;
+}
+else
+{
+@internal_tts=tts_handle;
+}
+}
+if (play_sounds==true && close_path!="")
+{
+if (close_sound.stream(close_path)==false)
+{
+if(showErrors) alert("","close path filename doesn't exist.");
+return "err";
+}
+}
+if (play_sounds==true && open_path!="")
+{
+if (open_sound.stream(open_path)==false)
+{
+if(showErrors) alert("","open sound filename wrong");
+return "err";
+}
+}
+if (play_sounds==true && move_path!="")
+{
+if (move_sound.stream(move_path)==false)
+{
+if(showErrors) alert("","move sound filename wrong");
+return "err";
+}
+}
+if (play_sounds==true && wrap_path!="")
+{
+if (wrap_sound.stream(wrap_path)==false)
+{
+if(showErrors) alert("","wrap sound filename wrong");
+return "err";
+}
+}
+if (play_sounds==true && bounce_path!="")
+{
+if (bounce_sound.stream(bounce_path)==false)
+{
+if(showErrors) alert("","bounce sound filename wrong");
+return "err";
+}
+}
+if(open_sound.active==true)
+{
+open_sound.play_wait();
+}
+if(intro!="")
+{
+if(is_intro_tts==true)
+{
+if(speech_output>0 and speech_output<5)
+{
+if(screen_reader_speak(speech_output, intro)==false)
+{
+if(showErrors) alert("","screen reader could not speak");
+return "err";
+}
+}
+else
+{
+if(internal_tts.speak_interrupt(intro)==false)
+{
+return "err";
+}
+}
+}
+else
+{
+if(internal_sound.stream(intro)==false)
+{
+return "err";
+}
+internal_sound.play();
+}
+}
+running=true;
+while(true)
+{
+
+// Invoke the user callback.
+if(@callback_handle!=null)
+{
+string callback_result=callback_handle(this, callback_data);
+if(callback_result!="")
+{
+running=false;
+return callback_result;
+}
+}
+
+// Check to see if there's an item that needs to be spoken.
+if(speak_item==true)
+{
+if(item_list[menu_position_x-1][menu_position_y-1].active == false)
+{
+running=false;
+if(showErrors) alert("","this item is not active.");
+return "err";
+}
+if(play_sounds==true && wrapped==true && wrap_sound.active==true)
+{
+wrap_sound.stop();
+if (item_list.length()>1)
+{
+wrap_sound.set_pan(get_menu_pan(menu_position_x, max_x));
+}
+(wait_for_move_sound==true ? wrap_sound.play_wait() : wrap_sound.play());
+}
+else if (play_sounds==true && move_sound.active==true)
+{
+move_sound.stop();
+if (item_list.length()>1)
+{
+move_sound.set_pan(get_menu_pan(menu_position_x, max_x));
+}
+(wait_for_move_sound==true ? move_sound.play_wait() : move_sound.play());
+}
+if (wrapped==true)
+{
+wrapped=false;
+}
+if(item_list[menu_position_x-1][menu_position_y-1].is_filename==true)
+{
+if(@internal_tts!=null)
+{
+internal_tts.stop();
+}
+if(internal_sound.stream(item_list[menu_position_x-1][menu_position_y-1].option)==false)
+{
+running=false;
+return "err";
+}
+internal_sound.play();
+}
+else
+{
+if(internal_sound.active==true)
+{
+internal_sound.close();
+}
+if(speech_output>0 and speech_output<5)
+{
+if(screen_reader_speak_interrupt(speech_output, item_list[menu_position_x-1][menu_position_y-1].option)==false)
+{
+if(showErrors) alert("","screen reader unable to speak the item.");
+running=false;
+return "err";
+}
+}
+else
+{
+if(internal_tts.speak_interrupt(item_list[menu_position_x-1][menu_position_y-1].option)==false)
+{
+running=false;
+if(showErrors) alert("","sapi not able to speak the option.");
+return "err";
+}
+}
+}
+speak_item=false;
+}
+if(initial==true)
+{
+bool finished_intro=false;
+if(is_intro_tts==false)
+{
+if(internal_sound.playing==false)
+finished_intro=true;
+}
+else
+{
+if(speech_output>0 and speech_output<5)
+{
+finished_intro=true;
+}
+else
+{
+if(internal_tts.speaking==false)
+finished_intro=true;
+}
+}
+
+if(finished_intro==true)
+{
+initial=false;
+if(item_list[menu_position_x-1][menu_position_y-1].is_filename==true)
+{
+speak_item=true;
+continue;
+}
+else
+{
+if(speech_output>0 and speech_output<5)
+{
+if(screen_reader_speak(speech_output, item_list[menu_position_x-1][menu_position_y-1].option)==false)
+{
+if(showErrors) alert("","couldn't speak the first item.");
+running=false;
+return "err";
+}
+}
+else
+{
+speak_item=true;
+continue;
+}
+}
+}
+}
+
+if(key_pressed(KEY_RETURN))
+{
+if(menu_position_x!=0 && menu_position_y!=0)
+{
+if(play_sounds==true && close_sound.active==true)
+{
+close_sound.play();
+}
+running=false;
+return item_list[menu_position_x-1][menu_position_y-1].name;
+}
+}
+if(allow_escape==true)
+{
+if(key_pressed(KEY_ESCAPE))
+{
+if (play_sounds==true && close_sound.active==true)
+{
+close_sound.play_wait();
+}
+running=false;
+return "esc";
+}
+}
+if(key_pressed(KEY_UP))
+{
+initial=false;
+if(menu_position_y==0 && item_list[menu_position_x-1][max_y-1].active==true)
+{
+menu_position_y=max_y;
+wrapped=true;
+speak_item=true;
+continue;
+}
+if(menu_position_y==1)
+{
+if(item_list[menu_position_x-1].length() > 1 && item_list[menu_position_x-1][max_y-1].active == true && wrap_y==true)
+{
+menu_position_y=max_y;
+wrapped=true;
+speak_item=true;
+continue;
+}
+else
+{
+if (play_sounds==true && bounce_sound.active==true)
+{
+bounce_sound.stop();
+if (item_list.length()>1)
+{
+bounce_sound.set_pan(get_menu_pan(menu_position_x, max_x));
+}
+bounce_sound.play();
+}
+continue;
+}
+}
+if (item_list[menu_position_x-1][menu_position_y-2].active == true)
+{
+menu_position_y-=1;
+speak_item=true;
+}
+else
+{
+if(play_sounds==true && bounce_sound.active==true)
+{
+bounce_sound.stop();
+if (item_list.length()>1)
+{
+bounce_sound.set_pan(get_menu_pan(menu_position_x, max_x));
+}
+bounce_sound.play();
+}
+}
+continue;
+}
+if(key_pressed(KEY_DOWN))
+{
+initial=false;
+if(menu_position_y==max_y)
+{
+if(item_list[menu_position_x-1].length() > 1 && item_list[menu_position_x-1][0].active == true && wrap_y==true)
+{
+menu_position_y=1;
+wrapped=true;
+speak_item=true;
+continue;
+}
+else
+{
+if (play_sounds==true && bounce_sound.active==true)
+{
+if (item_list.length>1)
+{
+bounce_sound.set_pan(get_menu_pan(menu_position_x, max_x));
+}
+bounce_sound.play();
+}
+continue;
+}
+}
+if(menu_position_y==item_list[menu_position_x-1].length()) {
+continue;}
+if (item_list[menu_position_x-1][menu_position_y].active == true)
+{
+menu_position_y+=1;
+speak_item=true;
+}
+else
+{
+if (play_sounds==true && bounce_sound.active==true)
+{
+if (item_list.length>1)
+{
+bounce_sound.set_pan(get_menu_pan(menu_position_x, max_x));
+}
+bounce_sound.play();
+}
+}
+continue;
+}
+if(key_pressed(KEY_LEFT))
+{
+initial=false;
+if(menu_position_x==0)
+{
+if (play_sounds==true && bounce_sound.active==true)
+{
+bounce_sound.stop();
+if (item_list.length()>1)
+{
+bounce_sound.set_pan(get_menu_pan(menu_position_x, max_x));
+}
+bounce_sound.play();
+}
+continue;
+}
+if(menu_position_x==1)
+{
+if(item_list.length() > 1 && item_list[max_x-1][menu_position_y-1].active == true && wrap_x==true)
+{
+menu_position_x=max_x;
+wrapped=true;
+speak_item=true;
+continue;
+}
+else
+{
+if (play_sounds==true && bounce_sound.active==true)
+{
+bounce_sound.stop();
+if (item_list.length()>1)
+{
+bounce_sound.set_pan(get_menu_pan(menu_position_x, max_x));
+}
+bounce_sound.play();
+}
+continue;
+}
+}
+if (item_list[menu_position_x-2][menu_position_y-1].active == true)
+{
+menu_position_x-=1;
+speak_item=true;
+}
+else
+{
+if (play_sounds==true && bounce_sound.active==true)
+{
+bounce_sound.stop();
+if (item_list.length()>1)
+{
+bounce_sound.set_pan(get_menu_pan(menu_position_x, max_x));
+}
+bounce_sound.play();
+}
+}
+continue;
+}
+if(key_pressed(KEY_RIGHT))
+{
+initial=false;
+if(menu_position_x==max_x)
+{
+if(item_list.length() > 1 && item_list[0][menu_position_y-1].active == true && wrap_x==true)
+{
+menu_position_x=1;
+wrapped=true;
+speak_item=true;
+continue;
+}
+else
+{
+if (play_sounds==true && bounce_sound.active==true)
+{
+bounce_sound.stop();
+if (item_list.length()>1)
+{
+bounce_sound.set_pan(get_menu_pan(menu_position_x, max_x));
+}
+bounce_sound.play();
+}
+continue;
+}
+}
+if(item_list[menu_position_x][menu_position_y-1].active == true)
+{
+menu_position_x+=1;
+speak_item=true;
+}
+else
+{
+if (play_sounds==true && bounce_sound.active==true)
+{
+bounce_sound.stop();
+if (item_list.length()>1)
+{
+bounce_sound.set_pan(get_menu_pan(menu_position_x, max_x));
+}
+bounce_sound.play();
+}
+}
+continue;
+}
+if(enable_home_and_end==true)
+{
+if(key_pressed(KEY_HOME))
+{
+initial=false;
+if(item_list[menu_position_x-1][0].active == true)
+{
+menu_position_y=1;
+speak_item=true;
+}
+continue;
+}
+if(key_pressed(KEY_END))
+{
+initial=false;
+if(item_list[menu_position_x-1][max_y-1].active == true)
+{
+menu_position_y=max_y;
+speak_item=true;
+}
+continue;
+}
+}
+wait(5);
+}
+running=false;
+return "err";
+}
+
+bool reset(bool completely)
+{
+if(running==true)
+{
+return false;
+}
+item_list.resize(0);
+item_list.resize(1);
+is_2d=false;
+max_x=0;
+max_y=0;
+if(completely==true)
+{
+wrap_x=true;
+wrap_y=true;
+allow_escape=true;
+enable_home_and_end=true;
+play_sounds=true;
+max_pan=40;
+open_path = "";
+close_path="";
+move_path="";
+wrap_path="";
+bounce_path="";
+speech_output=0;
+@tts_handle=null;
+@sound_handle=null;
+@callback_handle=null;
+}
+return true;
+}
+
+// The following is private content and should not be modified from the outside.
+
+tts_voice@ tts_handle;
+sound@ sound_handle;
+int speech_output;
+menu_callback@ callback_handle;
+string callback_data;
+bool running;
+int menu_position_x, menu_position_y;
+enhanced_menu_item[][] item_list;
+
+int[] add_item_extended(string filename, bool is_filename, string name, int x, int y)
+{
+int[] result={-1, -1};
+
+if(running==true)
+{
+return result;
+}
+int new_index_x=-1, new_index_y=-1;
+if(is_2d==false)
+{
+item_list[0].resize(item_list[0].length()+1);
+new_index_x=0;
+max_x=new_index_x+1;
+new_index_y=item_list[0].length()-1;
+max_y=new_index_y+1;
+
+}
+else
+{
+if (x>-1 && y>-1)
+{
+if (x >= 0 && x <= max_x-1 && y >= 0 && y <= max_y-1)
+{
+new_index_x = x;
+new_index_y = y;
+}
+else
+{
+return result;
+}
+}
+else
+{
+bool found=false;
+for (int search_x=0; search_x<1000; search_x++)
+{
+for (int search_y=0; search_y<1000; search_y++)
+{
+if(item_list[search_x][search_y].active==false)
+{
+new_index_x=search_x;
+max_x=new_index_x;
+new_index_y=search_y;
+max_y=new_index_y;
+found=true;
+break;
+}
+}
+if (found==true)
+{
+break;
+}
+}
+if(new_index_x==-1 || new_index_y==-1)
+{
+return result;
+}
+}
+}
+item_list[new_index_x][new_index_y].active=true;
+item_list[new_index_x][new_index_y].option=filename;
+item_list[new_index_x][new_index_y].is_filename=is_filename;
+item_list[new_index_x][new_index_y].name=name;
+result[0] = new_index_x+1;
+result[1]=new_index_y+1;
+return result;
+}
+
+double get_menu_pan(int selection, double total) {
+// (Note: Code was contributed by J.J. Meddaugh, and I thank him for his contribution.)
+// Let's figure out the spacing
+// There's 200 percent total area we can pan
+// But we take max_pan into account, and max_pan is set to 40 by default, because anything higher than 40 or lower than -40 sounds like it's all left or all right anyway.
+// We subtract 1 to account for an item on both ends
+double spacing = (max_pan*2) / (total - 1);
+double position;
+position = ((selection-1) * spacing) - max_pan;
+// You have your position, so you can do what you need with it
+return position;
+}
+
+}
+
+funcdef string menu_callback(enhanced_menu@, string);

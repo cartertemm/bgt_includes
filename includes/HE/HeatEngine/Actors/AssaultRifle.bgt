@@ -1,0 +1,50 @@
+class AssaultRifle : Weapon
+{
+	AssaultRifle(string className="AssaultRifle", string name="")
+	{	
+		super(className, name);
+		
+		ammoCount = 90;
+		ammoClipSize = 30;
+		remainingUses = ammoClipSize;
+		
+		reloadingSystem=REALISTIC_RELOADING;
+		usingTime=60;
+		reloadingTime=6000;
+		triggerSoundPath="Sounds\\Weapons\\AssaultRifle\\firing.wav";
+		reloadingSoundPath="Sounds\\Weapons\\Gun\\reloading.wav";
+		noAmmoSoundPath="Sounds\\Weapons\\Gun\\empty.wav";
+	}
+	
+	void load(dictionary infos)
+	{
+		infos.set("ammoClipSize", "15");
+		infos.set("reloadingSystem", "REALISTIC_RELOADING");
+		infos.set("usingTime", "500");
+		infos.set("reloadingTime", "6000");
+		infos.set("triggerSoundPath", "Sounds\\Weapons\\AssaultRifle\\firing.wav");
+		infos.set("reloadingSoundPath", "Sounds\\Weapons\\Gun\\reloading.wav");
+		infos.set("noAmmoSoundPath", "Sounds\\Weapons\\Gun\\empty.wav");
+		
+		Weapon::load(infos);
+	}
+	
+	dictionary parseObject()
+	{
+		dictionary infos = Weapon::parseObject();//Ici on récupère les valeurs de la classe mère récurvisement / EN: here we gather the values of the mother class
+		
+		infos.set("ammoClipSize", "15");
+		infos.set("reloadingSystem", "REALISTIC_RELOADING");
+		infos.set("usingTime", "500");
+		infos.set("reloadingTime", "6000");
+		infos.set("triggerSoundPath", "Sounds\\Weapons\\AssaultRifle\\firing.wav");
+		infos.set("reloadingSoundPath", "Sounds\\Weapons\\Gun\\reloading.wav");
+		infos.set("noAmmoSoundPath", "Sounds\\Weapons\\Gun\\empty.wav");
+		
+		
+		infos.set("className", this.className);//toujours réécrire cette valeur EN: Always override this value
+		infos.set("name", this.name);//toujours réécrire cette valeur EN: Always override this value
+		
+		return infos;
+	}
+}

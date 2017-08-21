@@ -1,0 +1,54 @@
+timer idle,player;
+int lastidle;
+string str;
+int avg;
+int[] times;
+sound bpm;
+void main() {
+bpm.load("bpm.ogg");
+show_game_window("bpm detector");
+
+while(true) {
+if(key_pressed(KEY_H)) {
+bpm.stop();
+if(times.length()==0) {
+lastidle=0;
+idle.restart();
+times.insert_last(1);
+}
+else {
+times.insert_last(idle.elapsed);
+bpm.stop();
+//bpm.play();
+idle.restart();
+}
+}
+if(idle.elapsed>3000) {
+if(times.length()!=0) {
+avg=0;
+for(int i=1;i<=times.length()-1;i++) {
+avg=avg+times[i];
+}
+avg=avg/(times.length()-1);
+lastidle=avg;
+}
+times.resize(0);
+idle.restart();
+}
+if(key_pressed(KEY_SPACE)) {
+alert("average","Average is "+avg);
+}
+if(key_pressed(KEY_ESCAPE)) {
+exit();
+}
+if(lastidle!=0) {
+if(player.elapsed>=lastidle) {
+bpm.stop();
+bpm.play();
+player.restart();
+
+}
+}
+wait(5);
+}
+}

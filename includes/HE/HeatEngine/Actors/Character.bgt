@@ -1,0 +1,213 @@
+
+//Moving states
+const int MOVING_STATE_NO_MOVE = 0;
+const int MOVING_STATE_MOVING = 1;
+const int MOVING_STATE_MOVING_TO_TARGET = 2;
+
+class Character : ControlableActor
+{
+	int moving_state = MOVING_STATE_NO_MOVE;
+	timer walk_timer;
+	timer rotation_timer;
+	Inventory inventory;
+	Weapon@ weapon;
+	
+	int moving_speed=0;
+	
+	sound stepSoundForward();
+		string stepSoundForwardPath="NONE";
+	
+	sound stepSoundBackward();
+		string stepSoundBackwardPath="NONE";
+	
+	sound stepSoundStrafeLeft();
+		string stepSoundStrafeLeftPath="NONE";
+	
+	sound stepSoundStrafeRight();
+		string stepSoundStrafeRightPath="NONE";
+	
+		
+	sound rotationSoundLeft();
+		string rotationSoundLeftPath="NONE";
+	
+	sound rotationSoundRight();
+		string rotationSoundRightPath="NONE";
+	
+	Character(string className="Character", string name="")
+	{
+		super(className, name);
+		@weapon = Weapon();
+	}
+	
+	void load(dictionary infos)
+	{	
+		ControlableActor::load(infos);
+		
+		if(infos.exists("moving_state"))
+		{
+			string tmp_s;
+			infos.get("moving_state", tmp_s);
+			
+			if(tmp_s=="MOVING_STATE_NO_MOVE")
+				moving_state = MOVING_STATE_NO_MOVE;
+			else if(tmp_s=="MOVING_STATE_MOVING")
+				moving_state = MOVING_STATE_MOVING;
+			else if(tmp_s=="MOVING_STATE_MOVING_TO_TARGET")
+				moving_state = MOVING_STATE_MOVING_TO_TARGET;
+		}
+		
+		if(infos.exists("moving_speed"))
+		{
+			string tmp;
+			infos.get("moving_speed", tmp);
+			this.moving_speed = string_to_number(tmp);
+		}
+		
+		if(infos.exists("stepSoundForwardPath"))
+		{
+			infos.get("stepSoundForwardPath", this.stepSoundForwardPath);
+			this.stepSoundForward.load(stepSoundForwardPath);
+		}
+		if(infos.exists("stepSoundBackwardPath"))
+		{
+			infos.get("stepSoundBackwardPath", this.stepSoundBackwardPath);
+			this.stepSoundBackward.load(stepSoundBackwardPath);
+		}
+		if(infos.exists("stepSoundStrafeLeftPath"))
+		{
+			infos.get("stepSoundStrafeLeftPath", this.stepSoundStrafeLeftPath);
+			this.stepSoundStrafeLeft.load(stepSoundStrafeLeftPath);
+		}
+		if(infos.exists("stepSoundStrafeRightPath"))
+		{
+			infos.get("stepSoundStrafeRightPath", this.stepSoundStrafeRightPath);
+			this.stepSoundStrafeRight.load(stepSoundStrafeRightPath);
+		}
+		
+		
+		if(infos.exists("rotationSoundLeftPath"))
+		{
+			infos.get("rotationSoundLeftPath", this.rotationSoundLeftPath);
+			this.rotationSoundLeft.load(rotationSoundLeftPath);
+		}
+		if(infos.exists("rotationSoundRightPath"))
+		{
+			infos.get("rotationSoundRightPath", this.rotationSoundRightPath);
+			this.rotationSoundRight.load(rotationSoundRightPath);
+		}
+		
+		inventory.load(infos);
+	}
+	
+	dictionary parseObject()
+	{
+		dictionary infos = ControlableActor::parseObject();
+		
+		string tmp_s;
+		if(this.moving_state==MOVING_STATE_NO_MOVE)
+			tmp_s = "MOVING_STATE_NO_MOVE";
+		else if(this.moving_state==MOVING_STATE_MOVING)
+			tmp_s = "MOVING_STATE_MOVING";
+		else if(this.moving_state==MOVING_STATE_MOVING_TO_TARGET)
+			tmp_s="MOVING_STATE_MOVING_TO_TARGET";
+		
+		infos.set("moving_state", tmp_s);
+		
+		infos.set("moving_speed", this.moving_speed);
+		
+		infos.set("stepSoundForwardPath", this.stepSoundForwardPath);
+		infos.set("stepSoundBackwardPath", this.stepSoundBackwardPath);
+		infos.set("stepSoundStrafeLeftPath", this.stepSoundStrafeLeftPath);
+		infos.set("stepSoundStrafeRightPath", this.stepSoundStrafeRightPath);
+		
+		infos.set("rotationSoundLeftPath", this.rotationSoundLeftPath);
+		infos.set("rotationSoundRightPath", this.rotationSoundRightPath);
+		
+		dictionary inv = this.inventory.parseObject();
+		string[] keys = inv.get_keys();
+		string val;
+		for(int i = 0; i<keys.length; i++)
+		{
+			inv.get(keys[i], val);
+			infos.set(keys[i], val);
+		}
+		
+		infos.set("className", this.className);
+		infos.set("name", this.name);
+		
+		return infos;
+	}
+	
+	/*
+	Cette fonction met à jour les sons émis par exemple en fonction de l'état
+	EN: this function updates the sounds of the objects from its state
+	*/
+	void updateState()
+	{
+		
+		
+		if(this.moving_state != MOVING_STATE_NO_MOVE)
+		{
+			//Retransformation (rotation) en vecteur du déplacement dans le repère local de l'objet pour obtenir son déplacement sans prendre en compte la rotation globale
+			vector local(0.0, 0.0);
+			
+			local.x =  speed.x*cosine(conversionRadians(this.getRotation())) + speed.y*sine(conversionRadians(this.getRotation()));
+			local.y = -1*speed.x*sine(conversionRadians(this.getRotation())) + speed.y*cosine(conversionRadians(this.getRotation()));
+			
+			
+			
+			if(local.x!=0 || local.y!=0 && this.walk_timer.elapsed>100)
+			{
+				if(local.y>0)
+				{
+					stepSoundForward.play();
+				}
+				else if(local.y<0)
+					stepSoundBackward.play();
+				else if(local.x<0)
+					stepSoundStrafeLeft.play();
+				else
+					stepSoundStrafeRight.play();
+				
+				this.walk_timer.restart();
+			}
+			if(this.getLastRotation() != this.getRotation() && rotation_timer.elapsed>100)
+			{
+				if(this.getLastRotation() > this.getRotation())
+					rotationSoundLeft.play();
+				else
+					rotationSoundRight.play();
+				
+				rotation_timer.restart();
+			}
+			
+		}
+	}
+	
+	float getMovingSpeed()
+	{
+		return this.moving_speed;
+	}
+	
+	void setMovingState(int state)
+	{
+		this.moving_state = state;
+	}
+	
+	int getMovingState()
+	{
+		return this.moving_state;
+	}
+	
+	
+	void gameStarted()
+	{
+		ControlableActor::gameStarted();
+	}
+	
+	void tick()
+	{
+		ControlableActor::tick();
+		this.weapon.tick();
+	}
+}

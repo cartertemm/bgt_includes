@@ -1,0 +1,86 @@
+/*
+*time_elapsed
+*coded by mason armstrong for use with in scrolling battels2
+*modified by amir ramezani for supporting microseconds, hours, days, months and years
+*/
+
+class time_elapsed
+{
+private timer@handle;
+private int microseconds;
+private int milliseconds;
+private int seconds;
+private int minutes;
+private int hours;
+private int days;
+private int months;
+private int years;
+private int rest;
+
+void set_timer(timer@counter)
+{
+@handle=counter;
+}
+
+void refresh()
+{
+milliseconds=handle.elapsed;
+microseconds=milliseconds/1000;
+seconds=rest/1000;
+minutes=seconds/60;
+rest=milliseconds%60000;
+hours=seconds/60;
+days=hours/24;
+months=days/30;
+years=months/12;
+}
+
+int yy()
+{
+refresh();
+return years;
+}
+
+int mm()
+{
+refresh();
+return months;
+}
+
+int dd()
+{
+refresh();
+return days;
+}
+
+int h()
+{
+refresh();
+return hours;
+}
+
+int m()
+{
+refresh();
+return minutes;
+}
+
+int s()
+{
+refresh();
+return seconds;
+}
+
+int ms()
+{
+refresh();
+return milliseconds;
+}
+
+int micro()
+{
+refresh();
+return microseconds;
+}
+
+}

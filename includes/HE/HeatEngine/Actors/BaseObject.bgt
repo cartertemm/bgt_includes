@@ -1,0 +1,133 @@
+class BaseObject : /*events interfaces*/GameStarted
+{
+	string className;
+	string name;
+	int ID;
+	
+	BaseObject(string className="BaseObject", string name="")
+	{
+		this.className=className;
+		this.name=name;
+		if(name=="")
+			this.name = generateName(this.className);
+		
+		this.ID = generateID();
+	}
+	
+	/*
+	Méthode qui charge les informations reçues d'un dico
+	EN: This method loads the informations of the dictionary
+	*/
+	void load(dictionary infos)
+	{
+		string tmp;
+		if(infos.exists("className"))
+			infos.get("className", this.className);
+		
+		string tName;
+		if(infos.exists("name"))
+			infos.get("name", tName);
+		if(tName!=name)
+		{
+			game.scene.changeNameReference(name, tName);
+		}
+		
+		if(infos.exists("ID"))
+		{
+			infos.get("ID", tmp);
+			this.ID = string_to_number(tmp);
+		}
+	}
+	
+	/*
+	Méthode qui enregistre les informations dans un dico et le renvoie
+	EN: This method save the object informations into a dictionary and return it
+	*/
+	dictionary parseObject()
+	{
+		dictionary infos;
+		infos.set("className", this.className);
+		infos.set("name", this.name);
+		infos.set("id", ""+this.ID);
+		
+		return infos;
+	}
+	
+	/*
+	Cette méthode sauvegarde un objet dans le fichier donné en argument, respectant la convention de sauvegarde/chargement des fichiers map
+	EN: This method saves an object into the given file stream, following the schema of the map files
+	*/
+	void save(file@ saveFile)
+	{
+		dictionary infos = this.parseObject();
+		string className;
+		string name;
+		
+		infos.get("className", className);
+		infos.get("name", name);
+		infos.delete("className");
+		infos.delete("name");
+		
+		string[] keys = infos.get_keys();
+		
+		int length = keys.length();
+		keys.sort_ascending(0, length);
+		
+		
+		
+		saveFile.write(className+" "+name+"\n");
+		
+		for(int i=0; i<length; i++)
+		{
+			string value;
+			infos.get(keys[i], value);
+			saveFile.write(keys[i]+"="+value+"\n");
+		}
+		
+		saveFile.write("#\n\n");
+	}
+	
+	void tick()
+	{
+		//alert("TICK CALLED", "I'm named '"+this.getName()+"' ("+this.getClassName()+") and my tick() method has been called");
+	}
+	
+	
+	string getClassName()
+	{
+		return this.className;
+	}
+	
+	string getName()
+	{
+		return this.name;
+	}
+	
+	int getID()
+	{
+		return this.ID;
+	}
+	
+	bool equals(BaseObject@ o)
+	{
+		return this.getID() == o.getID();
+	}
+	
+	bool opEquals(BaseObject@ o)
+	{
+		return this.getID() == o.getID();
+	}
+	
+	string toString()
+	{
+		return "[class="+className+" name="+name+" ID="+ID+"]";
+	}
+	
+	//INTERFACES METHODS
+	
+	//GameStarted
+	void gameStarted()
+	{
+		
+	}
+}

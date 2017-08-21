@@ -1,0 +1,342 @@
+//constants
+
+const int dl_err_ok=0;
+const int dl_err_internet_failure=-1;
+const int dl_err_network_failure=-2;
+const int dl_err_download_not_found=-3;
+const int dl_err_dir_failure=-4;
+const int dl_err_file_failure=-5;
+const int dl_err_no_download_active=-6;
+
+class downloader
+{
+private http dl;
+private file download;
+private string web;
+private string filename;
+private string server_date;
+private string server_type;
+private string modified_date;
+private string mime_type;
+private double bytes_total;
+private double bytes_downloaded;
+private double percentage;
+private string dl_content;
+private bool download_active;
+private bool progress;
+private string directory_restore;
+private int error;
+
+//Constructor
+downloader()
+{
+reset();
+}
+
+//Destructor
+~downloader()
+{
+if(progress)
+{
+abort();
+}
+}
+
+bool initiate_download(string web, string filename)
+{
+string success;
+string directory=get_directory(filename);
+string original_directory=get_restore_directory(directory);
+error=dl_err_ok;
+web=url_encode(web);
+web=string_replace(web, "%3a", ":", true);
+web=string_replace(web, "%2f", "/", true);
+this.web=web;
+this.filename=filename;
+success=dl.get(web);
+if(last_error==-28)
+{
+error=dl_err_network_failure;
+return false;
+}
+if(last_error==-29)
+{
+error=dl_err_internet_failure;
+return false;
+}
+if((directory!="")&&(!directory_exists(directory)))
+{
+if(!directory_create(directory))
+{
+error=dl_err_dir_failure;
+return false;
+}
+directory_restore=original_directory;
+}
+if(!download.open(filename, "wb"))
+{
+cleanup();
+error=dl_err_file_failure;
+return false;
+}
+percentage=0;
+progress=true;
+return true;
+}
+
+bool monitor()
+{
+error=dl_err_ok;
+if(!progress)
+{
+error=dl_err_no_download_active;
+return false;
+}
+if(!dl.progress)
+{
+progress=false;
+if(dl_content!="")
+{
+if(download.active)
+{
+download.write(dl_content);
+download.close();
+}
+dl_content="";
+}
+return false;
+}
+dl_content+=dl.request();
+if(last_error==-28)
+{
+progress=false;
+error=dl_err_network_failure;
+cleanup();
+return false;
+}
+if(last_error==-29)
+{
+progress=false;
+error=dl_err_internet_failure;
+cleanup();
+return false;
+}
+if(!download_active)
+{
+if(dl.return_code=="")
+{
+return false;
+}
+if(dl.return_code!="200 OK")
+{
+progress=false;
+error=dl_err_download_not_found;
+cleanup();
+return false;
+}
+}
+download_active=true;
+if(bytes_total>0)
+{
+update_download();
+}
+else
+{
+get_headers();
+}
+bytes_downloaded=download.size;
+return true;
+}
+
+bool abort()
+{
+error=dl_err_ok;
+if(!progress)
+{
+error=dl_err_no_download_active;
+return false;
+}
+cleanup();
+return true;
+}
+
+double get_percentage()
+{
+error=dl_err_ok;
+return percentage;
+}
+
+double get_total_size()
+{
+error=dl_err_ok;
+return bytes_total;
+}
+
+double get_downloaded_size()
+{
+error=dl_err_ok;
+return bytes_downloaded;
+}
+
+double get_remaining_size()
+{
+error=dl_err_ok;
+if(!progress)
+{
+return -1;
+}
+return (bytes_total-bytes_downloaded);
+}
+
+string get_server_date()
+{
+error=dl_err_ok;
+return server_date;
+}
+
+string get_modified_date()
+{
+error=dl_err_ok;
+return modified_date;
+}
+
+string get_server_type()
+{
+error=dl_err_ok;
+return server_type;
+}
+
+string get_mime_type()
+{
+error=dl_err_ok;
+return mime_type;
+}
+
+bool is_active()
+{
+error=dl_err_ok;
+return progress;
+}
+
+int get_last_error()
+{
+return error;
+}
+
+private void update_download()
+{
+percentage=download.size/bytes_total*100;
+percentage=round(percentage,2);
+if(dl_content.length()>=4096)
+{
+download.write(dl_content);
+dl_content="";
+}
+}
+
+private void get_headers()
+{
+string[] header;
+header=string_split(dl.headers,"\r\n",false);
+for(int counter=0; counter<header.length(); counter++)
+{
+if(header[counter]=="content-length")
+{
+bytes_total=string_to_number(header[(counter+1)]);
+}
+if(header[counter]=="date")
+{
+server_date=header[(counter+1)];
+}
+if(header[counter]=="server")
+{
+server_type=header[(counter+1)];
+}
+if(header[counter]=="last-modified")
+{
+modified_date=header[(counter+1)];
+}
+if(header[counter]=="content-type")
+{
+mime_type=header[(counter+1)];
+}
+}
+}
+
+private string get_directory(string filename)
+{
+string[] directory;
+string result="";
+string slash="/";
+if(string_contains(filename, slash, 1)<0)
+{
+slash="\\";
+}
+if(string_contains(filename, slash, 1)<0)
+{
+return "";
+}
+directory=string_split(filename, "\\/", false);
+for(int counter=0; counter<(directory.length()-1); counter++)
+{
+result+=directory[counter]+"/";
+}
+result=string_trim_right(result, 1);
+return result;
+}
+
+private string get_restore_directory(string filename)
+{
+string[] directory;
+string result="";
+string slash="/";
+if(string_contains(filename, slash, 1)<0)
+{
+slash="\\";
+}
+if(string_contains(filename, slash, 1)<0)
+{
+return "";
+}
+directory=string_split(filename, "\\/", false);
+for(int counter=0; counter<(directory.length()-1); counter++)
+{
+result+=directory[counter];
+if(!directory_exists(result))
+{
+return result;
+}
+result+="/";
+}
+return "";
+}
+
+private void cleanup()
+{
+download.close();
+file_delete(filename);
+if(directory_restore!="")
+{
+directory_delete(directory_restore);
+}
+reset();
+}
+
+private void reset()
+{
+web="";
+filename="";
+dl_content="";
+server_date="";
+server_type="";
+modified_date="";
+mime_type="";
+directory_restore="";
+download_active=false;
+progress=false;
+bytes_total=0;
+bytes_downloaded=0;
+error=0;
+percentage=-1;
+}
+}

@@ -1,0 +1,23 @@
+/*
+Cette classe est le parent de tout acteur controlable : tourelle, personnage,...
+EN : this class is the superclass of every controlable actor : turret, characters,...
+*/
+class ControlableActor : Actor
+{	
+	ControlableActor(string className="ControlableActor", string name="")
+	{
+		super(className, name);
+	}
+	
+	void load(dictionary infos)
+	{	
+		Actor::load(infos);
+	}
+	
+	dictionary parseObject()
+	{
+		dictionary infos = Actor::parseObject();//Ici on récupère les valeurs de la classe mère récurvisement / EN: here we gather the values of the mother class
+
+		return infos;
+	}
+}

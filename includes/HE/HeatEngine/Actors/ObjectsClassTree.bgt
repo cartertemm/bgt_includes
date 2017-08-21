@@ -1,0 +1,85 @@
+/*This file has been generated through the generate_oct.bgt script. Don't edit it manually!!*/
+
+
+//Includes
+#include "..\utils.bgt"
+
+#include "Actor.bgt"
+#include "AmbiantSound.bgt"
+#include "AssaultRifle.bgt"
+#include "BaseObject.bgt"
+#include "Character.bgt"
+#include "ControlableActor.bgt"
+#include "Gun.bgt"
+#include "Inventory.bgt"
+#include "PickableActor.bgt"
+#include "StaticActor.bgt"
+#include "SystemActor.bgt"
+#include "UtilActor.bgt"
+#include "Weapon.bgt"
+#include "WorldBox.bgt"
+
+
+//Conditions chain
+BaseObject@ actorCreationLinker(dictionary param)
+{
+	BaseObject@ o = null;
+	string className;
+	string name;
+	
+	param.get("className", className);
+	param.get("name", name);
+	if(className == "Actor")
+		@o = Actor("Actor", name);
+
+	else if(className == "AmbiantSound")
+		@o = AmbiantSound("AmbiantSound", name);
+
+	else if(className == "AssaultRifle")
+		@o = AssaultRifle("AssaultRifle", name);
+
+	else if(className == "BaseObject")
+		@o = BaseObject("BaseObject", name);
+
+	else if(className == "Character")
+		@o = Character("Character", name);
+
+	else if(className == "ControlableActor")
+		@o = ControlableActor("ControlableActor", name);
+
+	else if(className == "Gun")
+		@o = Gun("Gun", name);
+
+	else if(className == "Inventory")
+		@o = Inventory("Inventory", name);
+
+	else if(className == "PickableActor")
+		@o = PickableActor("PickableActor", name);
+
+	else if(className == "StaticActor")
+		@o = StaticActor("StaticActor", name);
+
+	else if(className == "SystemActor")
+		@o = SystemActor("SystemActor", name);
+
+	else if(className == "UtilActor")
+		@o = UtilActor("UtilActor", name);
+
+	else if(className == "Weapon")
+		@o = Weapon("Weapon", name);
+
+	else if(className == "WorldBox")
+		@o = WorldBox("WorldBox", name);
+
+
+	if(@o==null)
+	{
+		exception("The class "+className+" has no link in the actorCreationLinker()");
+		return null;
+	}
+	else
+ 	{
+		o.load(param);
+		return o;
+	}
+}

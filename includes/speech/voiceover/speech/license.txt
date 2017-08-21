@@ -1,0 +1,13 @@
+Copyright (c) 2014 Aaron T. Spears http://valiant8086.com
+
+This speech folder and the sounds in it are provided 'as-is', without any express or implied   warranty.  In no event will the authors be held liable for any damages   arising from the use of these sounds. 
+
+Permission is granted to anyone to use these sounds for any purpose,   including commercial applications, and to alter it and redistribute it   freely, subject to the following restrictions:
+
+1. The origin of these sounds must not be misrepresented; you must not      claim that you recorded the original sounds. If you use these sounds in a product, an acknowledgment in the product documentation would be      appreciated but is not required. 
+
+2. Altered source versions must be plainly marked as such, and must not be      misrepresented as being the original sounds. 
+
+3. This notice may not be removed or altered from any source  distribution.
+
+Last updated on Saturday June 21, 2014 at 1:57Pm eastern standard time.

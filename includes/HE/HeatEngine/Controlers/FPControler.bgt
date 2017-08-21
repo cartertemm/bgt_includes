@@ -1,0 +1,105 @@
+/*
+First Person Controler (FPControler) est une classe héritée du LocalControler conçue pour controler un personnage en vue première personne. Cette classe est adaptée pour les RPG ou FPS classiques.
+EN: First Person Controler (FPControler) is a class made to control FPS or RPG characters in a first person view.
+*/
+
+
+class FPControler : Controler
+{
+	int    FORWARD_INPUT        = KEY_W,
+		   STRAFE_LEFT_INPUT    = KEY_A,
+		   STRAFE_RIGHT_INPUT   = KEY_D,
+		   BACK_INPUT           = KEY_S,
+		   TURN_LEFT_INPUT      = KEY_Q,
+		   TURN_RIGHT_INPUT     = KEY_E;
+
+	FPControler(string target, bool isLocal=false)
+	{
+		super(target, isLocal);
+		Character@ c = cast<Character>(this.target);
+		if(@c==null)
+			exception("FPControler error: the target of the FPControler isn't a Character or herited class, or the engine encountered a null reference. This controler only accept this class.");
+	}
+	
+	void processInputs()
+	{
+		Character@ t = cast<Character>(target);
+		if(t.getMovingState() == MOVING_STATE_MOVING 
+		&& !key_down(FORWARD_INPUT) 
+		&& !key_down(STRAFE_LEFT_INPUT) 
+		&& !key_down(STRAFE_RIGHT_INPUT) 
+		&& !key_down(BACK_INPUT) 
+		&& !key_down(TURN_LEFT_INPUT) 
+		&& !key_down(TURN_RIGHT_INPUT))
+		{
+			t.setMovingState(MOVING_STATE_NO_MOVE);
+		}
+		else
+		{
+			vector speed(0.0, 0.0);
+			float rotation = 0.0;
+			
+			/*
+			if(key_down(TURN_LEFT_INPUT))
+			{
+				rotation +=1;
+				t.setMovingState(MOVING_STATE_MOVING);
+			}
+			if(key_down(TURN_RIGHT_INPUT))
+			{
+				rotation -=1;
+				t.setMovingState(MOVING_STATE_MOVING);
+			}*/
+			if(key_down(FORWARD_INPUT))
+			{
+				speed.y +=t.getMovingSpeed();
+				t.setMovingState(MOVING_STATE_MOVING);
+			}
+			if(key_down(STRAFE_LEFT_INPUT))
+			{
+				speed.x -=t.getMovingSpeed();
+				t.setMovingState(MOVING_STATE_MOVING);
+			}
+			if(key_down(STRAFE_RIGHT_INPUT))
+			{
+				speed.x +=t.getMovingSpeed();
+				t.setMovingState(MOVING_STATE_MOVING);
+			}
+			if(key_down(BACK_INPUT))
+			{
+				speed.y -=t.getMovingSpeed();
+				t.setMovingState(MOVING_STATE_MOVING);
+			}
+			
+			if(t.walk_timer.elapsed>100)
+			{
+				t.setRotation((t.getRotation()+rotation+360)%360);
+				
+				//VERIFIER LE SENS DES EQUATIONS
+				float final_x, final_y;
+				
+				final_x = speed.x*cosine(conversionRadians(t.getRotation())) - speed.y*sine(conversionRadians(t.getRotation()));
+				final_y = speed.x*sine(conversionRadians(t.getRotation())) + speed.y*cosine(conversionRadians(t.getRotation()));
+				
+				speed.x = final_x;
+				speed.y = final_y;
+				
+				t.setSpeed(speed);
+			}
+			
+			
+			if(key_pressed(KEY_R))
+			{
+				game.save("Saves\\control_demo_save.hemap");
+				Character@ t = cast<Character>(target);
+			}
+			
+			if(key_pressed(KEY_ESCAPE))
+			{
+				exit();
+			}
+		}
+		
+		t.updateState();
+	}
+}

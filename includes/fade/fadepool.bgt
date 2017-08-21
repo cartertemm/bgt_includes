@@ -1,0 +1,16 @@
+void fade_pool(sound_pool@ handle, double time=0.25, double minvol=-40)
+{
+for(double current=0;current>minvol;current-=time)
+{
+for(uint x=0;x<handle.items.length();x++)
+{
+if(@handle.items[x].handle==null)
+continue;
+if(handle.items[x].handle.playing==false)
+continue;
+handle.items[x].handle.volume=handle.items[x].handle.volume-time;
+}
+wait(5);
+}
+handle.destroy_all();
+}

@@ -1,0 +1,208 @@
+﻿/*
+*net class, a wrapper to bgt's networking capabilities
+*written by amir ramezani
+*any use of this script is at your own risk, i'm not responsible for anything
+*/
+
+class net
+{
+private network n; //our network object
+private network_event n_evt; //network, used to interface with the network
+private int channel; //the channel that the message was received from
+private int peer_id; //the id that the message was received from
+private int id=-1; //your id on the server
+private string message; //the received message
+private string decryption_key; //the decryption key
+private int type; //the type, not needed it is used internally
+private int port; //the port for making connections
+private double incoming_bandwidth; //the incomming bandwidth
+private double outgoing_bandwidth; //the outgoing bandwidth
+
+//set the decryption key for encrypting packets
+void set_decryption_key(string dec)
+{
+this.decryption_key=dec;
+}
+
+//get the message that was received from the server
+string get_message()
+{
+return this.message;
+}
+
+//get the channel that the message was received from
+int get_channel()
+{
+return this.channel;
+}
+
+//get the peer id (the id which is got from the request method)
+int get_peer_id()
+{
+return this.peer_id;
+}
+
+//return's our peer id on the server
+int get_id()
+{
+return this.id;
+}
+
+//set's the port for making connections
+void set_port(int p)
+{
+this.port=p;
+}
+
+//retrieve's the port
+int get_port()
+{
+return this.port;
+}
+
+//set's the incoming bandwidth
+bool set_incomming_bandwidth(double i)
+{
+this.incoming_bandwidth=i;
+return this.set_bandwidth_limits();
+}
+
+//retrieves the incoming bandwidth
+double get_incoming_bandwidth()
+{
+return this.incoming_bandwidth;
+}
+
+//set's the outgoing bandwidth limit
+bool set_outgoing_bandwidth(double o)
+{
+this.outgoing_bandwidth=o;
+return this.set_bandwidth_limits();
+}
+
+//retrieve's outgoing bandwidth
+double get_outgoing_bandwidth()
+{
+return this.outgoing_bandwidth;
+}
+
+//this is internal, and set's the bandwidth limits
+private bool set_bandwidth_limits()
+{
+return this.n.set_bandwidth_limits(this.incoming_bandwidth, this.outgoing_bandwidth);
+}
+
+//return true if nothing has been received
+bool is_none()
+{
+return this.type==0;
+}
+
+//return's true if someone connected
+bool is_connected()
+{
+return this.type==1;
+}
+
+//return's true if something has been received
+bool is_received()
+{
+return this.type==2;
+}
+
+//return's true if someone disconnected
+bool is_disconnected()
+{
+return this.type==3;
+}
+
+//you must call this in your main loop to be aible to get updated information about your network
+void request()
+{
+this.n_evt=this.n.request();
+this.type=this.n_evt.type;
+if(this.type!=0)
+{
+this.peer_id=this.n_evt.peer_id;
+}
+if(this.type==2)
+{
+this.channel=this.n_evt.channel;
+this.message=!decryption_key.is_empty()?string_decrypt(n_evt.message, decryption_key):n_evt.message;
+}
+}
+
+//set's up the network as a server
+bool create_server(int max_channels, int max_clients)
+{
+return this.n.setup_server(this.port, max_channels, max_clients);
+}
+
+//set's up the network as a client
+bool create_client(int max_channels, int max_peers)
+{
+return this.n.setup_client(max_channels, max_peers);
+}
+
+//retrieve's the list of the connected peers
+uint[] get_peer_list()
+{
+return this.n.get_peer_list();
+}
+
+//retrieve's the time for pinging between a peer
+double get_ping_time(uint p)
+{
+return this.n.get_peer_average_round_trip_time(p);
+}
+
+//retrieve's the hostname of a given peer
+string get_address(uint p)
+{
+return this.n.get_peer_address(p);
+}
+
+//this function tries to connect to someone
+void connect(string h, uint p)
+{
+id=this.n.connect(h, p);
+}
+
+//destroy's the network
+bool destroy()
+{
+return this.n.destroy();
+}
+
+//disconnect's a peer
+bool disconnect(int pid, int how)
+{
+if(how==1)
+{
+return this.n.disconnect_peer(pid);
+}
+else if(how==2)
+{
+return this.n.disconnect_peer_forcefully(pid);
+}
+else if(how==3)
+{
+return this.n.disconnect_peer_softly(pid);
+}
+return false;
+}
+
+bool send(int pid, string msg, int ch, bool reliable)
+{
+if(reliable)
+{
+return this.n.send_reliable(pid, !this.decryption_key.is_empty()?string_encrypt(msg, this.decryption_key):msg, ch);
+}
+else if(!reliable)
+{
+return this.n.send_unreliable(pid, !this.decryption_key.is_empty()?string_encrypt(msg, this.decryption_key):msg, ch);
+}
+return false;
+}
+
+}

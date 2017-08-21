@@ -1,0 +1,6 @@
+#include "token_gen.bgt"
+void main()
+{
+input_box("token_gen", "Here is your 15 character activation key: ", generate_token(1000));
+input_box("token_gen", "This is a 25 character key seperated by dashes: ", generate_token(5)+"-"+generate_token(5)+"-"+generate_token(5)+"-"+generate_token(5)+"-"+generate_token(5));
+}

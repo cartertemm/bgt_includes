@@ -1,0 +1,634 @@
+/*
+sound3d class
+created by camlern who created camlern audio which is a wrapper of open al, wrapped in bgt for use with any bgt game by Sam Tupy Productions. 
+I, Sam Tupy, do not own any of camlern audio what so ever. I have only wrapped camlern audio's CDLL into a small easy to use bgt interface that brings the amazing effects of open al and camlern audio into a lot more developers hands, and a lot more audio games. I own nothing but the bgt scripts and the documentation of the bgt classes in this package. Everything else is either the work of camlorn, or the open al dll's them selves. You can contact me with any questions at webmaster@samtupy.com.
+Also thanks goes to Mason Armstrong for helping me wrap this script, and for his support threw out this project. 
+*/
+bool soundsystem_inited=false; // this will help free the user from having to initiate camlorn audio in there script, because if they had to, global sound variables would be impossible. 
+// the sound3d class it's self, the main bulk of the hole system. 
+class sound3d
+{
+// dll constants. These are function signitures to all of camlern audio's dll functions with in the sound3d object, allowing us to call functions from the dll much easier. 
+string CA_initCamlornAudio="int CA_initCamlornAudio(int, char*, unsigned int, char*, int, unsigned int, char*);";
+string CA_newSound3D="int CA_newSound3d();";
+string CA_FileSetter_setFile="int CA_FileSetter_setFile(int, char*);";
+string CA_SoundBase_play="int CA_SoundBase_play(int);";
+string CA_SoundBase_pause="int CA_SoundBase_pause(int);";
+string CA_SoundBase_stop="int CA_SoundBase_stop(int);";
+string CA_SoundBase_setLooping="int CA_SoundBase_setLooping(int, int);";
+string CA_SourceHelper3D_setPosition="int CA_SourceHelper3D_setPosition(int, float, float, float);";
+string CA_EfxCapable_setEffectForSlot="int CA_EfxCapable_setEffectForSlot(int, int, unsigned int);";
+string CA_EfxCapable_setFilterForSlot="int CA_EfxCapable_setFilterForSlot(int, int, unsigned int);";
+string CA_EfxCapable_setDryFilter="int CA_EfxCapable_setDryFilter(int, int);";
+string CA_free="int CA_free(int);";
+string CA_SoundBase_seek="int CA_SoundBase_seek(int, float,int);";
+string CA_SoundBase_setPitchBend="int CA_SoundBase_setPitchBend(int, float);";
+string CA_SoundBase_getLength="int CA_SoundBase_getLength(int);";
+string CA_SoundBase_getLooping="int CA_SoundBase_getLooping(int);";
+string CA_SourceHelper3D_setRolloffFactor="int CA_SourceHelper3D_setRolloffFactor(int, float);";
+string CA_SourceHelper3D_setMaxDistance="int CA_SourceHelper3D_setMaxDistance(int, float);";
+string CA_SoundBase_setVolume="int CA_SoundBase_setVolume(int, float);";
+// variables we need in the class. 
+float pitch=100;
+float volume=100;
+int handle;
+bool active=false;
+// sence camlern audio doesn't come with a function to check weather a sound is playing, we'll make one to the best of our ability. Here are the variables we will need. 
+bool has_played=false;
+timer has_played_timer;
+bool paused=false;
+library CDLL; // the library class used for dll calling etc.
+sound3d() // default constructer
+{
+init_soundsystem(); // if camlorn audio hasn't been initialised, initialise it, as well as point the library instance to the currently loaded camlorn dll. 
+// now let's make a new sound object with camlorn audio. 
+dictionary@ res=CDLL.call(CA_newSound3D);
+res.get("0", handle);
+}
+// now for the init_camlorn audio function it's self. 
+void init_soundsystem(string dll_path="lib/c.dll", string hrtfs_path="lib\\hrtfs")
+{
+CDLL.load(dll_path);
+if(!soundsystem_inited)
+CDLL.call(CA_initCamlornAudio, true, "stereo", 44100, "dsound, winmm", false, 100000, hrtfs_path);
+soundsystem_inited=true;
+}
+int load(string name) // directs camlern audio to the file we wish to play
+{
+string oldname;
+if (get_sound_storage()!="")
+{
+oldname=name;
+get_sound(name);
+name=temp_sound_path+"/"+name;
+}
+dictionary@ res=CDLL.call(CA_FileSetter_setFile, handle, name);
+int final;
+res.get(0, final);
+active=true;
+if (get_sound_storage()!="")
+delsound(oldname);
+return final;
+}
+void close() // closes the sound. Warning! I have found this to be slightly unstable, use at your own risk. Yes I know not closing a sound could cause more memory usage, but I was not able to figure out why the hole thing nearly crashes if you use the close function the rong way. Also keep in mind unlike the normal sound object, closing this in camlorn audio will render the closed object useless. 
+{
+if(active==false)
+return;
+active=false;
+stop();
+CDLL.call(CA_free, handle);
+dictionary@ res=CDLL.call(CA_newSound3D);
+res.get("0", handle);
+}
+int play() // plays the sound
+{
+dictionary@ res=CDLL.call(CA_SoundBase_play, handle);
+int final;
+res.get(0, final);
+has_played=true;
+if(!paused)
+has_played_timer.restart();
+else
+has_played_timer.resume();
+return final;
+}
+void play_wait()
+{
+play();
+wait(get_length());
+}
+int play_looped() // plays the sound, making it loop
+{
+set_looping(true);
+dictionary@ res=CDLL.call(CA_SoundBase_play, handle);
+int final;
+res.get(0, final);
+has_played=true;
+if(!paused)
+has_played_timer.restart();
+else
+has_played_timer.resume();
+return final;
+}
+int stop() // stops the sound
+{
+dictionary@ res=CDLL.call(CA_SoundBase_stop, handle);
+int final;
+res.get(0, final);
+has_played=false;
+return final;
+}
+int pause() // pauses the sound
+{
+dictionary@ res=CDLL.call(CA_SoundBase_pause, handle);
+int final;
+res.get(0, final);
+has_played=false;
+has_played_timer.pause();
+paused=true;
+return final;
+}
+bool playing() // returns true if the sound is playing, false otherwise. Warning! There was no reffrence to a way to check weather the sound was playing internally with in the camlorn audio dll. For that purpase we have had to improvise and make one. and wwell we have found this to be very acurat so far, I figured i'd warn you none the less. 
+{
+if(active==false)
+{
+return false;
+}
+if(has_played==true)
+{
+if(looping())
+return true;
+else
+{
+if(has_played_timer.elapsed>get_length())
+{
+has_played=false;
+return false;
+}
+else
+{
+return true;
+}
+}
+}
+return false;
+}
+int set_looping(bool looping) // controls weather the sound should be looping or not. true for looping, false otherwise
+{
+dictionary@ res=CDLL.call(CA_SoundBase_setLooping, handle, looping);
+int final;
+res.get(0, final);
+return final;
+}
+int set_max_distance(float distance) // controls the max distance the sound should be heard
+{
+dictionary@ res=CDLL.call(CA_SourceHelper3D_setMaxDistance, handle, distance);
+int final;
+res.get(0, final);
+return final;
+}
+int set_rolloff_factor(float factor) // set's how much volume will decrease from the sound, the farther you get from it
+{
+dictionary@ res=CDLL.call(CA_SourceHelper3D_setRolloffFactor, handle, factor);
+int final;
+res.get(0, final);
+return final;
+}
+int set_pitch(float temp_pitch) // set's the pitch of the sound. This has been optomised to work the same way it does in bgt, 100 being the normal pitch. 
+{
+pitch=temp_pitch;
+temp_pitch=temp_pitch/100;
+dictionary@ res=CDLL.call(CA_SoundBase_setPitchBend, handle, temp_pitch);
+int final;
+res.get(0, final);
+return final;
+}
+int set_volume(float temp_volume) // set's the volume of the sound. This has been optomised to work the same way it does in bgt, 100 being the normal volume. 
+{
+volume=temp_volume;
+temp_volume=temp_volume/100;
+dictionary@ res=CDLL.call(CA_SoundBase_setVolume, handle, temp_volume);
+int final;
+res.get(0, final);
+return final;
+}
+int seek(float position) // seeks threw the sound, in milliseconds. 
+{
+position=position/1000;
+dictionary@ res=CDLL.call(CA_SoundBase_seek, handle, position, true);
+int final;
+res.get(0, final);
+return final;
+}
+int get_length() // returns the length, in milliseconds. Sence camlorn audio returns the length in samples, we've had to convert it. 
+{
+dictionary@ res=CDLL.call(CA_SoundBase_getLength, handle);
+double final;
+res.get(0, final);
+final=1000/(44100/final);
+return final;
+}
+bool looping() // returns true if the sound is looping, false otherwise. 
+{
+dictionary@ res=CDLL.call(CA_SoundBase_getLooping, handle);
+int final;
+res.get(0, final);
+if(final<=0)
+return false;
+else
+return true;
+}
+void add_reverb_effect(int r_handle, int temp_slot=0) // adds the reverb effect to the current sound. 
+{
+dictionary@ res=CDLL.call(CA_EfxCapable_setEffectForSlot, handle, r_handle, temp_slot);
+int final;
+res.get(0, final);
+}
+void add_eax_reverb_effect(int er_handle, int slot=0) // this adds the eax reverb effect to the current sound. 
+{
+CDLL.call(CA_EfxCapable_setEffectForSlot, handle, er_handle, slot);
+}
+void add_echo_effect(int e_handle, int temp_slot=0) // adds the echo effect to the current sound. 
+{
+dictionary@ res=CDLL.call(CA_EfxCapable_setEffectForSlot, handle, e_handle, temp_slot);
+int final;
+res.get(0, final);
+}
+void add_filter_effect(int f_handle, int slot=1) // this adds the filter effect to the current sound. 
+{
+CDLL.call(CA_EfxCapable_setFilterForSlot, handle, f_handle, slot);
+CDLL.call(CA_EfxCapable_setDryFilter, handle, f_handle);
+}
+int set_position( float x, float y, float z, float listener_x, float listener_y, float listener_z, double theta=0.0, bool change_volume=true)
+{
+// this actually set's the 3d position of a sound. Here we must also convert the coordinate system in normal bgt over to here. Also, this function will be able to deal with the listener position, as well as optional rotation. I just find this easier to use than the viewpoints camlern offers and am doing it this way for that reason. 
+// first, let us deal with the listener x, y and z
+float temp_x=x-listener_x;
+float temp_y=y-listener_y;
+float temp_z=z-listener_z;
+// now let's deal with rotation
+float rotational_x=temp_x;
+float rotational_y=temp_y;
+if(theta > 0.0)
+{
+rotational_x = (cosine(theta) * (temp_x-listener_x)) - (sine(theta) * (temp_y-listener_y))+listener_x;
+rotational_y=(sine(theta) * (temp_x-listener_x))+(cosine(theta)*(temp_y-listener_y))+listener_y;
+temp_x=rotational_x;
+temp_y=rotational_y;
+}
+x=temp_x;
+y=temp_y;
+z=temp_z;
+// yay, were done with all the position calculations!
+// the only thing we need to change about the input coordinates, is how positive y is backwords. This is a very simple calculation
+if(y<0)
+y=absolute(y);
+else
+y=-absolute(y);
+// and now for the actual call to the dll. 
+dictionary@ res=CDLL.call(CA_SourceHelper3D_setPosition, handle, x, z, y);
+int final;
+res.get(0, final);
+return final;
+}
+} // end of the sound3d class
+// this is going to be the reverb class, which is a wrapper of the camlorn audio reverb class. 
+class reverb3d
+{
+// dll constants. These are function signitures to all of camlern audio's dll functions with in the reverb3d class, allowing us to call functions from the dll much easier. 
+string CA_initCamlornAudio="int CA_initCamlornAudio(int, char*, unsigned int, char*, int, unsigned int, char*);";
+string CA_newReverb="int CA_newReverb();";
+string CA_Reverb_setReverbDensity="int CA_Reverb_setReverbDensity(int, float);";
+string CA_Reverb_setDiffusion="int CA_Reverb_setDiffusion(int, float);";
+string CA_Reverb_setGain="int CA_Reverb_setGain(int, float);";
+string CA_Reverb_setGainHF="int CA_Reverb_setGainHF(int, float);";
+string CA_Reverb_setDecayTime="int CA_Reverb_setDecayTime(int, float);";
+string CA_Reverb_setDecayHFRatio="int CA_Reverb_setDecayHFRatio(int, float);";
+string CA_Reverb_setReflectionsGain="int CA_Reverb_setReflectionsGain(int, float);";
+string CA_Reverb_setReflectionsDelay="int CA_Reverb_setReflectionsDelay(int, float);";
+string CA_Reverb_setLateReverbGain="int CA_Reverb_setLateReverbGain(int, float);";
+string CA_Reverb_setLateReverbDelay="int CA_Reverb_setLateReverbDelay(int, float);";
+string CA_Reverb_setAirAbsorptionGainHF="int CA_Reverb_setAirAbsorptionGainHF(int, float);";
+string CA_Reverb_setRoomRolloffFactor="int CA_Reverb_setRoomRolloffFactor(int, float);";
+string CA_Reverb_setDecayHFLimit="int CA_Reverb_setDecayHFLimit(int, int);";
+// variables we need in the class. 
+int handle;
+library CDLL; // the library class used for dll calling etc.
+// the settings stored by calling the reverb set functions, encase they need to be accessed later
+float current_reverb_density;
+float current_diffusion;
+float current_gain;
+float current_gain_hf;
+float current_decay_time;
+float current_decay_hf_ratio;
+float current_reflections_gain;
+float current_reflections_delay;
+float current_late_reverb_gain;
+float current_late_reverb_delay;
+float current_air_absorption_gain_hf;
+float current_room_rolloff_factor;
+float current_decay_hf_limit;
+reverb3d() // default constructer
+{
+init_soundsystem();
+dictionary@ res=CDLL.call(CA_newReverb);
+res.get("0", handle);
+}
+void init_soundsystem(string dll_path="lib/c.dll", string hrtfs_path="lib\\hrtfs")
+{
+CDLL.load(dll_path);
+if(!soundsystem_inited)
+CDLL.call(CA_initCamlornAudio, true, "stereo", 44100, "dsound, winmm", false, 100000, hrtfs_path);
+soundsystem_inited=true;
+}
+// now we have the functions to set all of the reverb properties. 
+void set_reverb_density(float value)
+{
+CDLL.call(CA_Reverb_setReverbDensity, handle, value);
+current_reverb_density=value;
+}
+void set_diffusion(float value)
+{
+CDLL.call(CA_Reverb_setDiffusion, handle, value);
+current_diffusion=value;
+}
+void set_gain(float value)
+{
+CDLL.call(CA_Reverb_setGain, handle, value);
+current_gain=value;
+}
+void set_gain_hf(float value)
+{
+CDLL.call(CA_Reverb_setGainHF, handle, value);
+current_gain_hf=value;
+}
+void set_decay_time(float value)
+{
+CDLL.call(CA_Reverb_setDecayTime, handle, value);
+current_decay_time=value;
+}
+void set_decay_hf_ratio(float value)
+{
+CDLL.call(CA_Reverb_setDecayHFRatio, handle, value);
+current_decay_hf_ratio=value;
+}
+void set_reflections_gain(float value)
+{
+CDLL.call(CA_Reverb_setReflectionsGain, handle, value);
+current_reflections_gain=value;
+}
+void set_reflections_delay(float value)
+{
+CDLL.call(CA_Reverb_setReflectionsDelay, handle, value);
+current_reflections_delay=value;
+}
+void set_late_reverb_gain(float value)
+{
+CDLL.call(CA_Reverb_setLateReverbGain, handle, value);
+current_late_reverb_gain=value;
+}
+void set_late_reverb_delay(float value)
+{
+CDLL.call(CA_Reverb_setLateReverbDelay, handle, value);
+current_late_reverb_delay=value;
+}
+void set_air_absorption_gain_hf(float value)
+{
+CDLL.call(CA_Reverb_setAirAbsorptionGainHF, handle, value);
+current_air_absorption_gain_hf=value;
+}
+void set_room_rolloff_factor(float value)
+{
+CDLL.call(CA_Reverb_setRoomRolloffFactor, handle, value);
+current_room_rolloff_factor=value;
+}
+void set_decay_hf_limit(int value)
+{
+CDLL.call(CA_Reverb_setDecayHFLimit, handle, value);
+current_decay_hf_limit=value;
+}
+} // end of the reverb3d class
+// now for filter3d. This atempts to wrap the filters of camlorn audio. This is not 100 percent wrapped, but should work, just the same. 
+class filter3d
+{
+// dll constants. These are function signitures to all of camlern audio's dll functions, allowing us to call functions from the dll much easier. 
+string CA_newFilter="int CA_newFilter();";
+string CA_Filter_setFilterType="int CA_Filter_setFilterType(int, float);";
+string CA_Filter_setGain="int CA_Filter_setGain(int, float);";
+string CA_Filter_setGainHF="int CA_Filter_setGainHF(int, float);";
+string CA_Filter_setGainLF="int CA_Filter_setGainLF(int, float);";
+// variables we need in the class. 
+int handle;
+library CDLL; // the library class used for dll calling etc.
+filter3d() // default constructer
+{
+CDLL.load("lib/c.dll");
+dictionary@ res=CDLL.call(CA_newFilter);
+res.get("0", handle);
+}
+void set_filter_type(float value)
+{
+CDLL.call(CA_Filter_setFilterType, handle, value);
+}
+void set_gain(float value)
+{
+CDLL.call(CA_Filter_setGain, handle, value);
+}
+void set_gain_hf(float value)
+{
+CDLL.call(CA_Filter_setGainHF, handle, value);
+}
+void set_gain_lf(float value)
+{
+CDLL.call(CA_Filter_setGainLF, handle, value);
+}
+}
+class eax_reverb3d
+{
+// dll constants. These are function signitures to all of camlern audio's dll functions, allowing us to call functions from the dll much easier. 
+string CA_EaxReverb_setReverbDensity="int CA_EaxReverb_setReverbDensity(int, float);";
+string CA_EaxReverb_setDiffusion="int CA_EaxReverb_setDiffusion(int, float);";
+string CA_EaxReverb_setGain="int CA_EaxReverb_setGain(int, float);";
+string CA_EaxReverb_setGainHF="int CA_EaxReverb_setGainHF(int, float);";
+string CA_EaxReverb_setGainLF="int CA_EaxReverb_setGainLF(int, float);";
+string CA_EaxReverb_setDecayTime="int CA_EaxReverb_setDecayTime(int, float);";
+string CA_EaxReverb_setDecayHFRatio="int CA_EaxReverb_setDecayHFRatio(int, float);";
+string CA_EaxReverb_setDecayLFRatio="int CA_EaxReverb_setDecayLFRatio(int, float);";
+string CA_EaxReverb_setReflectionsGain="int CA_EaxReverb_setReflectionsGain(int, float);";
+string CA_EaxReverb_setReflectionsDelay="int CA_EaxReverb_setReflectionsDelay(int, float);";
+string CA_EaxReverb_setLateReverbGain="int CA_EaxReverb_setLateReverbGain(int, float);";
+string CA_EaxReverb_setLateReverbDelay="int CA_EaxReverb_setLateReverbDelay(int, float);";
+string CA_EaxReverb_setEchoTime="int CA_EaxReverb_setEchoTime(int, float);";
+string CA_EaxReverb_setEchoDepth="int CA_EaxReverb_setEchoDepth(int, float);";
+string CA_EaxReverb_setModulationTime="int CA_EaxReverb_setModulationTime(int, float);";
+string CA_EaxReverb_setModulationDepth="int CA_EaxReverb_setModulationDepth(int, float);";
+string CA_EaxReverb_setAirAbsorptionGainHF="int CA_EaxReverb_setAirAbsorptionGainHF(int, float);";
+string CA_EaxReverb_setHFReference="int CA_EaxReverb_setHFReference(int, float);";
+string CA_EaxReverb_setLFReference="int CA_EaxReverb_setLFReference(int, float);";
+string CA_EaxReverb_setRoomRolloffFactor="int CA_EaxReverb_setRoomRolloffFactor(int, float);";
+string CA_EaxReverb_setDecayHFLimit="int CA_EaxReverb_setDecayHFLimit(int, float);";
+string CA_EaxReverb_setReflectionsPan="int CA_EaxReverb_setReflectionsPan(int, float);";
+string CA_EaxReverb_setLateReverbPan="int CA_EaxReverb_setLateReverbPan(int, float);";
+string CA_newEaxReverb="int CA_newEaxReverb();";
+// variables we need in the class. 
+int handle;
+library CDLL; // the library class used for dll calling etc.
+eax_reverb3d() // default constructer
+{
+CDLL.load("lib/c.dll");
+dictionary@ res=CDLL.call(CA_newEaxReverb);
+res.get("0", handle);
+}
+void set_reverb_density(float value)
+{
+CDLL.call(CA_EaxReverb_setReverbDensity, handle, value);
+}
+void set_diffusion(float value)
+{
+CDLL.call(CA_EaxReverb_setDiffusion, handle, value);
+}
+void set_gain(float value)
+{
+CDLL.call(CA_EaxReverb_setGain, handle, value);
+}
+void set_gain_hf(float value)
+{
+CDLL.call(CA_EaxReverb_setGainHF, handle, value);
+}
+void set_gain_lf(float value)
+{
+CDLL.call(CA_EaxReverb_setGainLF, handle, value);
+}
+void set_decay_time(float value)
+{
+CDLL.call(CA_EaxReverb_setDecayTime, handle, value);
+}
+void set_decay_hf_ratio(float value)
+{
+CDLL.call(CA_EaxReverb_setDecayHFRatio, handle, value);
+}
+void set_decay_lf_ratio(float value)
+{
+CDLL.call(CA_EaxReverb_setDecayLFRatio, handle, value);
+}
+void set_reflections_gain(float value)
+{
+CDLL.call(CA_EaxReverb_setReflectionsGain, handle, value);
+}
+void set_reflections_delay(float value)
+{
+CDLL.call(CA_EaxReverb_setReflectionsDelay, handle, value);
+}
+void set_late_reverb_gain(float value)
+{
+CDLL.call(CA_EaxReverb_setLateReverbGain, handle, value);
+}
+void set_late_reverb_delay(float value)
+{
+CDLL.call(CA_EaxReverb_setLateReverbDelay, handle, value);
+}
+void set_echo_time(float value)
+{
+CDLL.call(CA_EaxReverb_setEchoTime, handle, value);
+}
+void set_echo_depth(float value)
+{
+CDLL.call(CA_EaxReverb_setEchoDepth, handle, value);
+}
+void set_modulation_time(float value)
+{
+CDLL.call(CA_EaxReverb_setModulationTime, handle, value);
+}
+void set_modulation_depth(float value)
+{
+CDLL.call(CA_EaxReverb_setModulationDepth, handle, value);
+}
+void set_air_absorption_gain_hf(float value)
+{
+CDLL.call(CA_EaxReverb_setAirAbsorptionGainHF, handle, value);
+}
+void set_hf_reference(float value)
+{
+CDLL.call(CA_EaxReverb_setHFReference, handle, value);
+}
+void set_lf_reference(float value)
+{
+CDLL.call(CA_EaxReverb_setLFReference, handle, value);
+}
+void set_room_rolloff_factor(float value)
+{
+CDLL.call(CA_EaxReverb_setRoomRolloffFactor, handle, value);
+}
+void set_decay_hf_limit(int value)
+{
+CDLL.call(CA_EaxReverb_setDecayHFLimit, handle, value);
+}
+void set_reflections_pan(int value)
+{
+CDLL.call(CA_EaxReverb_setReflectionsPan, handle, value);
+}
+void set_late_reverb_pan(int value)
+{
+CDLL.call(CA_EaxReverb_setLateReverbPan, handle, value);
+}
+}
+class echo3d
+{
+// dll constants. These are function signitures to all of camlern audio's dll functions with in the reverb3d class, allowing us to call functions from the dll much easier. 
+string CA_initCamlornAudio="int CA_initCamlornAudio(int, char*, unsigned int, char*, int, unsigned int, char*);";
+string CA_newEcho="int CA_newEcho();";
+string CA_Echo_setDelay="int CA_Echo_setDelay(int, float);";
+string CA_Echo_setLRDelay="int CA_Echo_setLRDelay(int, float);";
+string CA_Echo_setDamping="int CA_Echo_setDamping(int, float);";
+string CA_Echo_setFeedback="int CA_Echo_setFeedback(int, float);";
+string CA_Echo_setSpread="int CA_Echo_setSpread(int, float);";
+// variables we need in the class. 
+int handle;
+library CDLL; // the library class used for dll calling etc.
+// the settings stored by calling the echo set functions, encase they need to be accessed later
+float current_delay;
+float current_lr_delay;
+float current_damping;
+float current_spread;
+float current_feedback;
+echo3d() // default constructer
+{
+init_soundsystem();
+dictionary@ res=CDLL.call(CA_newEcho);
+res.get("0", handle);
+}
+void init_soundsystem(string dll_path="lib/c.dll", string hrtfs_path="lib\\hrtfs")
+{
+CDLL.load(dll_path);
+if(!soundsystem_inited)
+CDLL.call(CA_initCamlornAudio, true, "stereo", 44100, "dsound, winmm", false, 100000, hrtfs_path);
+soundsystem_inited=true;
+}
+// now we have the functions to set all of the echo properties.
+void set_delay(float value)
+{
+CDLL.call(CA_Echo_setDelay, handle, value);
+current_delay=value;
+}
+void set_lr_delay(float value)
+{
+CDLL.call(CA_Echo_setLRDelay, handle, value);
+current_lr_delay=value;
+}
+void set_damping(float value)
+{
+CDLL.call(CA_Echo_setDamping, handle, value);
+current_damping=value;
+}
+void set_spread(float value)
+{
+CDLL.call(CA_Echo_setSpread, handle, value);
+current_spread=value;
+}
+void set_feedback(float value)
+{
+CDLL.call(CA_Echo_setFeedback, handle, value);
+current_feedback=value;
+}
+}
+// the following is a list of functions allowing you to pack sounds into pack files, even with camlorn audio! Note these functions are not ment for external use, but for the use of the sound3d objects them selves. 
+string pack_name="sounds.dat";
+string temp_sound_path=DIRECTORY_TEMP;
+string decryption_key;
+void get_sound(string sound_name)
+{
+pack_file pf;
+pf.open(pack_name);
+pf.extract_file(sound_name,temp_sound_path+"/"+sound_name);
+if (decryption_key!="")
+{
+file_copy(temp_sound_path+"/"+sound_name,temp_sound_path+"/"+sound_name+"b",true);
+file_decrypt(temp_sound_path+"/"+sound_name+"b",temp_sound_path+"/"+sound_name,decryption_key);
+file_delete(temp_sound_path+"/"+sound_name+"b");
+}
+pf.close();
+}
+void delsound(string sound_name)
+{
+file_delete(temp_sound_path+"/"+sound_name);
+}

@@ -1,0 +1,362 @@
+/*
+Implémente une arme standart (melée ou distance) avec son fonctionnement de base
+Une arme possède des timings:
+- temps où il faut conserver le bouton enfoncé avant de démarrer l'utilisation (ex : temps démarrage machinegun)
+- temps entre utilisation et effet (instantané pour armes à feu, plus ou moins long pour les armes blanches)
+- temps entre deux utilisations ("rate of fire" des armes à feu, vitesse d'attaque pour les melées)
+- temps de recharge
+
+Autres paramètres:
+- nombre d'utilisations avant recharge (pour les armes type couteau de lancer, 1 seule utilisation avant recharge)
+- comportement des munitions : une recharge retire ce qu'il reste du chargeur, ou re-remplit juste ce qu'il manque dans le chargeur?
+
+COMPORTEMENT:
+- l'arme n'est pas en préparation, appui sur la touche d'utilisation
+- l'arme passe en préparation pendant la durée d'une préparation
+	-> pendant ce temps si elle ne l'a pas atteint et qu'on relache la touche alors l'arme revient à son état initial
+- quand l'arme a atteint son état préparé, elle passe en WEAPON_STATE_READY. On appelle triggerWeapon()
+- triggerWeapon déclenche WEAPON_STATE_USING. Quand le timer est atteint, le tick déclenche les évènements nécessaires et reset les variables à WEAPON_STATE_READY.
+
+A tout instant si l'utilisateur a relaché la touche, weaponState passe à WEAPON_STATE_NO_USE et il faut tout recommencer
+
+
+
+EN : implements a standart weapon (melee or ranged) with everything needed for subclasses
+*/
+
+const int WEAPON_STATE_NO_USE = 0;
+const int WEAPON_STATE_PREPARING = 1;
+const int WEAPON_STATE_READY = 2;
+const int WEAPON_STATE_USING = 3;
+const int WEAPON_STATE_RELOADING = 4;
+
+const int DEFAULT_RELOADING = 0;
+const int REALISTIC_RELOADING = 1;
+
+class Weapon : PickableActor, Equipable, Usable
+{
+	timer preparationTimer;
+	timer effectTimer;
+	timer usingTimer;
+	timer reloadingTimer;
+	
+	int preparationTime;
+	int effectTime;
+	int usingTime=500;
+	int reloadingTime=6000;
+	
+	int ammoCount=100;
+	int remainingUses;
+	int ammoClipSize=10;
+	int reloadingSystem=DEFAULT_RELOADING;
+	int useCost=1;
+	
+	int weaponState = WEAPON_STATE_NO_USE;
+	int preparationKey = -1;
+	
+	string triggerSoundPath="";
+	string reloadingSoundPath="";
+	string noAmmoSoundPath="";
+	
+	Weapon(string className="Weapon", string name="")
+	{
+		super(className, name);
+		remainingUses = ammoClipSize;
+	}
+	
+	void load(dictionary infos)
+	{	
+		PickableActor::load(infos);
+		string tmp;
+		
+		if(infos.exists("preparationTimer"))
+		{
+			infos.get("preparationTimer", tmp);
+			preparationTimer.force(string_to_number(tmp));
+		}
+		if(infos.exists("effectTimer"))
+		{
+			infos.get("effectTimer", tmp);
+			effectTimer.force(string_to_number(tmp));
+		}
+		if(infos.exists("usingTimer"))
+		{
+			infos.get("usingTimer", tmp);
+			usingTimer.force(string_to_number(tmp));
+		}
+		if(infos.exists("reloadingTimer"))
+		{
+			infos.get("reloadingTimer", tmp);
+			reloadingTimer.force(string_to_number(tmp));
+		}
+		
+		if(infos.exists("preparationTime"))
+		{
+			infos.get("preparationTime", tmp);
+			preparationTime = string_to_number(tmp);
+		}
+		if(infos.exists("effectTime"))
+		{
+			infos.get("effectTime", tmp);
+			effectTime = string_to_number(tmp);
+		}
+		if(infos.exists("usingTime"))
+		{
+			infos.get("usingTime", tmp);
+			usingTime = string_to_number(tmp);
+		}
+		if(infos.exists("reloadingTime"))
+		{
+			infos.get("reloadingTime", tmp);
+			reloadingTime = string_to_number(tmp);
+		}
+		
+		if(infos.exists("ammoCount"))
+		{
+			infos.get("ammoCount", tmp);
+			ammoCount = string_to_number(tmp);
+		}
+		if(infos.exists("remainingUses"))
+		{
+			infos.get("remainingUses", tmp);
+			remainingUses = string_to_number(tmp);
+		}
+		
+		if(infos.exists("ammoClipSize"))
+		{
+			infos.get("ammoClipSize", tmp);
+			ammoClipSize = string_to_number(tmp);
+		}
+		
+		if(infos.exists("reloadingSystem"))
+		{
+			string tmp_s;
+			infos.get("reloadingSystem", tmp_s);
+			
+			if(tmp_s=="DEFAULT_RELOADING")
+				reloadingSystem = DEFAULT_RELOADING;
+			else if(tmp_s=="REALISTIC_RELOADING")
+				reloadingSystem = REALISTIC_RELOADING;
+		}
+		
+		if(infos.exists("weaponState"))
+		{
+			string tmp_s;
+			infos.get("weaponState", tmp_s);
+			
+			if(tmp_s=="WEAPON_STATE_NO_USE")
+				weaponState = WEAPON_STATE_NO_USE;
+			else if(tmp_s=="WEAPON_STATE_PREPARING")
+				weaponState = WEAPON_STATE_PREPARING;
+			else if(tmp_s=="WEAPON_STATE_MOVING_READY")
+				weaponState = WEAPON_STATE_READY;
+			else if(tmp_s=="WEAPON_STATE_MOVING_USING")
+				weaponState = WEAPON_STATE_USING;
+			else if(tmp_s=="WEAPON_STATE_RELOADING")
+				weaponState = WEAPON_STATE_RELOADING;
+		}
+		
+		if(infos.exists("preparationKey"))
+		{
+			infos.get("preparationKey", tmp);
+			preparationKey = string_to_number(tmp);
+		}
+		
+		if(infos.exists("useCost"))
+		{
+			infos.get("useCost", tmp);
+			useCost = string_to_number(tmp);
+		}
+		
+		if(infos.exists("triggerSoundPath"))
+		{
+			infos.get("triggerSoundPath", this.triggerSoundPath);
+		}
+		
+		if(infos.exists("reloadingSoundPath"))
+		{
+			infos.get("reloadingSoundPath", this.reloadingSoundPath);
+		}
+		
+		if(infos.exists("noAmmoSoundPath"))
+		{
+			infos.get("noAmmoSoundPath", this.noAmmoSoundPath);
+		}
+	}
+	
+	dictionary parseObject()
+	{
+		dictionary infos = PickableActor::parseObject();//Ici on récupère les valeurs de la classe mère récurvisement / EN: here we gather the values of the mother class
+		
+		string tmp_s;
+		if(this.weaponState==WEAPON_STATE_NO_USE)
+			tmp_s = "WEAPON_STATE_NO_USE";
+		else if(this.weaponState==WEAPON_STATE_PREPARING)
+			tmp_s = "WEAPON_STATE_PREPARING";
+		else if(this.weaponState==WEAPON_STATE_READY)
+			tmp_s="WEAPON_STATE_MOVING_READY";
+		else if(this.weaponState==WEAPON_STATE_USING)
+			tmp_s="WEAPON_STATE_MOVING_USING";
+		else if(this.weaponState==WEAPON_STATE_RELOADING)
+			tmp_s="WEAPON_STATE_RELOADING";
+		
+		infos.set("weaponState", tmp_s);
+		
+		infos.set("preparationTimer", ""+preparationTimer.elapsed);
+		infos.set("effectTimer", ""+effectTimer.elapsed);
+		infos.set("usingTimer", ""+usingTimer.elapsed);
+		infos.set("reloadingTimer", ""+reloadingTimer.elapsed);
+		
+		infos.set("preparationTime", ""+preparationTime);
+		infos.set("effectTime", ""+effectTime);
+		infos.set("usingTime", ""+usingTime);
+		infos.set("reloadingTime", ""+reloadingTime);
+		
+		infos.set("ammoCount", ""+ammoCount);
+		infos.set("remainingUses", ""+remainingUses);
+		infos.set("ammoClipSize", ""+ammoClipSize);
+		infos.set("useCost", ""+useCost);
+		
+		if(this.reloadingSystem==DEFAULT_RELOADING)
+			tmp_s = "DEFAULT_RELOADING";
+		else if(this.reloadingSystem==REALISTIC_RELOADING)
+			tmp_s = "REALISTIC_RELOADING";
+		
+		infos.set("reloadingSystem", tmp_s);
+		
+		infos.set("preparationKey", ""+preparationKey);
+		
+		infos.set("triggerSoundPath", this.triggerSoundPath);
+		infos.set("reloadingSoundPath", this.reloadingSoundPath);
+		infos.set("noAmmoSoundPath", this.noAmmoSoundPath);
+		
+		
+		infos.set("className", this.className);//toujours réécrire cette valeur EN: Always override this value
+		infos.set("name", this.name);//toujours réécrire cette valeur EN: Always override this value
+		
+		return infos;
+	}
+	
+	void setPreparationKey(int key)
+	{
+		this.preparationKey = key;
+	}
+	
+	//If the weapon isn't used, it prepares it. If the weapon is currently being in preparation, it checks if the preparation should be cancelled or not.
+	void use(ControlableActor@ user)
+	{	
+		if(weaponState==WEAPON_STATE_NO_USE)
+		{
+			//alert("Weapon", "Preparing weapon");
+			weaponState=WEAPON_STATE_PREPARING;
+		}
+		else if(weaponState==WEAPON_STATE_READY)
+		{
+			triggerWeapon();
+		}
+	}
+	
+	//Called when the action has to be done (firing, slashing,...)
+	void triggerWeapon()
+	{
+		if(remainingUses > 0 
+		&& usingTimer.elapsed >= usingTime 
+		&& weaponState==WEAPON_STATE_READY
+		&& ammoCount - useCost >= 0)
+		{
+			preparationTimer.restart();
+			usingTimer.restart();
+			
+			createEffect();
+			
+			if(remainingUses==0)
+			{
+				if(ammoCount>0)
+				{
+					startReloading();
+				}
+			}
+		}
+		else if(remainingUses == 0 
+		&& usingTimer.elapsed >= usingTime 
+		&& weaponState==WEAPON_STATE_READY)
+		{
+			preparationTimer.restart();
+			usingTimer.restart();
+			game.scene.se.play_stationary(this.noAmmoSoundPath, false);
+		}
+	}
+	
+	void startReloading()
+	{
+		if(weaponState!= WEAPON_STATE_RELOADING && ammoClipSize>remainingUses && remainingUses != ammoCount)
+		{
+			weaponState = WEAPON_STATE_RELOADING;
+			reloadingTimer.restart();
+			game.scene.se.play_stationary(this.reloadingSoundPath, false);
+		}
+	}
+	
+	void finishReloading()
+	{
+		weaponState = WEAPON_STATE_NO_USE;
+		
+		//If reloading is realistic, discard all remaining ammo in clip
+		if(reloadingSystem==REALISTIC_RELOADING)
+		{
+			ammoCount -= remainingUses;
+		}
+		
+		if(ammoCount<ammoClipSize)
+		{
+			remainingUses = ammoCount;
+		}
+		else
+		{
+			remainingUses = ammoClipSize;
+		}
+	}
+	
+	void createEffect()
+	{
+		game.scene.se.play_stationary(this.triggerSoundPath, false);
+		remainingUses -= useCost;
+		ammoCount -= useCost;
+		weaponState = WEAPON_STATE_READY;
+		
+		//alert("Weapon infos", "WEAPON:\nAmmos="+ammoCount+"\nClip="+ammoClipSize+" (remaining: "+remainingUses+")");
+	}
+	
+	void equiped()
+	{
+	
+	}
+	
+	void tick()
+	{
+		PickableActor::tick();
+		
+		//If the weapon is being prepared, check if it should trigger.
+		
+		if(weaponState!=WEAPON_STATE_PREPARING)
+		{
+			preparationTimer.restart();
+		}
+		
+		if((weaponState==WEAPON_STATE_PREPARING && preparationTimer.elapsed >= preparationTime) || (key_down(preparationKey) && weaponState == WEAPON_STATE_READY))
+		{
+			weaponState = WEAPON_STATE_READY;
+			triggerWeapon();
+		}
+		//If not, check if it's still preparing and not reloading or should be canceled
+		if(!key_down(preparationKey) && weaponState!=WEAPON_STATE_NO_USE && weaponState!=WEAPON_STATE_RELOADING)
+		{
+			weaponState = WEAPON_STATE_NO_USE;
+		}
+		
+		if(weaponState==WEAPON_STATE_RELOADING && reloadingTimer.elapsed>=reloadingTime)
+		{
+			finishReloading();
+		}
+	}
+}

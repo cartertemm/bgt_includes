@@ -1,0 +1,8 @@
+#include "browser.bgt";
+#include "speech.bgt";
+void main()
+{
+show_game_window("browser test");
+string files=select_file("C:");
+run("C:\\Windows\\explorer.exe", files, false, false);
+}

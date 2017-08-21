@@ -1,0 +1,330 @@
+/* Librería key_capture / Library key_capture
+Versión 1.
+Descripción / Description:
+Fecha de creación / Creation date: 3 de febrero de 2016 / February 3, 2016.
+Creado por / Created by: Camilo Ortiz de Graffi Games.
+
+Información en español:
+Esta librería permite dos cosas: capturar la tecla presionada y entregar su nombre.
+Fue pensada para los juegos que tengan un menú donde el jugador pueda cambiar
+la tecla usada para cierta acción, por ejemplo, para saltar.
+Acá están las dos funciones que puedes llamar en el script del juego:
+key_capture(); // Int que retorna la tecla pulsada
+key_name(key); // String que retorna el nombre de la tecla. Usa como argumento un int
+que es el identificador de la tecla (por ejemplo, KEY_ESCAPE)
+
+English information:
+This library allows two things: capture key pressed and returns his name.
+It was made for games that have setting menu where the gamer change the key used
+for differents events (for example, jump).
+There are the two functions that you can call in your script:
+key_capture(); // Int that returns the key pressed
+key_name(key); // String that returns the name of the key. It uses as argument a int
+of the key identifier (for example, KEY_ESCAPE)
+*/
+
+
+// Función que captura la tecla presionada y retorna su valor en int.
+// Function that capture key pressed and returns his value.
+int key_capture() {
+int value; // Aloja la tecla que pulso el usuario. Store the user's key pressed
+while(true) {
+if(key_pressed(KEY_ESCAPE)) { value = KEY_ESCAPE;  break; }
+if(key_pressed(KEY_1)) { value = KEY_1;  break; }
+if(key_pressed(KEY_2)) { value = KEY_2;  break; }
+if(key_pressed(KEY_3)) { value = KEY_3;  break; }
+if(key_pressed(KEY_4)) { value = KEY_4;  break; }
+if(key_pressed(KEY_5)) { value = KEY_5;  break; }
+if(key_pressed(KEY_6)) { value = KEY_6;  break; }
+if(key_pressed(KEY_7)) { value = KEY_7;  break; }
+if(key_pressed(KEY_8)) { value = KEY_8;  break; }
+if(key_pressed(KEY_9)) { value = KEY_9;  break; }
+if(key_pressed(KEY_0)) { value = KEY_0;  break; }
+if(key_pressed(KEY_MINUS)) { value = KEY_MINUS;  break; }
+if(key_pressed(KEY_EQUALS)) { value = KEY_EQUALS;  break; }
+if(key_pressed(KEY_BACK)) { value = KEY_BACK;  break; }
+if(key_pressed(KEY_TAB)) { value = KEY_TAB;  break; }
+if(key_pressed(KEY_Q)) { value = KEY_Q;  break; }
+if(key_pressed(KEY_W)) { value = KEY_W;  break; }
+if(key_pressed(KEY_E)) { value = KEY_E;  break; }
+if(key_pressed(KEY_R)) { value = KEY_R;  break; }
+if(key_pressed(KEY_T)) { value = KEY_T;  break; }
+if(key_pressed(KEY_Y)) { value = KEY_Y;  break; }
+if(key_pressed(KEY_U)) { value = KEY_U;  break; }
+if(key_pressed(KEY_I)) { value = KEY_I;  break; }
+if(key_pressed(KEY_O)) { value = KEY_O;  break; }
+if(key_pressed(KEY_P)) { value = KEY_P;  break; }
+if(key_pressed(KEY_LBRACKET)) { value = KEY_LBRACKET;  break; }
+if(key_pressed(KEY_RBRACKET)) { value = KEY_RBRACKET;  break; }
+if(key_pressed(KEY_RETURN)) { value = KEY_RETURN;  break; }
+if(key_pressed(KEY_LCONTROL)) { value = KEY_LCONTROL;  break; }
+if(key_pressed(KEY_A)) { value = KEY_A;  break; }
+if(key_pressed(KEY_S)) { value = KEY_S;  break; }
+if(key_pressed(KEY_D)) { value = KEY_D;  break; }
+if(key_pressed(KEY_F)) { value = KEY_F;  break; }
+if(key_pressed(KEY_G)) { value = KEY_G;  break; }
+if(key_pressed(KEY_H)) { value = KEY_H;  break; }
+if(key_pressed(KEY_J)) { value = KEY_J;  break; }
+if(key_pressed(KEY_K)) { value = KEY_K;  break; }
+if(key_pressed(KEY_L)) { value = KEY_L;  break; }
+if(key_pressed(KEY_SEMICOLON)) { value = KEY_SEMICOLON;  break; }
+if(key_pressed(KEY_APOSTROPHE)) { value = KEY_APOSTROPHE;  break; }
+if(key_pressed(KEY_GRAVE)) { value = KEY_GRAVE;  break; }
+if(key_pressed(KEY_LSHIFT)) { value = KEY_LSHIFT;  break; }
+if(key_pressed(KEY_BACKSLASH)) { value = KEY_BACKSLASH;  break; }
+if(key_pressed(KEY_Z)) { value = KEY_Z;  break; }
+if(key_pressed(KEY_X)) { value = KEY_X;  break; }
+if(key_pressed(KEY_C)) { value = KEY_C;  break; }
+if(key_pressed(KEY_V)) { value = KEY_V;  break; }
+if(key_pressed(KEY_B)) { value = KEY_B;  break; }
+if(key_pressed(KEY_N)) { value = KEY_N;  break; }
+if(key_pressed(KEY_M)) { value = KEY_M;  break; }
+if(key_pressed(KEY_COMMA)) { value = KEY_COMMA;  break; }
+if(key_pressed(KEY_PERIOD)) { value = KEY_PERIOD;  break; }
+if(key_pressed(KEY_SLASH)) { value = KEY_SLASH;  break; }
+if(key_pressed(KEY_RSHIFT)) { value = KEY_RSHIFT;  break; }
+if(key_pressed(KEY_MULTIPLY)) { value = KEY_MULTIPLY;  break; }
+if(key_pressed(KEY_LMENU)) { value = KEY_LMENU;  break; }
+if(key_pressed(KEY_SPACE)) { value = KEY_SPACE;  break; }
+if(key_pressed(KEY_CAPITAL)) { value = KEY_CAPITAL;  break; }
+if(key_pressed(KEY_F1)) { value = KEY_F1;  break; }
+if(key_pressed(KEY_F2)) { value = KEY_F2;  break; }
+if(key_pressed(KEY_F3)) { value = KEY_F3;  break; }
+if(key_pressed(KEY_F4)) { value = KEY_F4;  break; }
+if(key_pressed(KEY_F5)) { value = KEY_F5;  break; }
+if(key_pressed(KEY_F6)) { value = KEY_F6;  break; }
+if(key_pressed(KEY_F7)) { value = KEY_F7;  break; }
+if(key_pressed(KEY_F8)) { value = KEY_F8;  break; }
+if(key_pressed(KEY_F9)) { value = KEY_F9;  break; }
+if(key_pressed(KEY_F10)) { value = KEY_F10;  break; }
+if(key_pressed(KEY_NUMLOCK)) { value = KEY_NUMLOCK;  break; }
+if(key_pressed(KEY_SCROLL)) { value = KEY_SCROLL;  break; }
+if(key_pressed(KEY_NUMPAD7)) { value = KEY_NUMPAD7;  break; }
+if(key_pressed(KEY_NUMPAD8)) { value = KEY_NUMPAD8;  break; }
+if(key_pressed(KEY_NUMPAD9)) { value = KEY_NUMPAD9;  break; }
+if(key_pressed(KEY_SUBTRACT)) { value = KEY_SUBTRACT;  break; }
+if(key_pressed(KEY_NUMPAD4)) { value = KEY_NUMPAD4;  break; }
+if(key_pressed(KEY_NUMPAD5)) { value = KEY_NUMPAD5;  break; }
+if(key_pressed(KEY_NUMPAD6)) { value = KEY_NUMPAD6;  break; }
+if(key_pressed(KEY_ADD)) { value = KEY_ADD;  break; }
+if(key_pressed(KEY_NUMPAD1)) { value = KEY_NUMPAD1;  break; }
+if(key_pressed(KEY_NUMPAD2)) { value = KEY_NUMPAD2;  break; }
+if(key_pressed(KEY_NUMPAD3)) { value = KEY_NUMPAD3;  break; }
+if(key_pressed(KEY_NUMPAD0)) { value = KEY_NUMPAD0;  break; }
+if(key_pressed(KEY_DECIMAL)) { value = KEY_DECIMAL;  break; }
+if(key_pressed(KEY_OEM_102)) { value = KEY_OEM_102;  break; }
+if(key_pressed(KEY_F11)) { value = KEY_F11;  break; }
+if(key_pressed(KEY_F12)) { value = KEY_F12;  break; }
+if(key_pressed(KEY_F13)) { value = KEY_F13;  break; }
+if(key_pressed(KEY_F14)) { value = KEY_F14;  break; }
+if(key_pressed(KEY_F15)) { value = KEY_F15;  break; }
+if(key_pressed(KEY_KANA)) { value = KEY_KANA;  break; }
+if(key_pressed(KEY_ABNT_C1)) { value = KEY_ABNT_C1;  break; }
+if(key_pressed(KEY_CONVERT)) { value = KEY_CONVERT;  break; }
+if(key_pressed(KEY_NOCONVERT)) { value = KEY_NOCONVERT;  break; }
+if(key_pressed(KEY_YEN)) { value = KEY_YEN;  break; }
+if(key_pressed(KEY_ABNT_C2)) { value = KEY_ABNT_C2;  break; }
+if(key_pressed(KEY_NUMPADEQUALS)) { value = KEY_NUMPADEQUALS;  break; }
+if(key_pressed(KEY_PREVTRACK)) { value = KEY_PREVTRACK;  break; }
+if(key_pressed(KEY_AT)) { value = KEY_AT;  break; }
+if(key_pressed(KEY_COLON)) { value = KEY_COLON;  break; }
+if(key_pressed(KEY_UNDERLINE)) { value = KEY_UNDERLINE;  break; }
+if(key_pressed(KEY_KANJI)) { value = KEY_KANJI;  break; }
+if(key_pressed(KEY_STOP)) { value = KEY_STOP;  break; }
+if(key_pressed(KEY_AX)) { value = KEY_AX;  break; }
+if(key_pressed(KEY_UNLABELED)) { value = KEY_UNLABELED;  break; }
+if(key_pressed(KEY_NEXTTRACK)) { value = KEY_NEXTTRACK;  break; }
+if(key_pressed(KEY_NUMPADENTER)) { value = KEY_NUMPADENTER;  break; }
+if(key_pressed(KEY_RCONTROL)) { value = KEY_RCONTROL;  break; }
+if(key_pressed(KEY_MUTE)) { value = KEY_MUTE;  break; }
+if(key_pressed(KEY_CALCULATOR)) { value = KEY_CALCULATOR;  break; }
+if(key_pressed(KEY_PLAYPAUSE)) { value = KEY_PLAYPAUSE;  break; }
+if(key_pressed(KEY_MEDIASTOP)) { value = KEY_MEDIASTOP;  break; }
+if(key_pressed(KEY_VOLUMEDOWN)) { value = KEY_VOLUMEDOWN;  break; }
+if(key_pressed(KEY_VOLUMEUP)) { value = KEY_VOLUMEUP;  break; }
+if(key_pressed(KEY_WEBHOME)) { value = KEY_WEBHOME;  break; }
+if(key_pressed(KEY_NUMPADCOMMA)) { value = KEY_NUMPADCOMMA;  break; }
+if(key_pressed(KEY_DIVIDE)) { value = KEY_DIVIDE;  break; }
+if(key_pressed(KEY_SYSRQ)) { value = KEY_SYSRQ;  break; }
+if(key_pressed(KEY_RMENU)) { value = KEY_RMENU;  break; }
+if(key_pressed(KEY_PAUSE)) { value = KEY_PAUSE;  break; }
+if(key_pressed(KEY_HOME)) { value = KEY_HOME;  break; }
+if(key_pressed(KEY_UP)) { value = KEY_UP;  break; }
+if(key_pressed(KEY_PRIOR)) { value = KEY_PRIOR;  break; }
+if(key_pressed(KEY_LEFT)) { value = KEY_LEFT;  break; }
+if(key_pressed(KEY_RIGHT)) { value = KEY_RIGHT;  break; }
+if(key_pressed(KEY_END)) { value = KEY_END;  break; }
+if(key_pressed(KEY_DOWN)) { value = KEY_DOWN;  break; }
+if(key_pressed(KEY_NEXT)) { value = KEY_NEXT;  break; }
+if(key_pressed(KEY_INSERT)) { value = KEY_INSERT;  break; }
+if(key_pressed(KEY_DELETE)) { value = KEY_DELETE;  break; }
+if(key_pressed(KEY_LWIN)) { value = KEY_LWIN;  break; }
+if(key_pressed(KEY_RWIN)) { value = KEY_RWIN;  break; }
+if(key_pressed(KEY_APPS)) { value = KEY_APPS;  break; }
+if(key_pressed(KEY_POWER)) { value = KEY_POWER;  break; }
+if(key_pressed(KEY_SLEEP)) { value = KEY_SLEEP;  break; }
+if(key_pressed(KEY_WAKE)) { value = KEY_WAKE;  break; }
+if(key_pressed(KEY_WEBSEARCH)) { value = KEY_WEBSEARCH;  break; }
+if(key_pressed(KEY_WEBFAVORITES)) { value = KEY_WEBFAVORITES;  break; }
+if(key_pressed(KEY_WEBREFRESH)) { value = KEY_WEBREFRESH;  break; }
+if(key_pressed(KEY_WEBSTOP)) { value = KEY_WEBSTOP;  break; }
+if(key_pressed(KEY_WEBFORWARD)) { value = KEY_WEBFORWARD;  break; }
+if(key_pressed(KEY_WEBBACK)) { value = KEY_WEBBACK;  break; }
+if(key_pressed(KEY_MYCOMPUTER)) { value = KEY_MYCOMPUTER;  break; }
+if(key_pressed(KEY_MAIL)) { value = KEY_MAIL;  break; }
+if(key_pressed(KEY_MEDIASELECT)) { value = KEY_MEDIASELECT;  break; }
+wait(5);
+} // while
+return value; // Retorna la tecla. Returns key
+} // fin. end
+
+
+// Nombre de la tecla. Key name
+string key_name(int input) { // Usa como argumento el identificador de la tecla. Use as argument the key identifier
+string value; // Aloja el nombre de la tecla que se retornará. Store the key name that will be returned
+if(input == KEY_ESCAPE) value = "escape";
+if(input == KEY_1) value = "1";
+if(input == KEY_2) value = "2";
+if(input == KEY_3) value = "3";
+if(input == KEY_4) value = "4";
+if(input == KEY_5) value = "5";
+if(input == KEY_6) value = "6";
+if(input == KEY_7) value = "7";
+if(input == KEY_8) value = "8";
+if(input == KEY_9) value = "9";
+if(input == KEY_0) value = "0";
+if(input == KEY_MINUS) value = "menos";
+if(input == KEY_EQUALS) value = "igual";
+if(input == KEY_BACK) value = "retroceso (borrar)";
+if(input == KEY_TAB) value = "tabulación";
+if(input == KEY_Q) value = "q";
+if(input == KEY_W) value = "w";
+if(input == KEY_E) value = "e";
+if(input == KEY_R) value = "r";
+if(input == KEY_T) value = "t";
+if(input == KEY_Y) value = "y";
+if(input == KEY_U) value = "u";
+if(input == KEY_I) value = "i";
+if(input == KEY_O) value = "o";
+if(input == KEY_P) value = "p";
+if(input == KEY_LBRACKET) value = "abrir corchete";
+if(input == KEY_RBRACKET) value = "cerrar corchete";
+if(input == KEY_RETURN) value = "enter";
+if(input == KEY_LCONTROL) value = "control izquierdo";
+if(input == KEY_A) value = "a";
+if(input == KEY_S) value = "s";
+if(input == KEY_D) value = "d";
+if(input == KEY_F) value = "f";
+if(input == KEY_G) value = "g";
+if(input == KEY_H) value = "h";
+if(input == KEY_J) value = "j";
+if(input == KEY_K) value = "k";
+if(input == KEY_L) value = "l";
+if(input == KEY_SEMICOLON) value = "punto y coma";
+if(input == KEY_APOSTROPHE) value = "apóstrofo";
+if(input == KEY_GRAVE) value = "acento grave";
+if(input == KEY_LSHIFT) value = "shift izquierdo";
+if(input == KEY_BACKSLASH) value = "barra invertida";
+if(input == KEY_Z) value = "z";
+if(input == KEY_X) value = "x";
+if(input == KEY_C) value = "c";
+if(input == KEY_V) value = "v";
+if(input == KEY_B) value = "b";
+if(input == KEY_N) value = "n";
+if(input == KEY_M) value = "m";
+if(input == KEY_COMMA) value = "coma";
+if(input == KEY_PERIOD) value = "período";
+if(input == KEY_SLASH) value = "barra";
+if(input == KEY_RSHIFT) value = "shift derecho";
+if(input == KEY_MULTIPLY) value = "multiplicar";
+if(input == KEY_LMENU) value = "Alt izquierdo";
+if(input == KEY_SPACE) value = "barra espaciadora";
+if(input == KEY_CAPITAL) value = "capital";
+if(input == KEY_F1) value = "F1";
+if(input == KEY_F2) value = "F2";
+if(input == KEY_F3) value = "F3";
+if(input == KEY_F4) value = "F4";
+if(input == KEY_F5) value = "F5";
+if(input == KEY_F6) value = "F6";
+if(input == KEY_F7) value = "F7";
+if(input == KEY_F8) value = "F8";
+if(input == KEY_F9) value = "F9";
+if(input == KEY_F10) value = "F10";
+if(input == KEY_NUMLOCK) value = "bloqueo numérico";
+if(input == KEY_SCROLL) value = "bloquear desplazamiento";
+if(input == KEY_NUMPAD7) value = "7 de teclado numérico";
+if(input == KEY_NUMPAD8) value = "8 de teclado numérico";
+if(input == KEY_NUMPAD9) value = "9 de teclado numérico";
+if(input == KEY_SUBTRACT) value = "sustracción";
+if(input == KEY_NUMPAD4) value = "4 de teclado numérico";
+if(input == KEY_NUMPAD5) value = "5 de teclado numérico";
+if(input == KEY_NUMPAD6) value = "6 de teclado numérico";
+if(input == KEY_ADD) value = "Suma";
+if(input == KEY_NUMPAD1) value = "1 de teclado numérico";
+if(input == KEY_NUMPAD2) value = "2 de teclado numérico";
+if(input == KEY_NUMPAD3) value = "3 de teclado numérico";
+if(input == KEY_NUMPAD0) value = "0 de teclado numérico";
+if(input == KEY_DECIMAL) value = "decimal";
+if(input == KEY_OEM_102) value = "<> o |";
+if(input == KEY_F11) value = "F11";
+if(input == KEY_F12) value = "F12";
+if(input == KEY_F13) value = "F13";
+if(input == KEY_F14) value = "F14";
+if(input == KEY_F15) value = "F15";
+if(input == KEY_KANA) value = "kana japonés";
+if(input == KEY_ABNT_C1) value = "/? brasilero";
+if(input == KEY_CONVERT) value = "CONVERT japonés";
+if(input == KEY_NOCONVERT) value = "NOCONVERT japonés";
+if(input == KEY_YEN) value = "yen japonés";
+if(input == KEY_ABNT_C2) value = "teclado numérico . brasilero";
+if(input == KEY_NUMPADEQUALS) value = "igual de teclado numérico";
+if(input == KEY_PREVTRACK) value = "pista previa";
+if(input == KEY_AT) value = "arroba";
+if(input == KEY_COLON) value = "dos puntos";
+if(input == KEY_UNDERLINE) value = "subrayado";
+if(input == KEY_KANJI) value = "kanji japonés";
+if(input == KEY_STOP) value = "detener";
+if(input == KEY_AX) value = "ax japonés";
+if(input == KEY_UNLABELED) value = "sin etiqueta";
+if(input == KEY_NEXTTRACK) value = "siguiente pista";
+if(input == KEY_NUMPADENTER) value = "enter de teclado numérico";
+if(input == KEY_RCONTROL) value = "control derecho";
+if(input == KEY_MUTE) value = "silenciar";
+if(input == KEY_CALCULATOR) value = "calculadora";
+if(input == KEY_PLAYPAUSE) value = "reproducir/pausar";
+if(input == KEY_MEDIASTOP) value = "detener medios";
+if(input == KEY_VOLUMEDOWN) value = "bajar volumen";
+if(input == KEY_VOLUMEUP) value = "subir volumen";
+if(input == KEY_WEBHOME) value = "inicio web";
+if(input == KEY_NUMPADCOMMA) value = "coma de teclado numérico";
+if(input == KEY_DIVIDE) value = "dividir";
+if(input == KEY_SYSRQ) value = "SYSRQ";
+if(input == KEY_RMENU) value = "alt derecho";
+if(input == KEY_PAUSE) value = "pausa";
+if(input == KEY_HOME) value = "inicio";
+if(input == KEY_UP) value = "flecha arriba";
+if(input == KEY_PRIOR) value = "retroceso de página";
+if(input == KEY_LEFT) value = "flecha izquierda";
+if(input == KEY_RIGHT) value = "flecha derecha";
+if(input == KEY_END) value = "fin";
+if(input == KEY_DOWN) value = "flecha abajo";
+if(input == KEY_NEXT) value = "avance de página";
+if(input == KEY_INSERT) value = "insertar";
+if(input == KEY_DELETE) value = "delete, borrar";
+if(input == KEY_LWIN) value = "tecla windows izquierda";
+if(input == KEY_RWIN) value = "tecla windows derecha";
+if(input == KEY_APPS) value = "tecla de aplicaciones";
+if(input == KEY_POWER) value = "encendido";
+if(input == KEY_SLEEP) value = "dormir";
+if(input == KEY_WAKE) value = "despertar";
+if(input == KEY_WEBSEARCH) value = "búsqueda web";
+if(input == KEY_WEBFAVORITES) value = "favoritos web";
+if(input == KEY_WEBREFRESH) value = "actualización web";
+if(input == KEY_WEBSTOP) value = "detener web";
+if(input == KEY_WEBFORWARD) value = "adelantar web";
+if(input == KEY_WEBBACK) value = "retroceder web";
+if(input == KEY_MYCOMPUTER) value = "mi computador";
+if(input == KEY_MAIL) value = "correo";
+if(input == KEY_MEDIASELECT) value = "seleccionar medios";
+return value; // Retorna el valor. Returns value
+} // fin. end

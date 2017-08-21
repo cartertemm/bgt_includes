@@ -1,0 +1,362 @@
+class tts_options
+{
+tts_voice temptts;
+string output_path;
+string encryption_key;
+string decryption_key;
+string intro;
+bool wrap;
+bool allow_escape;
+bool keyhook;
+bool allow_control;
+bool allow_pitch;
+bool allow_rate;
+bool allow_volume;
+uint counter=0;
+int rate=0;
+int volume=0;
+int pitch;
+string[] list=temptts.get_voice_names();
+file tts;
+file ttsrate;
+file ttsvolume;
+tts_options()
+{
+wrap=true;
+allow_escape=true;
+allow_pitch=true;
+allow_rate=true;
+allow_volume=true;
+encryption_key="speech";
+intro="choose a voice from the following menu";
+keyhook=true;
+allow_control=true;
+}
+void run(tts_voice@ handle)
+{
+load(handle);
+if(keyhook=true)
+{
+if(screen_reader_is_running(1))
+{
+install_keyhook();
+}
+}
+handle.set_current_voice(counter);
+handle.rate=rate;
+handle.speak(intro);
+handle.refresh_voice_list();
+list=handle.get_voice_names();
+handle.speak(list[counter]);
+while(true)
+{
+if(key_pressed(KEY_ESCAPE))
+{
+if(allow_escape==true)
+{
+break;
+}
+}
+if(key_pressed(KEY_DOWN))
+{
+if(wrap==true)
+{
+if(counter<list.length -1)
+{
+list=handle.get_voice_names();
+handle.refresh_voice_list();
+counter++;
+handle.set_current_voice(counter);
+handle.speak_interrupt(list[counter]);
+}
+else
+{
+list=handle.get_voice_names();
+handle.refresh_voice_list();
+counter=0;
+handle.set_current_voice(counter);
+handle.speak_interrupt(list[counter]);
+}
+}
+else if(wrap==false)
+{
+if(counter<list.length -1)
+{
+list=handle.get_voice_names();
+handle.refresh_voice_list();
+counter++;
+handle.set_current_voice(counter);
+handle.speak_interrupt(list[counter]);
+}
+}
+}
+else if(key_pressed(KEY_UP))
+{
+if(wrap==true)
+{
+if(counter>0)
+{
+list=handle.get_voice_names();
+handle.refresh_voice_list();
+counter--;
+handle.set_current_voice(counter);
+handle.speak_interrupt(list[counter]);
+}
+else
+{
+list=handle.get_voice_names();
+handle.refresh_voice_list();
+counter=list.length -1;
+handle.set_current_voice(counter);
+handle.speak_interrupt(list[counter]);
+}
+}
+else if(wrap==false)
+{
+if(counter>0)
+{
+list=handle.get_voice_names();
+handle.refresh_voice_list();
+counter--;
+handle.set_current_voice(counter);
+handle.speak_interrupt(list[counter]);
+}
+}
+}
+if(allow_rate==true)
+{
+if(key_pressed(KEY_LEFT))
+{
+if(rate> -10)
+{
+rate--;
+handle.rate=rate;
+handle.speak_interrupt("rate "+rate);
+if(rate==0)
+{
+rate=0;
+handle.rate=rate;
+handle.speak_interrupt("rate normal");
+}
+}
+else if(rate== -10)
+{
+rate=-10;
+handle.speak_interrupt("rate minimum");
+}
+}
+else if(key_pressed(KEY_RIGHT))
+{
+if(rate< 10)
+{
+rate++;
+handle.rate=rate;
+handle.speak_interrupt("rate "+rate);
+if(rate==0)
+{
+rate=0;
+handle.rate=rate;
+handle.speak_interrupt("rate normal");
+}
+}
+else if(rate== 10)
+{
+rate=10;
+handle.speak_interrupt("rate maximum");
+}
+}
+}
+if(allow_volume==true)
+{
+if(key_pressed(KEY_PRIOR))
+{
+if(volume<0)
+{
+volume++;
+handle.volume=volume;
+handle.speak_interrupt("volume "+volume);
+}
+else if(volume==0)
+{
+volume=0;
+handle.volume=volume;
+handle.speak_interrupt("volume maximum");
+}
+}
+else if(key_pressed(KEY_NEXT))
+{
+if(volume> -100)
+{
+volume--;
+handle.volume=volume;
+handle.speak_interrupt("volume "+volume);
+}
+else if(volume== -100)
+{
+volume= -100;
+handle.volume=volume;
+handle.speak_interrupt("volume minimum");
+}
+}
+}
+if(allow_pitch==true)
+{
+if(key_pressed(KEY_HOME))
+{
+if(pitch> -10)
+{
+pitch--;
+handle.pitch=pitch;
+handle.speak_interrupt("pitch "+pitch);
+if(pitch==0)
+{
+pitch=0;
+handle.pitch=pitch;
+handle.speak_interrupt("pitch normal");
+}
+}
+else if(pitch== -10)
+{
+pitch=-10;
+handle.speak_interrupt("pitch minimum");
+}
+}
+else if(key_pressed(KEY_END))
+{
+if(pitch< 10)
+{
+pitch++;
+handle.pitch=pitch;
+handle.speak_interrupt("pitch "+pitch);
+if(pitch==0)
+{
+pitch=0;
+handle.pitch=pitch;
+handle.speak_interrupt("pitch normal");
+}
+}
+else if(pitch== 10)
+{
+pitch=10;
+handle.speak_interrupt("pitch maximum");
+}
+}
+}
+if(key_pressed(KEY_SPACE))
+{
+list=handle.get_voice_names();
+handle.refresh_voice_list();
+handle.speak_interrupt("manuely refreshed");
+}
+if(key_pressed(KEY_RETURN))
+{
+save(handle);
+break;
+}
+if(key_down(KEY_LCONTROL) || key_down(KEY_RCONTROL))
+{
+if(allow_control==true)
+{
+handle.stop();
+}
+}
+if(key_down(KEY_LMENU) and key_pressed(KEY_F4) || key_down(KEY_RMENU) and key_pressed(KEY_F4))
+{
+exit();
+}
+wait(5);
+}
+}
+void custom_message(tts_voice@ handle, string text, bool wait=false, bool interrupt=true)
+{
+if(wait==true)
+{
+if(interrupt==true)
+{
+handle.speak_interrupt_wait(text);
+}
+else if(interrupt==false)
+{
+handle.speak_wait(text);
+}
+}
+else if(wait==false)
+{
+if(interrupt==true)
+{
+handle.speak_interrupt(text);
+}
+else if(interrupt==false)
+{
+handle.speak(text);
+}
+}
+}
+void load(tts_voice@ handle)
+{
+if(output_path!="" and directory_exists(output_path) and file_exists(output_path+"\\voice.cfg"))
+{
+tts.open(output_path+"\\voice.cfg", "rb");
+string[] tts_contents;
+tts_contents=string_split(string_decrypt(tts.read(), encryption_key), "+", true);
+counter=string_to_number(tts_contents[0]);
+rate=string_to_number(tts_contents[1]);
+volume=string_to_number(tts_contents[2]);
+pitch=string_to_number(tts_contents[3]);
+handle.volume=volume;
+handle.rate=rate;
+handle.pitch=pitch;
+handle.set_current_voice(counter);
+}
+else if(output_path=="" and file_exists(output_path+"voice.cfg"))
+{
+tts.open(output_path+"voice.cfg", "rb");
+string[] tts_contents;
+tts_contents=string_split(string_decrypt(tts.read(), encryption_key), "+", true);
+counter=string_to_number(tts_contents[0]);
+rate=string_to_number(tts_contents[1]);
+volume=string_to_number(tts_contents[2]);
+pitch=string_to_number(tts_contents[3]);
+handle.volume=volume;
+handle.rate=rate;
+handle.pitch=pitch;
+handle.set_current_voice(counter);
+}
+}
+void save(tts_voice@ handle)
+{
+if(output_path!="")
+{
+if(!directory_exists(output_path))
+{
+directory_create(output_path);
+}
+}
+if(output_path!="")
+{
+tts.open(output_path+"\\voice.cfg", "wb");
+}
+else
+{
+tts.open(output_path+"voice.cfg", "wb");
+}
+tts.write(string_encrypt(counter+"+"+rate+"+"+volume+"+"+pitch, encryption_key));
+tts.close();
+load(handle);
+handle.speak_interrupt("changes saved. Voice saved, "+list[counter]);
+while(handle.speaking)
+{
+if(key_pressed(KEY_RETURN))
+{
+handle.stop();
+}
+else if(key_down(KEY_LCONTROL) || key_down(KEY_RCONTROL))
+{
+if(allow_control==true)
+{
+handle.stop();
+}
+}
+}
+}
+}

@@ -1,0 +1,81 @@
+/*
+*transltr.org API wrapper
+*written by amir ramezani
+*i'm not responsible for any usage of this script
+*use it is totaly at your own risk
+*/
+
+//transltr class, this is the wrapper
+class transltr
+{
+private http req; //this http object send's the request for us
+private string from; //this is the language that we want to translate from it
+private string to; //this is the destination language
+private string phpscript_url; //the url to the php script
+
+//functions
+
+//set's the url to php script, in order for it to work
+bool set_php_script_url(string phpscript)
+{
+this.phpscript_url=url_encode(phpscript);
+this.phpscript_url=string_replace(this.phpscript_url, "%3a", ":", true);
+this.phpscript_url=string_replace(this.phpscript_url, "%2f", "/", true);
+return this.phpscript_url!="";
+}
+
+//the language code that you want to translate from
+bool set_from_language(string lang)
+{
+this.from=lang;
+return this.from==lang;
+}
+
+//the language code that you want your text to be translated
+bool set_language_to(string lang)
+{
+this.to=lang;
+return this.to==lang;
+}
+
+//returns the available languages
+string[] get_available_languages()
+{
+//send the request to our php script
+string data=this.req.post(this.phpscript_url, "action=langcodes");
+if(get_last_error()==0)
+{
+while(this.req.progress)
+{
+data+=this.req.request();
+}
+//if data has a : at it's end, remove it
+if(data.length()-1==":")
+{
+data.resize(data.length()-1); //remove the last char
+}
+return string_split(data, ":", false);
+}
+string[] str;
+return str;
+}
+
+string translate(string text)
+{
+string t="action=translate&from="+from+"&to="+to+"&text=\'"+text+"\'";
+string trans=this.req.post(this.phpscript_url, t);
+if(trans=="")
+{
+if(get_last_error()==0)
+{
+while(this.req.progress)
+{
+trans+=this.req.request();
+}
+return trans;
+}
+}
+return "";
+}
+
+}

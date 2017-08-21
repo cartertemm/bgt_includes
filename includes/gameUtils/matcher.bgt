@@ -1,0 +1,50 @@
+
+ void main() {
+bool onequote;
+int lquotes;
+bool uquotes=false;
+int qloop;
+ string fn=input_box("File name", "Enter the name of the file to check:");
+ file f; f.open(fn, "r");
+ int quotes=0; int braces=0; int parentheses=0; int brackets=0;
+ string text=f.read(0);
+string[] lines=string_split(text,"\n",true);
+ for(uint i=0; i<=lines.length()-1; i++) {
+lquotes=0;
+qloop=1;
+while (string_contains(lines[i],"\"",qloop)>-1) {
+qloop+=1;
+lquotes+=1;
+}
+int oddnum=lquotes%2;
+if (oddnum>0) {
+uquotes=true;
+alert("Oops!","Unmatched quotes at line "+i+": "+lines[i]);
+clipboard_copy_text(lines[i]);
+}//if
+}//for
+ for(uint i=0; i<text.length(); i++) {
+ if(text[i]=="\"") {
+ if((i>0)&&(text[i-1]=="\\")) continue;
+ quotes++;
+ }
+  else if(text[i]=="(") parentheses++;
+ else if(text[i]==")") parentheses--;
+ else if(text[i]=="{") braces++;
+ else if(text[i]=="}") braces--;
+ else if(text[i]=="[") brackets++;
+ else if(text[i]=="]") brackets--;
+ if((braces<0)||(parentheses<0)||(brackets<0)) {
+alert("Negative numbers!", " There are too many " + text[i] + ", starting at " + i + ". ");
+ string context="";
+ uint j=0;
+ if(i<10) j=0; else j=i-10;
+ for(j=j; (j<i+10)&&(j<text.length()); j++) context += text[j];
+ clipboard_copy_text(context);
+ alert("Context", context);
+ if(braces<0) braces=0; if(brackets<0) brackets=0; if(parentheses<0) parentheses=0;
+ }// Catch mismatches in the wrong direction
+ }// Meepers.
+if (!uquotes) alert("no unclosed quotes","No unclosed quotes found.");
+ alert("Results", "There are " + quotes + " quotation marks.\nThere are " + braces + " unclosed braces, " + parentheses + " unclosed parentheses, and " + brackets + " unclosed brackets. ");
+}

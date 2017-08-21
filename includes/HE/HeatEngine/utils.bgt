@@ -1,0 +1,360 @@
+
+const double pi = 3.14159265359;
+
+
+void exception(string message)
+{
+	alert("ERROR", message);
+	exit();
+}
+
+string[][] parseFilePart(string cheminFichier, string borne1, string borne2, string separateursLignes, string separateursColonnes)
+{
+	string[][]tableauConfig;
+	string[] listeConfigDecoupee = getFilePart(cheminFichier, borne1, borne2, separateursLignes);
+	
+	//On crée un tableau contenant par ligne une ligne découpée dont chaque case contient un mot.
+	for(int i=0; i<listeConfigDecoupee.length()-1; i++)
+	{
+		int pos = string_contains(listeConfigDecoupee[i], "=", 1);
+		if(pos==-1)
+		{
+			pos = string_contains(listeConfigDecoupee[i], " ", 1);
+		}
+		if(pos!=-1)
+		{
+			string[] tab(2);
+			int realPos = string_len(listeConfigDecoupee[i])-pos;
+			tab[0] = string_trim_right(listeConfigDecoupee[i], realPos);
+			tab[1] = string_trim_left(listeConfigDecoupee[i], pos+1);
+			
+			tableauConfig.insert_last(tab);
+		}
+		else
+		{
+		
+			string[] ret(1);
+			ret[0] = listeConfigDecoupee[i];
+			tableauConfig.insert_last(ret);
+		}
+		//tableauConfig.insert_last(string_split(listeConfigDecoupee[i], separateursColonnes, false));
+	}
+	
+	
+	return tableauConfig;
+}
+
+string[] getFilePart(string cheminFichier, string borne1, string borne2, string separateursLignes)
+{
+	file fichier;
+	
+	bool essai = fichier.open(cheminFichier, "r");
+	if (essai==false){exception("Can't open the file "+cheminFichier);}
+	
+	if(borne1!="")
+	{
+		fichier.read_until(borne1, true);
+	}
+	string listeConfig = fichier.read_until(borne2, true);
+	fichier.close();
+	
+	return string_split(listeConfig, separateursLignes, true);//On récupère un tableau contenant pour chaque ligne une config + un déchet en dernière ligne
+}
+
+
+
+string recupererInformation(string clef, string[][] tableauConfig)
+{
+	for(int i=0;i<tableauConfig.length();i++)
+	{
+		
+		if(tableauConfig[i][0]==clef)
+		{
+			
+			return tableauConfig[i][1];
+		}
+	}
+	return "";
+}
+
+
+int conversionInt(string valeur, string[] correspondance1, int[] correspondance2)
+{
+	for(int i=0;i<correspondance1.length();i++)
+	{
+		if(correspondance1[i]==valeur)
+		{
+			return correspondance2[i];
+		}
+	}
+	return -1;
+}
+
+//######################## FONCTIONS MATHEMATIQUES ####################################
+
+//TOUJOURS exprimer les angles en float.
+
+float conversionDegres(float valeurRadians)
+{
+	return 180*(valeurRadians)/ pi;
+}
+
+float conversionRadians(float valeurDegres)
+{
+	return pi *(valeurDegres)/ 180;
+}
+
+//######################## FONCTIONS DES INPUTFILTER ###################################
+
+int getKey(string key)
+{
+	if(key=="KEY_ESCAPE") 
+		return KEY_ESCAPE;
+	else if(key=="KEY_1")
+		return KEY_1;
+	else if(key=="KEY_2")
+		return KEY_2;
+	else if(key=="KEY_3")
+		return KEY_3;
+	else if(key=="KEY_4")
+		return KEY_4;
+	else if(key=="KEY_5")
+		return KEY_5;
+	else if(key=="KEY_6")
+		return KEY_6;
+	else if(key=="KEY_7")
+		return KEY_7;
+	else if(key=="KEY_8")
+		return KEY_8;
+	else if(key=="KEY_9")
+		return KEY_9;
+	else if(key=="KEY_0")
+		return KEY_0;
+	else if(key=="KEY_MINUS")
+		return KEY_MINUS;
+	else if(key=="KEY_EQUALS")
+		return KEY_EQUALS;
+	else if(key=="KEY_BACK")
+		return KEY_BACK; 
+	else if(key=="KEY_TAB")
+		return KEY_TAB;
+	else if(key=="KEY_A")
+		return KEY_A;
+	else if(key=="KEY_B")
+		return KEY_B;
+	else if(key=="KEY_C")
+		return KEY_C;
+	else if(key=="KEY_D")
+		return KEY_D;
+	else if(key=="KEY_E")
+		return KEY_E;
+	else if(key=="KEY_F")
+		return KEY_F;
+	else if(key=="KEY_G")
+		return KEY_G;
+	else if(key=="KEY_H")
+		return KEY_H;
+	else if(key=="KEY_I")
+		return KEY_I;
+	else if(key=="KEY_J")
+		return KEY_J;
+	else if(key=="KEY_K")
+		return KEY_K;
+	else if(key=="KEY_L")
+		return KEY_L;
+	else if(key=="KEY_M")
+		return KEY_M;
+	else if(key=="KEY_N")
+		return KEY_N;
+	else if(key=="KEY_O")
+		return KEY_O;
+	else if(key=="KEY_P")
+		return KEY_P;
+	else if(key=="KEY_Q")
+		return KEY_Q;
+	else if(key=="KEY_R")
+		return KEY_R;
+	else if(key=="KEY_S")
+		return KEY_S;
+	else if(key=="KEY_T")
+		return KEY_T;
+	else if(key=="KEY_U")
+		return KEY_U;
+	else if(key=="KEY_V")
+		return KEY_V;
+	else if(key=="KEY_W")
+		return KEY_W;
+	else if(key=="KEY_X")
+		return KEY_X;
+	else if(key=="KEY_Y")
+		return KEY_Y;
+	else if(key=="KEY_Z")
+		return KEY_Z;
+	else if(key=="KEY_LBRACKET")
+		return KEY_LBRACKET;
+	else if(key=="KEY_RBRACKET")
+		return KEY_RBRACKET;
+	else if(key=="KEY_RETURN")//Enter on main keyboard
+		return KEY_RETURN;
+	else if(key=="KEY_LCONTROL")
+		return KEY_LCONTROL;
+	else if(key=="KEY_SEMICOLON")
+		return KEY_SEMICOLON;
+	else if(key=="KEY_APOSTROPHE")
+		return KEY_APOSTROPHE;
+	else if(key=="KEY_GRAVE")
+		return KEY_GRAVE;
+	else if(key=="KEY_LSHIFT")
+		return KEY_LSHIFT;
+	else if(key=="KEY_BACKSLASH")
+		return KEY_BACKSLASH;
+	
+	else
+		return -1;
+	/*
+	KEY_COMMA 
+	KEY_PERIOD
+	KEY_SLASH - / on main keyboard 
+	KEY_RSHIFT 
+	KEY_MULTIPLY - * on numeric keypad 
+	KEY_LMENU - left Alt 
+	KEY_SPACE 
+	KEY_CAPITAL 
+	KEY_F1 
+	KEY_F2 
+	KEY_F3 
+	KEY_F4 
+	KEY_F5 
+	KEY_F6 
+	KEY_F7 
+	KEY_F8 
+	KEY_F9 
+	KEY_F10 
+	KEY_NUMLOCK 
+	KEY_SCROLL - Scroll Lock 
+	KEY_NUMPAD7 
+	KEY_NUMPAD8 
+	KEY_NUMPAD9 
+	KEY_SUBTRACT - on numeric keypad 
+	KEY_NUMPAD4 
+	KEY_NUMPAD5 
+	KEY_NUMPAD6 
+	KEY_ADD - + on numeric keypad 
+	KEY_NUMPAD1 
+	KEY_NUMPAD2 
+	KEY_NUMPAD3 
+	KEY_NUMPAD0 
+	KEY_DECIMAL - . on numeric keypad 
+	KEY_OEM_102 - <> or \| on RT 102-key keyboard (Non-U.S.) 
+	KEY_F11 
+	KEY_F12 
+	KEY_F13 - (NEC PC98) 
+	KEY_F14 - (NEC PC98) 
+	KEY_F15 - (NEC PC98) 
+	KEY_KANA - (Japanese keyboard) 
+	KEY_ABNT_C1 - /? on Brazilian keyboard 
+	KEY_CONVERT - (Japanese keyboard) 
+	KEY_NOCONVERT - (Japanese keyboard) 
+	KEY_YEN - (Japanese keyboard) 
+	KEY_ABNT_C2 - Numpad . on Brazilian keyboard 
+	KEY_NUMPADEQUALS - = on numeric keypad (NEC PC98) 
+	KEY_PREVTRACK - Previous Track (KEY_CIRCUMFLEX on Japanese keyboard) 
+	KEY_AT - (NEC PC98) 
+	KEY_COLON - (NEC PC98) 
+	KEY_UNDERLINE - (NEC PC98) 
+	KEY_KANJI - (Japanese keyboard) 
+	KEY_STOP - (NEC PC98) 
+	KEY_AX - (Japan AX) 
+	KEY_UNLABELED - (J3100) 
+	KEY_NEXTTRACK - Next Track 
+	KEY_NUMPADENTER - Enter on numeric keypad 
+	KEY_RCONTROL 
+	KEY_MUTE - Mute 
+	KEY_CALCULATOR - Calculator 
+	KEY_PLAYPAUSE - Play / Pause 
+	KEY_MEDIASTOP - Media Stop 
+	KEY_VOLUMEDOWN - Volume - 
+	KEY_VOLUMEUP - Volume + 
+	KEY_WEBHOME - Web home 
+	KEY_NUMPADCOMMA - , on numeric keypad (NEC PC98) 
+	KEY_DIVIDE - / on numeric keypad 
+	KEY_SYSRQ 
+	KEY_RMENU - right Alt 
+	KEY_PAUSE - Pause 
+	KEY_HOME - Home on arrow keypad 
+	KEY_UP - UpArrow on arrow keypad 
+	KEY_PRIOR - PgUp on arrow keypad 
+	KEY_LEFT - LeftArrow on arrow keypad 
+	KEY_RIGHT - RightArrow on arrow keypad 
+	KEY_END - End on arrow keypad 
+	KEY_DOWN - DownArrow on arrow keypad 
+	KEY_NEXT - PgDn on arrow keypad 
+	KEY_INSERT - Insert on arrow keypad 
+	KEY_DELETE - Delete on arrow keypad 
+	KEY_LWIN - Left Windows key 
+	KEY_RWIN - Right Windows key 
+	KEY_APPS - AppMenu key 
+	KEY_POWER - System Power 
+	KEY_SLEEP - System Sleep 
+	KEY_WAKE - System Wake 
+	KEY_WEBSEARCH - Web Search 
+	KEY_WEBFAVORITES - Web Favorites 
+	KEY_WEBREFRESH - Web Refresh 
+	KEY_WEBSTOP - Web Stop 
+	KEY_WEBFORWARD - Web Forward 
+	KEY_WEBBACK - Web Back 
+	KEY_MYCOMPUTER - My Computer 
+	KEY_MAIL - Mail 
+	KEY_MEDIASELECT - Media Select 
+	*/
+
+
+}
+
+
+//######################## NAME AND ID GENERATOR ###################################
+
+dictionary nameNumber;
+
+string generateName(string className)
+{
+	int number=0;
+	if(nameNumber.exists(className))
+	{
+		nameNumber.get(className, number);
+		number = number+1;
+	}
+	string retour = className+number;
+	nameNumber.set(className, number);
+	
+	return retour;
+}
+
+int objectsCount = 0;
+
+int generateID()
+{
+	objectsCount++;
+	return objectsCount;
+}
+
+
+
+//######################## CONVERTING FUNCTIONS ###################################
+
+
+string bool_to_str(bool v)
+{
+	if(v==true)
+		return "true";
+	else
+		return "false";
+}
+
+bool str_to_bool(string s)
+{
+	if(s=="true")
+		return true;
+	else
+		return false;
+}

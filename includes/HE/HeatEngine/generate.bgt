@@ -1,0 +1,53 @@
+int generate_oct()
+{
+	//Lister tous les fichiers
+	string[] files = find_files("Actors/*.bgt");
+
+	file oct;
+	oct.open("Actors\\ObjectsClassTree.bgt", "w");
+
+	oct.write("/*This file has been generated through the generate_oct.bgt script. Don't edit it manually!!*/\n\n\n");
+	//Inscrire les inclusions
+	oct.write("//Includes\n");
+	oct.write("#include \"..\\utils.bgt\"\n\n");
+	int nbActors=0;
+
+	for(int i=0; i<files.length(); i++)
+	{
+		if(files[i]=="ObjectsClassTree.bgt")
+			continue;
+
+		nbActors++;
+		oct.write("#include \""+files[i]+"\"\n");
+	}
+
+	oct.write("\n\n//Conditions chain\n");
+	oct.write("BaseObject@ actorCreationLinker(dictionary param)\n{\n	BaseObject@ o = null;\n	string className;\n	string name;\n	\n	param.get(\"className\", className);\n	param.get(\"name\", name);");
+
+	//Removing extensions
+	for(int i=0; i<files.length(); i++)
+		files[i] = string_left(files[i], files[i].length()-4);
+
+	//Writing conditions chain
+	for(int i=0; i<files.length(); i++)
+	{
+		if(files[i]=="ObjectsClassTree")
+			continue;
+
+		oct.write("\n	"+(i==0 ? "" : "else ")+"if(className == \""+files[i]+"\")\n		@o = "+files[i]+"(\""+files[i]+"\", name);\n");
+	}
+
+
+	oct.write("\n\n	if(@o==null)\n	{\n		exception(\"The class \"+className+\" has no link in the actorCreationLinker()\");\n		return null;\n	}\n	else\n 	{\n		o.load(param);\n		return o;\n	}\n}");
+	oct.close();
+
+	return nbActors;
+}
+
+
+void main()
+{
+	timer t;
+	int i = generate_oct();
+	alert("Compilation info", "ObjectsClassTree generated in "+t.elapsed+" milliseconds. The Heat Engine actor's list now contains "+i+" actors");
+}

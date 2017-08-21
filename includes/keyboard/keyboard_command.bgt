@@ -1,0 +1,230 @@
+class keyboard_command
+{
+
+string command = "";
+dictionary key_codes;
+string type = "press";
+
+string get_command()
+{
+return this.command;
+}
+
+bool get_state()
+{
+string[] command_test = string_split(this.command, "+", true);
+int key;
+for(int counter = 0; counter < command_test.length; counter ++)
+{
+this.key_codes.get(command_test[counter], key);
+if(counter + 1 == command_test.length && this.type == "hold")
+{
+if(!key_down(key))
+{
+return false;
+}
+}
+else if(counter + 1 == command_test.length && this.type == "press")
+{
+if(!key_pressed(key))
+{
+return false;
+}
+}
+else
+{
+if(!key_down(key))
+{
+return false;
+}
+}
+}
+return true;
+}
+
+keyboard_command(string command, string type = "")
+{
+this.key_codes.set("escape", KEY_ESCAPE);
+this.key_codes.set("1", KEY_1);
+this.key_codes.set("2", KEY_2);
+this.key_codes.set("3", KEY_3);
+this.key_codes.set("4", KEY_4);
+this.key_codes.set("5", KEY_5);
+this.key_codes.set("6", KEY_6);
+this.key_codes.set("7", KEY_7);
+this.key_codes.set("8", KEY_8);
+this.key_codes.set("9", KEY_9);
+this.key_codes.set("0", KEY_0);
+this.key_codes.set("minus", KEY_MINUS);
+this.key_codes.set("equals", KEY_EQUALS);
+this.key_codes.set("back", KEY_BACK);
+this.key_codes.set("tab", KEY_TAB);
+this.key_codes.set("q", KEY_Q);
+this.key_codes.set("w", KEY_W);
+this.key_codes.set("e", KEY_E);
+this.key_codes.set("r", KEY_R);
+this.key_codes.set("t", KEY_T);
+this.key_codes.set("y", KEY_Y);
+this.key_codes.set("u", KEY_U);
+this.key_codes.set("i", KEY_I);
+this.key_codes.set("o", KEY_O);
+this.key_codes.set("p", KEY_P);
+this.key_codes.set("lbracket", KEY_LBRACKET);
+this.key_codes.set("rbracket", KEY_RBRACKET);
+this.key_codes.set("return", KEY_RETURN);
+this.key_codes.set("lcontrol", KEY_LCONTROL);
+this.key_codes.set("a", KEY_A);
+this.key_codes.set("s", KEY_S);
+this.key_codes.set("d", KEY_D);
+this.key_codes.set("f", KEY_F);
+this.key_codes.set("g", KEY_G);
+this.key_codes.set("h", KEY_H);
+this.key_codes.set("j", KEY_J);
+this.key_codes.set("k", KEY_K);
+this.key_codes.set("l", KEY_L);
+this.key_codes.set("semicolon", KEY_SEMICOLON);
+this.key_codes.set("apostrophe", KEY_APOSTROPHE);
+this.key_codes.set("grave", KEY_GRAVE);
+this.key_codes.set("lshift", KEY_LSHIFT);
+this.key_codes.set("backslash", KEY_BACKSLASH);
+this.key_codes.set("z", KEY_Z);
+this.key_codes.set("x", KEY_X);
+this.key_codes.set("c", KEY_C);
+this.key_codes.set("v", KEY_V);
+this.key_codes.set("b", KEY_B);
+this.key_codes.set("n", KEY_N);
+this.key_codes.set("m", KEY_M);
+this.key_codes.set("comma", KEY_COMMA);
+this.key_codes.set("period", KEY_PERIOD);
+this.key_codes.set("slash", KEY_SLASH);
+this.key_codes.set("rshift", KEY_RSHIFT);
+this.key_codes.set("multiply", KEY_MULTIPLY);
+this.key_codes.set("lmenu", KEY_LMENU);
+this.key_codes.set("space", KEY_SPACE);
+this.key_codes.set("capital", KEY_CAPITAL);
+this.key_codes.set("f1", KEY_F1);
+this.key_codes.set("f2", KEY_F2);
+this.key_codes.set("f3", KEY_F3);
+this.key_codes.set("f4", KEY_F4);
+this.key_codes.set("f5", KEY_F5);
+this.key_codes.set("f6", KEY_F6);
+this.key_codes.set("f7", KEY_F7);
+this.key_codes.set("f8", KEY_F8);
+this.key_codes.set("f9", KEY_F9);
+this.key_codes.set("f10", KEY_F10);
+this.key_codes.set("numlock", KEY_NUMLOCK);
+this.key_codes.set("scroll", KEY_SCROLL);
+this.key_codes.set("numpad7", KEY_NUMPAD7);
+this.key_codes.set("numpad8", KEY_NUMPAD8);
+this.key_codes.set("numpad9", KEY_NUMPAD9);
+this.key_codes.set("subtract", KEY_SUBTRACT);
+this.key_codes.set("numpad4", KEY_NUMPAD4);
+this.key_codes.set("numpad5", KEY_NUMPAD5);
+this.key_codes.set("numpad6", KEY_NUMPAD6);
+this.key_codes.set("add", KEY_ADD);
+this.key_codes.set("numpad1", KEY_NUMPAD1);
+this.key_codes.set("numpad2", KEY_NUMPAD2);
+this.key_codes.set("numpad3", KEY_NUMPAD3);
+this.key_codes.set("numpad0", KEY_NUMPAD0);
+this.key_codes.set("decimal", KEY_DECIMAL);
+this.key_codes.set("oem_102", KEY_OEM_102);
+this.key_codes.set("f11", KEY_F11);
+this.key_codes.set("f12", KEY_F12);
+this.key_codes.set("f13", KEY_F13);
+this.key_codes.set("f14", KEY_F14);
+this.key_codes.set("f15", KEY_F15);
+this.key_codes.set("kana", KEY_KANA);
+this.key_codes.set("abnt_c1", KEY_ABNT_C1);
+this.key_codes.set("convert", KEY_CONVERT);
+this.key_codes.set("noconvert", KEY_NOCONVERT);
+this.key_codes.set("yen", KEY_YEN);
+this.key_codes.set("abnt_c2", KEY_ABNT_C2);
+this.key_codes.set("numpadequals", KEY_NUMPADEQUALS);
+this.key_codes.set("prevtrack", KEY_PREVTRACK);
+this.key_codes.set("at", KEY_AT);
+this.key_codes.set("colon", KEY_COLON);
+this.key_codes.set("underline", KEY_UNDERLINE);
+this.key_codes.set("kanji", KEY_KANJI);
+this.key_codes.set("stop", KEY_STOP);
+this.key_codes.set("ax", KEY_AX);
+this.key_codes.set("unlabeled", KEY_UNLABELED);
+this.key_codes.set("nexttrack", KEY_NEXTTRACK);
+this.key_codes.set("numpadenter", KEY_NUMPADENTER);
+this.key_codes.set("rcontrol", KEY_RCONTROL);
+this.key_codes.set("mute", KEY_MUTE);
+this.key_codes.set("calculator", KEY_CALCULATOR);
+this.key_codes.set("playpause", KEY_PLAYPAUSE);
+this.key_codes.set("mediastop", KEY_MEDIASTOP);
+this.key_codes.set("volumedown", KEY_VOLUMEDOWN);
+this.key_codes.set("volumeup", KEY_VOLUMEUP);
+this.key_codes.set("webhome", KEY_WEBHOME);
+this.key_codes.set("numpadcomma", KEY_NUMPADCOMMA);
+this.key_codes.set("divide", KEY_DIVIDE);
+this.key_codes.set("sysrq", KEY_SYSRQ);
+this.key_codes.set("rmenu", KEY_RMENU);
+this.key_codes.set("pause", KEY_PAUSE);
+this.key_codes.set("home", KEY_HOME);
+this.key_codes.set("up", KEY_UP);
+this.key_codes.set("prior", KEY_PRIOR);
+this.key_codes.set("left", KEY_LEFT);
+this.key_codes.set("right", KEY_RIGHT);
+this.key_codes.set("end", KEY_END);
+this.key_codes.set("down", KEY_DOWN);
+this.key_codes.set("next", KEY_NEXT);
+this.key_codes.set("insert", KEY_INSERT);
+this.key_codes.set("delete", KEY_DELETE);
+this.key_codes.set("lwin", KEY_LWIN);
+this.key_codes.set("rwin", KEY_RWIN);
+this.key_codes.set("apps", KEY_APPS);
+this.key_codes.set("power", KEY_POWER);
+this.key_codes.set("sleep", KEY_SLEEP);
+this.key_codes.set("wake", KEY_WAKE);
+this.key_codes.set("websearch", KEY_WEBSEARCH);
+this.key_codes.set("webfavorites", KEY_WEBFAVORITES);
+this.key_codes.set("webrefresh", KEY_WEBREFRESH);
+this.key_codes.set("webstop", KEY_WEBSTOP);
+this.key_codes.set("webforward", KEY_WEBFORWARD);
+this.key_codes.set("webback", KEY_WEBBACK);
+this.key_codes.set("mycomputer", KEY_MYCOMPUTER);
+this.key_codes.set("mail", KEY_MAIL);
+this.key_codes.set("mediaselect", KEY_MEDIASELECT);
+this.set_command(command);
+this.set_type(type);
+}
+
+string set_command(string command)
+{
+command = string_to_lower_case(command);
+command = string_replace(command, " ", "", true);
+string[] command_test = string_split(command, "+", true);
+for(int counter = 0; counter < command_test.length; counter ++)
+{
+if(!this.key_codes.exists(command_test[counter]))
+{
+return this.command;
+}
+}
+this.command = command;
+return this.command;
+}
+
+string set_type(string type = "")
+{
+type = string_to_lower_case(type);
+if(type == "hold")
+{
+this.type = "hold";
+return this.type;
+}
+else if(type == "press")
+{
+this.type = "press";
+return this.type;
+}
+else
+{
+return this.type;
+}
+}
+
+}

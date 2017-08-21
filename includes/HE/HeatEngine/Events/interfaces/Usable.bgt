@@ -1,0 +1,7 @@
+//Determine si un objet est "utilisable".
+//EN : determines if an item is "Usable".
+
+interface Usable
+{
+	void use(ControlableActor@ user);
+}

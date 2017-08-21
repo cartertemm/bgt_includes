@@ -1,0 +1,66 @@
+// This is a simple and rather unrealistic truck simulation.
+
+/*
+This program plays an engine sound and allows the user to move it around with the mouse. The code lowers the sensitivity of the mouse slightly in order to make changes less rapid. Escape is pressed to close the program.
+*/
+
+void main()
+{
+show_game_window("Mouse Truck");
+sound truck;
+truck.load("engine.wav");
+if(truck.active==false)
+{
+alert("Error", "The sound could not be loaded.");
+exit();
+}
+double current_pitch=20;
+double current_pan=0;
+truck.pitch=current_pitch;
+truck.play_looped();
+while(key_pressed(KEY_ESCAPE)==false)
+{
+mouse_update();
+
+// Now that we've updated the mouse, we get the movement as doubles so we can manipulate it easier.
+double x=MOUSE_X;
+double y=MOUSE_Y;
+
+// Has the x position changed?
+if(x<0.0 or x>0.0)
+{
+
+// It has, so recalculate the movement amount to be less sensitive.
+x/=50.5;
+current_pan+=x;
+if(current_pan<-60)
+{
+current_pan=-60;
+}
+if(current_pan>60)
+{
+current_pan=60;
+}
+truck.pan=current_pan;
+}
+
+// Has the y position changed?
+if(y<0.0 or y>0.0)
+{
+
+// It has, so recalculate the movement amount to be less sensitive.
+y/=20.5;
+current_pitch-=y;
+if(current_pitch<20)
+{
+current_pitch=20;
+}
+if(current_pitch>200)
+{
+current_pitch=200;
+}
+truck.pitch=current_pitch;
+}
+wait(5);
+}
+}

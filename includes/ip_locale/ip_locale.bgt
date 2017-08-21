@@ -1,0 +1,166 @@
+/*
+IP Location BGT class. 
+Written by Sam Tupy on 3/6/2016. 
+IP location data from www.ipinfodb.com. 
+***Disclaimer!***
+I will not be held responsible for any harm that comes out of the use of any of my written code in this class. I have written this class with mostly the intent of experiment on my mind, and it may be useful. I did not make this script for any illegal tracking or anything of that sort. Use with care, and should anything such as illegal tracking or customer/player refused location gathering happen as the result of use from this script, I will not consider any of it to be my fault, as I did not write this script for any of those purpases. 
+*/
+// Global Variables, for database/server access. 
+string IP_LOCALE_API_KEY="";
+string IP_LOCALE_PHP_URL="http://bmaster.eu5.org/ip_locale.php";
+// start of class
+
+class ip_locale
+{
+// constructer
+ip_locale()
+{
+reset();
+}
+// reset all variables to default. 
+void reset()
+{
+active=false;
+requested=false;
+raw_data="";
+ip_query="AUTO";
+ip_address="";
+country_code="";
+country_name="";
+state="";
+city="";
+zipcode="";
+latitude="";
+longitude="";
+time_zone="";
+}
+// set the IP address to geolocate. Passing "AUTO" to the function will determine the location from the clients IP address. 
+void set_ip(string ip="AUTO")
+{
+reset();
+ip_query=ip;
+active=true;
+}
+// request. Sends a request out to "www.ipinfodb.com" and fills all variables with location data on success. 
+bool request()
+{
+if(requested==false and active==true)
+{
+if(ip_query=="AUTO")
+{
+raw_data=url_get(IP_LOCALE_PHP_URL+"?ApiKey="+IP_LOCALE_API_KEY);
+}
+else
+{
+raw_data=url_get(IP_LOCALE_PHP_URL+"?ApiKey="+IP_LOCALE_API_KEY+"&ip="+ip_query);
+}
+string error_check_raw=string_to_lower_case(raw_data);
+if(string_contains(error_check_raw, "error", 1)>-1 or get_last_error()<0)
+{
+return false;
+}
+string[] data=string_split(raw_data, ";", false);
+if(data.length()<10)
+return false;
+ip_address=data[1];
+country_code=data[2];
+country_name=data[3];
+state=data[4];
+city=data[5];
+zipcode=data[6];
+latitude=data[7];
+longitude=data[8];
+time_zone=data[9];
+active=true;
+requested=true;
+return true;
+}
+else
+{
+return false;
+}
+}
+// below are all of the string functions to retreive the location data. 
+string get_ip_address()
+{
+if(active and requested)
+return ip_address;
+else
+return "";
+}
+string get_country_code()
+{
+if(active and requested)
+return country_code;
+else
+return "";
+}
+string get_country_name()
+{
+if(active and requested)
+return country_name;
+else
+return "";
+}
+string get_state()
+{
+if(active and requested)
+return state;
+else
+return "";
+}
+string get_city()
+{
+if(active and requested)
+return city;
+else
+return "";
+}
+string get_zipcode()
+{
+if(active and requested)
+return zipcode;
+else
+return "";
+}
+string get_latitude()
+{
+if(active and requested)
+return latitude;
+else
+return "";
+}
+string get_longitude()
+{
+if(active and requested)
+return longitude;
+else
+return "";
+}
+string get_time_zone()
+{
+if(active and requested)
+return time_zone;
+else
+return "";
+}
+
+// private variables do not modify! 
+private string raw_data;
+private bool requested;
+private bool active;
+private string ip_query;
+private string ip_address;
+private string country_code;
+private string country_name;
+private string state;
+private string city;
+private string zipcode;
+private string latitude;
+private string longitude;
+private string time_zone;
+
+}
+
+//end of class
+

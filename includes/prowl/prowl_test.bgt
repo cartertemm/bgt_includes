@@ -1,0 +1,9 @@
+#include "prowl.bgt"
+prowl p("abcdefg1234567etc");
+void main()
+{
+//send notification
+string a=p.post("test app","test","this is just a test of sending notifications using BGT");
+//lets create the output
+alert("output","the request status returned "+p.get_response(a)+" and you have "+p.get_remaining(a)+" requests left");
+}

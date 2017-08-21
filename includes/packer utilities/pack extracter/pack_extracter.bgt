@@ -1,0 +1,86 @@
+file temp;
+string[] contents;
+string filename;
+string decryption_key;
+string end;
+pack_file pfile;
+void main()
+{
+filename=input_box("pack extracter", "enter the name of the file you wish to extract");
+if (filename=="")
+{
+alert("error!","you may not extract an empty file!");
+exit();
+}
+decryption_key=input_box("pack extracter", "please enter the decryption key.");
+if (get_last_error()==-12)
+{
+alert("error","an error has caused the program to fail the extraction. exiting");
+exit();
+}
+end=input_box("pack extracter", "Enter anything you want added to the end of the filenames, such as .ogg or .wav.");
+if (get_last_error()==-12)
+{
+exit();
+}
+pfile.open(filename);
+contents=pfile.list_files();
+alert("get ready",contents.length()+" files are about to be extracted!");
+if (!directory_exists("packs"))
+{
+directory_create("packs");
+}
+if (!directory_exists("packs/"+filename))
+{
+directory_create("packs/"+filename);
+}
+if (!directory_exists("packs/"+filename+"/decrypted"))
+{
+directory_create("packs/"+filename+"/decrypted");
+}
+string output;
+double temp=-1;
+show_game_window("working");
+for (double i=0; i<contents.length(); i++)
+{
+double percent=(i+1)/contents.length()*100.0;
+percent=round(percent,0);
+if(percent!=temp)
+{
+beep_percentage(percent);
+temp=percent;
+}
+output+=contents[i]+"\r\n";
+pfile.extract_file(contents[i], "packs/"+filename+"/"+string2file(contents[i])+end);
+if(decryption_key!="") 
+{
+file_decrypt("packs/"+filename+"/"+string2file(contents[i]), "packs/"+filename+"/decrypted/"+string2file(contents[i])+end, decryption_key);
+file_copy("packs/"+filename+"/decrypted/"+string2file(contents[i])+end, "packs/"+filename+"/"+string2file(contents[i])+end, true);
+file_delete("packs/"+filename+"/decrypted/"+string2file(contents[i]));
+}
+}
+directory_delete("packs/"+filename+"/decrypted");
+//clipboard_copy_text(output);
+alert("success",filename+" has been extracted. stats: "+contents.length()+" files are now in packs/"+filename);
+}
+tone_synth progress_synth;
+sound@ progress_sound;
+void beep_percentage(double val)
+{
+val=round(val,0);
+if(val<0) val=0;
+if(val>100) val=100;
+double freq=110*2**(val/25);
+progress_synth.waveform_type=4;
+progress_synth.set_edge_fades(1,1);
+progress_synth.freq_ms(""+freq,40);
+@progress_sound=progress_synth.write_wave_sound();
+progress_synth.reset();
+progress_sound.play();
+}
+string string2file(string thing)
+{
+thing=string_replace(thing,"\\","/",true);
+thing=string_replace(thing,"/"," ",true);
+return thing;
+}

@@ -1,0 +1,247 @@
+class StaticActor : BaseObject
+{
+	float x;
+	float y;
+	float width;
+	float length;
+	
+	string cpSoundPath;//close position sound, used to detect near StaticActors
+	string cpSoundID="-1";
+	string cpSoundVolume="0";
+	
+	StaticActor(string className="StaticActor", string name="", float x=0.0, float y=0.0)
+	{
+		super(className, name);
+		this.x=x;
+		this.y=y;
+		
+		this.width=1;
+		this.length=1;
+	}
+	
+	void load(dictionary infos)
+	{	
+		BaseObject::load(infos);
+		string tmp;
+		
+		if(infos.exists("x"))
+		{
+			infos.get("x", tmp);
+			this.x = string_to_number(tmp);
+		}
+		
+		if(infos.exists("y"))
+		{
+			infos.get("y", tmp);
+			this.y = string_to_number(tmp);
+		}
+		
+		if(infos.exists("width"))
+		{
+			infos.get("width", tmp);
+			this.width = string_to_number(tmp);
+		}
+			
+		if(infos.exists("length"))
+		{
+			infos.get("length", tmp);
+			this.length = string_to_number(tmp);
+		}
+		
+		if(infos.exists("cpSoundVolume"))
+		{
+			infos.get("cpSoundVolume", this.cpSoundVolume);
+		}
+		
+		if(infos.exists("cpSoundPath"))
+		{
+			infos.get("cpSoundPath", this.cpSoundPath);
+			if(this.getCpSoundID()!=-1)
+			{
+				game.scene.se.destroy_sound(this.getCpSoundID());
+				
+			}
+			updateCpSound();
+		}
+		
+		
+		if(game.scene.useGeometry==true)
+			updatePosition(this.getX(), this.getY());
+		
+	}
+	
+	dictionary parseObject()
+	{
+		dictionary infos = BaseObject::parseObject();//Ici on récupère les valeurs de la classe mère récurvisement / EN: here we gather the values of the mother class
+		
+		infos.set("x", ""+this.x);
+		infos.set("y", ""+this.y);
+		infos.set("width", ""+this.width);
+		infos.set("length", ""+this.length);
+		
+		string c_v = this.getCpSoundVolume();
+		infos.set("cpSoundVolume", c_v);
+		infos.set("cpSoundPath", this.getCpSoundPath());
+		
+		infos.set("className", this.className);//toujours réécrire cette valeur EN: Always override this value
+		infos.set("name", this.name);//toujours réécrire cette valeur EN: Always override this value
+		
+		return infos;
+	}
+	
+	float getX()
+	{
+		return this.x;
+	}
+	
+	int getIntX()
+	{
+		return this.x;
+	}
+	
+	float getY()
+	{
+		return this.y;
+	}
+	
+	int getIntY()
+	{
+		return this.y;
+	}
+	
+	int getCpSoundID()
+	{
+		return string_to_number(this.cpSoundID);
+	}
+	
+	void setCpSoundID(int value)
+	{
+		this.cpSoundID = value;
+	}
+	
+	string getCpSoundPath()
+	{
+		return this.cpSoundPath;
+	}
+	
+	int getCpSoundVolume()
+	{
+		return string_to_number(this.cpSoundVolume);
+	}
+	
+	void setX(float value)
+	{
+		this.x = value;
+	}
+	
+	void setY(float value)
+	{
+		this.y = value;
+	}
+	
+	float getWidth()
+	{
+		return this.width;
+	}
+	
+	float getLength()
+	{
+		return this.length;
+	}
+	
+	void setWidth(float value)
+	{
+		this.width = value;
+	}
+	
+	void setLength(float value)
+	{
+		this.length = value;
+	}
+	
+	void updateCpSound()
+	{
+		if(@game.listener!=null)
+		{
+			this.setCpSoundID(game.scene.se.play_extended_2d(this.cpSoundPath, game.getListenerX(), game.getListenerY(), this.getX(), this.getY(), 10, 10, 10, 10, true, 0.0, 0, this.getCpSoundVolume(), 90));
+		}
+	}
+	
+	//MaJ grille de la géométrie
+	//EN: updating this on the geometry grid
+	void updatePosition(float newX, float newY)
+	{
+		if(game.scene.useGeometry==false)
+			exception("Can't update the actor on the geometry grid because it hasn't been defined. (use game.scene.createGeometry() to generate the geometry variables first)");
+		
+		//game.scene.updateActorPosition(@this);
+		
+		//Pour chaque position entière du rectangle, mettre à jour/ EN: for each int position occupied by the poly, update
+		int x2 = this.getIntX() + this.getWidth();
+		int y2 = this.getIntY() + this.getLength();
+		for(int x=this.getIntX(); x<x2; x++)
+		{
+			for(int y=this.getIntY(); y<y2; y++)
+			{
+				if(x>=0 && x<game.scene.getWorldBoxWidth() && y>=0 && y<game.scene.getWorldBoxLength())
+					game.scene.map[x][y].deleteActor(@this);
+			}
+		}
+		
+		x2 = newX + this.getWidth();
+		y2 = newY + this.getLength();
+		for(int x=newX; x<x2; x++)
+		{
+			for(int y=newY; y<y2; y++)
+			{
+				if(x>=0 && x<game.scene.getWorldBoxWidth() && y>=0 && y<game.scene.getWorldBoxLength())
+					game.scene.map[x][y].addActor(@this);
+			}
+		}
+		
+		setX(newX);
+		setY(newY);
+	}
+	
+	
+	/*
+	Cette fonction est appelée par le moteur si cet objet est considéré comme le listener local. Dans ce cas, cette fonction doit mettre à jour les informations de position et rotation du listener.
+	*/
+	void updateListener()
+	{
+		if(game.getListenerX()!=this.getX() || game.getListenerY()!=this.getY())
+		{
+			game.listener_x = this.getX();
+			game.listener_y = this.getY();
+			
+			game.scene.se.update_listener_2d(game.getListenerX(), game.getListenerY(), 0.0);
+		}
+	}
+	
+	void updateState()
+	{
+		
+	}
+	
+	bool opEquals(StaticActor@ o)
+	{
+		return equals(o);
+	}
+	
+	void gameStarted()
+	{
+		if(this.cpSoundPath!="")
+			updateCpSound();
+		
+		if(game.scene.useGeometry==true)
+			updatePosition(this.getX(), this.getY());
+	}
+	
+	~StaticActor()
+	{
+		if(this.getCpSoundID()!=-1)
+		{
+			game.scene.se.destroy_sound(this.getCpSoundID());
+		}
+	}
+}

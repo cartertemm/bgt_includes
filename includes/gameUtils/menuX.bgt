@@ -1,0 +1,391 @@
+/*
+Dynamic Menu Class.
+
+This include provides a fully dynamic and extendable menu system. It is set up to use both audio and Microsoft Sapi 5, even in one and the same menu. The dynamic_menu_item class holds all the parameters that are needed for each item, currently just a string which will either be the filename of the sound which should be played or the text that should be spoken when the user cycles over that option, plus a boolean that tells whether the option is text or a filename. Note that you should not make instances of the dynamic_menu_item class yourself.
+Added features in menuX:
+Ability to add sounds for reaching edges, moving through items and pressing enter. Allows for any functions to be excecuted with left and right arrows. Useful for a file browser. Note: any functions excecuted with left or right arrows will automatically cause the main meun function to stop running. You must call the menu function again in order to run the menu again.
+New function declarations
+void add_edge_sound(string filename): the filename parameter will try to load the edge soud into memory. THe edge sound is played if wrap is set to false and the user tries to go past one of the edges of the menu.
+void add_click_sound(string filename): similar to add_edge_sound, but the click sound will play each time the user moves up or down in the menu and is focussed on a different item.
+void add_enter_sound(string filename): this is similar to add_edge_sound except that pressing enter from within the menu will play this sound.
+void left_func(funcdef void@ function): use this method to bind a function to the left arrow key. Note: do not use the left and right parentheses after the function name, or otherwise it will take the return value as the parameter and not the function, and will throw up a compile error. Example of this found in menuXTest.bgt
+void right_func(funcdef void@ right_function): same as left_func but for the right arrow instead.
+*/
+
+
+/*
+added sounds
+menu music
+menu clicks
+top and bottom boundary sounds
+enter sound
+escape sound
+*/
+class dynamic_menu_item
+{
+string option;
+bool is_filename;
+
+dynamic_menu_item()
+{
+option="";
+is_filename=true;
+}
+}
+
+/*
+This is the actual menu class. The first method that you will want to call is add_item or add_item_tts. add_item simply takes the filename of the sound to play when the user cycles over the item, and the add_item-tts takes a text that is to be spoken instead. It is perfectly legal to have both audio and tts items in one and the same menu. Both of these methods return true on success and false on failure.
+
+You also have a little helper method called get_item_count which simply returns the number of items that have been added to the menu as a double.
+
+If you are using Sapi 5 to speak any text in the menu, you may want to call the set_tts_object method which takes a handle to an existing tts_voice object that you've created, and uses that for all Sapi output. This means that any settings that you've specified for that object will also be used in the menu. If you do not call this method and still use Sapi output, a temporary tts_voice object will be created for you automatically.
+
+Finally, to display the menu to the user you call the method which takes two parameters. The first parameter is a string which either specifies the name of a file to play or some text that is to be spoken when the menu first appears, and the second parameter is a boolean that tells whether or not the first parameter is text rather than a filename. This function returns a double which will be -1 if an error occurs, 0 if the user pressed escape, and the number of the chosen item on success (starting at 1).
+
+There are also two boolean properties that you can set for this class. wrap, and allow_escape. If wrap is set to true, the user is allowed to cycle continuously around the menu by pressing one of the arrow keys which they cannot do if this is set to false. allow_escape specifies whether or not the user is allowed to press escape to exit out of the menu without choosing an option. Both of these properties are set to true by default.
+*/
+
+class dynamic_menu
+{
+bool wrap;
+sound background_music;
+sound item_preclick;
+sound edge_sound;
+sound enter_sound;
+sound escape_sound;
+bool allow_escape;
+
+dynamic_menu()
+{
+running=false;
+@leftfunc=null;
+@rightfunc=null;
+reset(true);
+}
+
+void add_edge_sound(string filename) {
+}
+
+void add_click_sound(string filename) {
+item_preclick.load(filename);
+}
+
+void add_enter_sound(string filename) {
+enter_sound.load(filename);
+}
+
+void add_music(string filename) {
+background_music.load(filename);
+}
+
+void add_escape_sound(string filename) {
+}
+
+bool add_item(string filename)
+{
+if(running==true)
+{
+return false;
+}
+double new_index=item_list.length();
+item_list.resize(new_index+1);
+item_list[new_index].option=filename;
+item_list[new_index].is_filename=true;
+return true;
+}
+
+bool add_item_tts(string text)
+{
+if(running==true)
+{
+return false;
+}
+double new_index=item_list.length();
+item_list.resize(new_index+1);
+item_list[new_index].option=text;
+item_list[new_index].is_filename=false;
+return true;
+}
+
+double get_item_count()
+{
+return item_list.length();
+}
+
+bool set_tts_object(tts_voice@ handle)
+{
+if(running==true)
+{
+return false;
+}
+@tts_handle=@handle;
+return true;
+}
+
+bool set_callback(menu_callback@ callback, string user_data)
+{
+
+// This method is still experimental and is thus not currently documented.
+
+if(running==true)
+{
+return false;
+}
+@callback_handle=@callback;
+callback_data=user_data;
+return true;
+}
+
+void right_func(funcRight@ right_arrow_func) {
+@rightfunc=@right_arrow_func;
+
+}
+void left_func(funcLeft@ left_funco) {
+@leftfunc=@left_funco;
+}
+double run(string intro, bool is_intro_tts)
+{
+return run_extended(intro, is_intro_tts, 0, false);
+}
+
+double run_extended(string intro, bool is_intro_tts, double start_position, bool auto_speak_first)
+{
+if(running==true)
+{
+return -1;
+}
+double item_count=item_list.length();
+if(item_count==0)
+{
+return -1;
+}
+if(start_position>item_count)
+{
+return -1;
+}
+double menu_position=start_position;
+bool speak_item=false;
+bool initial=auto_speak_first;
+sound menu_sound;
+bool reset_tts=false;
+if(@tts_handle==null)
+{
+tts_voice temp_voice;
+@tts_handle=temp_voice;
+reset_tts=true;
+}
+if(intro!="")
+{
+if(is_intro_tts==true)
+{
+if(tts_handle.speak_interrupt(intro)==false)
+{
+if(reset_tts==true)
+@tts_handle=null;
+return -1;
+}
+}
+else
+{
+if(menu_sound.stream(intro)==false)
+{
+if(reset_tts==true)
+@tts_handle=null;
+return -1;
+}
+menu_sound.play();
+}
+}
+running=true;
+while(true)
+{
+
+// First we check to see if there's an item that needs to be spoken.
+if(speak_item==true)
+{
+if(item_list[menu_position-1].is_filename==true)
+{
+if(tts_handle.speaking==true)
+{
+tts_handle.speak_interrupt("");
+}
+if(menu_sound.stream(item_list[menu_position-1].option)==false)
+{
+if(reset_tts==true)
+@tts_handle=null;
+running=false;
+return -1;
+}
+menu_sound.play();
+}
+else
+{
+if(menu_sound.active==true)
+{
+menu_sound.close();
+}
+if(tts_handle.speak_interrupt(item_list[menu_position-1].option)==false)
+{
+if(reset_tts==true)
+@tts_handle=null;
+running=false;
+return -1;
+}
+}
+speak_item=false;
+}
+if(initial==true)
+{
+if(item_list[menu_position-1].is_filename==true)
+{
+if(menu_sound.playing==false)
+{
+speak_item=true;
+initial=false;
+continue;
+}
+}
+else
+{
+if(tts_handle.speaking==false)
+{
+speak_item=true;
+initial=false;
+continue;
+}
+}
+}
+if(key_pressed(KEY_RIGHT)&&menu_position!=0) {
+if(@rightfunc!=null) {
+rightfunc();
+return menu_position;
+}}
+if(key_pressed(KEY_LEFT)&&menu_position!=0) {
+if(@leftfunc!=null) {
+leftfunc();
+return menu_position;
+}}
+if(key_pressed(KEY_RETURN))
+{
+if(menu_position!=0)
+{
+if(reset_tts==true) @tts_handle=null;
+enter_sound.play_wait();
+running=false;
+return menu_position;
+}
+}
+if(allow_escape==true)
+{
+if(key_pressed(KEY_ESCAPE))
+{
+if(reset_tts==true)
+@tts_handle=null;
+running=false;
+return 0;
+}
+}
+if(key_pressed(KEY_UP))
+{
+initial=false;
+if(menu_position==0)
+{
+menu_position=item_count;
+speak_item=true;
+continue;
+}
+if(menu_position==1)
+{
+if(wrap==true)
+{
+item_preclick.stop();
+item_preclick.play();
+menu_position=item_count;
+speak_item=true;
+continue;
+}
+else
+{
+continue;
+}
+}
+menu_position-=1;
+item_preclick.stop();
+item_preclick.play();
+speak_item=true;
+continue;
+}
+if(key_pressed(KEY_DOWN))
+{
+initial=false;
+if(menu_position==item_count)
+{
+if(wrap==true)
+{
+item_preclick.stop();
+item_preclick.play();
+menu_position=1;
+speak_item=true;
+continue;
+}
+else
+{
+continue;
+}
+}
+item_preclick.stop();
+item_preclick.play();
+menu_position+=1;
+speak_item=true;
+continue;
+}
+if(@callback_handle!=null)
+{
+int callback_result=callback_handle(this, callback_data);
+if(callback_result!=0)
+{
+if(reset_tts==true)
+@tts_handle=null;
+running=false;
+return callback_result;
+}
+}
+wait(5);
+}
+if(reset_tts==true)
+@tts_handle=null;
+running=false;
+return -1;
+}
+
+bool reset(bool completely)
+{
+if(running==true)
+{
+return false;
+}
+item_list.resize(0);
+if(completely==true)
+{
+wrap=true;
+allow_escape=true;
+@tts_handle=null;
+}
+return true;
+}
+
+
+// The following is private content and should not be modified from the outside.
+
+tts_voice@ tts_handle;
+menu_callback@ callback_handle;
+string callback_data;
+bool running;
+dynamic_menu_item[] item_list;
+funcRight@ rightfunc;
+funcLeft@ leftfunc;
+}
+
+funcdef int menu_callback(dynamic_menu@, string);
+funcdef void funcRight();
+funcdef void funcLeft();

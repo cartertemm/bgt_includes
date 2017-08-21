@@ -1,0 +1,61 @@
+//include the script
+#include"includes/sound_pool3d.bgt"
+//define x and y variables
+int x, y;
+//define the class
+sound_pool3d p;
+//set up a reverb class.
+reverb3d reverb;
+void main()
+{
+show_game_window("test");
+//set up some reverb things.
+reverb.set_gain(0.4);
+reverb.set_reverb_density(0);
+reverb.set_decay_time(0.5);
+reverb.set_room_rolloff_factor(0.5);
+//set the reverb of the pool.
+p.current_reverb=reverb.handle;
+//set the sound storage
+set_sound_storage("sounds.dat");
+//set the decryption key.
+decryption_key="boink";
+//since our dat file is called sounds.dat, nothing else needs to be done. If it's called something else, then we need to set packname to it, like this. pack_name="sounds1.pack".
+//now, we basically use this like the regular sound pool
+p.play_2d("beep.ogg",x,y,5,5,true);
+while(true)
+{
+p.update_listener_2d(x,y);
+wait(5);
+//make sure the user can exit.
+if (key_pressed(KEY_ESCAPE))
+{
+exit();
+}
+//let's walk.
+if (key_pressed(KEY_LEFT) and x>0)
+{
+x-=1;
+//play a step
+p.play_stationary("step"+random(1,5)+".ogg",false);
+}
+if (key_pressed(KEY_RIGHT) and x<=50)
+{
+x+=1;
+//play a step
+p.play_stationary("step"+random(1,5)+".ogg",false);
+}
+if (key_pressed(KEY_UP) and y<=50)
+{
+y+=1;
+//play a step
+p.play_stationary("step"+random(1,5)+".ogg",false);
+}
+if (key_pressed(KEY_DOWN) and y>0)
+{
+y-=1;
+//play a step
+p.play_stationary("step"+random(1,5)+".ogg",false);
+}
+}
+}

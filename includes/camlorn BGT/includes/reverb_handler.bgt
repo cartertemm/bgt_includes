@@ -1,0 +1,104 @@
+reverb_handler3d@[] rh3ds(0);
+class reverb_handler3d
+{
+int min_x;
+int max_x;
+int min_y;
+int max_y;
+int min_z;
+int max_z;
+float gain;
+float decay_time;
+float max__distance;
+reverb_handler3d(int rmin_x, int rmax_x, int rmin_y, int rmax_y, int rmin_z, int rmax_z, float rgain=0.5, float rdecay_time=1.0, float rmax__distance=5)
+{
+min_x=rmin_x;
+max_x=rmax_x;
+min_y=rmin_y;
+max_y=rmax_y;
+min_z=rmin_z;
+max_z=rmax_z;
+gain=rgain;
+decay_time=rdecay_time;
+max__distance=rmax__distance;
+}
+void check_reverb(int x, int y, int z, int current_gain, int current_decay_time, reverb3d@ handle)
+{
+int distance=get_distance(x, y, z);
+if(distance>max__distance)
+{
+return;
+}
+float final_gain=gain;
+float final_decay_time=decay_time;
+if(distance>0)
+{
+if(max__distance>0)
+{
+int distance_from_max_=absolute(max__distance-distance);
+final_gain=gain/max__distance;
+final_gain=final_gain*distance_from_max_;
+final_decay_time=decay_time/max__distance;
+final_decay_time=final_decay_time*distance_from_max_;
+}
+}
+if(current_gain!=final_gain)
+{
+handle.set_gain(final_gain);
+}
+if(current_decay_time!=final_decay_time)
+{
+handle.set_decay_time(final_decay_time);
+}
+}
+int get_distance(int x, int y, int z)
+{
+int distance=0;
+if(x<min_x)
+{
+distance+=min_x-x;
+}
+else if(x>max_x)
+{
+distance+=x-max_x;
+}
+if(y<min_y)
+{
+distance+=min_y-y;
+}
+else if(y>max_y)
+{
+distance+=y-max_y;
+}
+if(z<min_z)
+{
+distance+=min_z-z;
+}
+else if(z>max_z)
+{
+distance+=z-max_z;
+}
+return distance;
+}
+}
+void reverb_handler_loop(reverb3d@ temp_reverb, int x, int y, int z)
+{
+bool is_reverb=false;
+for(uint i=0; i<rh3ds.length(); i++)
+{
+if(rh3ds[i].get_distance(x, y, z)<=rh3ds[i].max__distance)
+{
+is_reverb=true;
+rh3ds[i].check_reverb(x, y, z, temp_reverb.current_gain, temp_reverb.current_decay_time, temp_reverb);
+}
+}
+if(!is_reverb)
+{
+temp_reverb.set_gain(0.0);
+}
+}
+void add_reverb_handler(int rmin_x, int rmax_x, int rmin_y, int rmax_y, int rmin_z, int rmax_z, float rgain=0.5, float rdecay_time=1.0, float rmax__distance=5)
+{
+reverb_handler3d r1(rmin_x, rmax_x, rmin_y, rmax_y, rmin_z, rmax_z, rgain, rdecay_time, rmax__distance);
+rh3ds.insert_last(r1);
+}

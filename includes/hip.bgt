@@ -1,0 +1,260 @@
+/*
+Helpful Includes Pack.
+Colton Hill.
+This is just a bgt script of the functions I threw together that I believed would be helpful.
+You are free to modify this if you wish.
+Credit is not needed, they are very simple functions.
+Comments will be provided.
+*/
+/*
+percent
+Finds the percentage of peramitor 1 out of peramitor two.
+for example, if peramitor 1 was 5, and peramitor 2 was 10, it would return 50.
+This function returns a double for percentages that are not hundredths, such as the percentage of 1 out of 200, it would be 0.5.
+*/
+double percent(double n1, double n2)
+{
+return (n1/n2)*100;
+}
+/*
+get_current_directory
+This function returns the full directory of the script currently running, whether it be a bgt script or an executable.
+Thanks Lucas for this idea.
+*/
+string get_current_directory()
+{
+string DIR;
+string[] DIR2;
+string DIR3;
+if(SCRIPT_COMPILED==false) DIR=SCRIPT_CURRENT_FILE;
+else DIR=SCRIPT_EXECUTABLE;
+bool slash;
+if(string_contains(DIR,"/",1)==-1) slash=false;
+else slash=true;
+if(slash) DIR2=string_split(DIR,"/",false);
+else DIR2=string_split(DIR,"\\",false);
+for(uint i=0; i<(DIR2.length-1); i++)
+{
+DIR3+=DIR2[i];
+DIR3+="/";
+}
+return DIR3;
+}
+//these are the constants for the file_put_contents function.
+const uint8 FILE_WRITE=250;
+const uint8 FILE_APPEND=255;
+/*
+file_put_contents
+This is similar to the php equivalent, where you need no file objects, you just need some strings and a flag.
+I made it a boolean so you can see if it worked, like phillip's functions.
+This function has three peramitors.
+the first peramitor is the filename to use.
+The second peramitor is the contents to put to the file.
+The third peramitor is an uint8 number, for the mode.
+The modes were up there, but here they are again.
+FILE_WRITE
+deletes all contents before writing your string.
+FILE_APPEND
+appends your string to the end of the file.
+*/
+bool file_put_contents(string filename, string contents, uint8 filemode)
+{
+bool ret;
+file tempfile;
+if(filemode==FILE_WRITE) ret=tempfile.open(filename,"wb");
+else if(filemode==FILE_APPEND) ret=tempfile.open(filename,"ab");
+else return false;
+if(ret==false) return false;
+double ret2=tempfile.write(contents);
+tempfile.close();
+if(ret2!=contents.length()) ret=false;
+else ret=true;
+return ret;
+}
+/*
+file_get_contents
+Again, like the php equivalent.
+this function has one peramitor, the filename to get the contents from.
+*/
+string file_get_contents(string filename)
+{
+file tempfile;
+tempfile.open(filename,"rb");
+string r=tempfile.read();
+tempfile.close();
+return r;
+}
+/*
+dict_to_ini
+converts a dictionary to the ini standard, key=value, and writes it to a file.
+it is a boolean, so you can see if it worked, again like phillip's functions.
+the first peramitor is the handle to a dictionary you would like converted.
+the second is a string specifying the filename.
+I know this might be useless, since you have serialize, but I just put it here in case somebody wanted ini files for stuff.
+*/
+bool dict_to_ini(dictionary@ dict, string inifile)
+{
+if(dict.get_size()==0) return false;
+string[] keys=dict.get_keys();
+string towrite;
+for(uint i=0; i<keys.length; i++)
+{
+string t;
+dict.get(keys[i],t);
+towrite+=keys[i]+"="+t;
+if(i<(keys.length-1)) towrite+="\r\n";
+}
+return file_put_contents(inifile,towrite,FILE_WRITE);
+}
+/*
+ini_to_dict
+this function is a bool! Be careful!
+Unlike deserialize, this function does not return a dictionary handle.
+Instead, it writes directly to an &out dictionary.
+The boolean is so you can see if the opening worked.
+the first peramitor is the string of the ini file you wish to read.
+the second peramitor is a handle to a dictionary to write to, so you would call something like this.
+dictionary test;
+bool worked=ini_to_dict("test.ini",test);
+if(worked==false)
+{
+alert("Error","The file test.ini doesn't exist.");
+}
+and the dictionary would be filled.
+This function will only convert key=value, it will not support sectioned ini files such as those seen in ISS files.
+However, it does support semicolon line commenting.
+This function is the inverse of dict_to_ini, and so should only be used when using that function to make the original file, unless you know that it is safe for parsing. Anything messed up may result in very strange output in the dictionary.
+*/
+bool ini_to_dict(string inifile, dictionary &out dict)
+{
+string content=file_get_contents(inifile);
+if(content=="") return false;
+string[] peramitors=string_split(content, "\r\n", false);
+for(uint i=0; i<peramitors.length(); i++)
+{
+if(string_left(peramitors[i],1)==";") peramitors.remove_at(i);
+continue;
+}
+string[] values;
+uint keys;
+for(uint i=0; i<peramitors.length(); i++)
+{
+values.insert_at(i,string_replace(peramitors[i], string_left(peramitors[i], string_contains(peramitors[i], "=", 1)+1), "", true));
+peramitors[i]=string_replace(peramitors[i], "="+values[i], "", true);
+keys=i;
+}
+for(uint i=0; i<keys; i++)
+{
+dict.set(peramitors[i],values[i]);
+}
+return true;
+}
+/*
+average
+finds the average out of an array of doubles.
+the first peramitor is the array of doubles to find the average out of.
+the second is the amount of rounding to apply, sent to the round function. Default is 2, meaning 2 decimal places.
+this returns a double for precise averages. TO get something that is integer compatible, send 0 for the second peramitor.
+*/
+double average(double[] vals, int roundval=2)
+{
+double res=0;
+for(uint i=0; i<vals.length; i++)
+{
+res=res+vals[i];
+}
+res=res/vals.length();
+res=round(res,roundval);
+return res;
+}
+/*
+dget
+the following two functions are equal in every way accept they are meant for different types of values.
+You know how you have to create a temporary value in order to get something from a dictionary? Not with this function!
+This function, dget, will allow you to retrieve values directly to the return.
+Because bgt won't allow me to have functions with the same name and peramitors, I thought return type mattered too, declare the function as such.
+dget_var
+where var is one of the data types it can return, such as dget_double
+this function takes two peramitors.
+the first is the dictionary to get the value from.
+the second is the name of the key the value is linked to.
+The return type can either be double or string.
+*/
+double dget_double(dictionary d, string key)
+{
+double temp;
+d.get(key,temp);
+return temp;
+}
+string dget_string(dictionary d, string key)
+{
+string temp;
+d.get(key,temp);
+return temp;
+}
+/*
+dget_sd
+this function will get the value from a dictionary in string format, such as if you loaded it from an ini file, and convert it to double before returning it.
+same as dget_double accept it will handle converting string to number
+*/
+double dget_sd(dictionary d, string key)
+{
+return string_to_number(dget_string(d,key));
+}
+/*
+array_add
+these next two functions are for adding arrays to other arrays at an index.
+string and double
+the first peramitor is the array to insert the other array into
+the second peramitor is the array to be inserted
+the third peramitor is the index of insertion. -1 for end. Note that if you specify an insertion index that is higher than the length of the original array, it will be inserted at the end just like if you used -1.
+*/
+string[] array_add_string(string[] ay1, string[] ay2, int index)
+{
+string[] ret=ay1;
+if(index>(ret.length-1)) index=-1;
+if(index<-1) index=-1;
+for(uint i=0; i<ay2.length; i++)
+{
+if(index==-1) ret.insert_last(ay2[i]);
+else ret.insert_at(index+i,ay2[i]);
+}
+return ret;
+}
+double[] array_add_double(double[] ay1, double[] ay2, int index)
+{
+double[] ret=ay1;
+if(index>(ret.length-1)) index=-1;
+if(index<-1) index=-1;
+for(uint i=0; i<ay2.length; i++)
+{
+if(index==-1) ret.insert_last(ay2[i]);
+else ret.insert_at(index+i,ay2[i]);
+}
+return ret;
+}
+/*
+beep_percentage
+a special function, designed to generate a progress bar beep of NVDA from a percentage value.
+The percentage value is a double, however it is internally rounded down to a whole number to generate a correct beep.
+This, being a percentage, is in the range 0 to 100.
+Going over these limits will floor you to these limits.
+this function takes one peramitor, the percentage value to beep.
+It will generate and play the beep all in the single function call.
+It does indeed require the two objects declared above it for it to work properly.
+*/
+tone_synth progress_synth;
+sound@ progress_sound;
+void beep_percentage(double val)
+{
+val=round(val,0);
+if(val<0) val=0;
+if(val>100) val=100;
+double freq=110*2**(val/25);
+progress_synth.waveform_type=4;
+progress_synth.set_edge_fades(0,0);
+progress_synth.freq_ms(""+freq,40);
+@progress_sound=progress_synth.write_wave_sound();
+progress_synth.reset();
+progress_sound.play();
+}

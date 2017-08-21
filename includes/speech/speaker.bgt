@@ -1,0 +1,22 @@
+class speaker
+{
+void say(string temporary_text)
+{
+if (screen_reader_is_running(1))
+{
+screen_reader_speak_interrupt(JAWS, temporary_text);
+}
+if (screen_reader_is_running(2))
+{
+screen_reader_speak_interrupt(WINDOW_EYES, temporary_text);
+}
+if (screen_reader_is_running(3))
+{
+screen_reader_speak_interrupt(SYSTEM_ACCESS, temporary_text);
+}
+if (screen_reader_is_running(4))
+{
+screen_reader_speak_interrupt(NVDA, temporary_text);
+}
+}
+}

@@ -1,0 +1,75 @@
+
+class looping_sound {
+string filename;
+ sound@ handle;
+  int loop_count;
+ double loop_start;
+ double loop_end;
+
+ looping_sound() {init();}
+ looping_sound(string fn) {init(); load(fn);}
+ looping_sound(string fn, double s, double e) {init(); load(fn); loop_start=s; loop_end=e;}
+ void init() {
+ @handle=null;
+ filename="";
+ loop_start=0;
+loop_end=-1;
+ loop_count=-1;
+}
+ bool load(string fn) {
+ if(!file_exists(fn)) return false;
+ if(@handle==null) {sound temp; @handle=temp;}
+ if(handle.active) {handle.stop(); handle.close();}
+ if(!handle.load(fn)) return false;
+ filename=fn;
+ return true;
+}
+
+bool play() {
+if((@handle==null)||(!handle.active)) return false;
+ if(handle.playing) update();
+ else handle.play();
+ return true;
+}
+ bool update() {
+ if((@handle==null)||(!handle.active)) return false;
+ if((!handle.playing)&&(loop_count!=0)) {
+ if(loop_end<0) {handle.seek(loop_start); if(loop_count>0) loop_count--;}
+handle.play();
+}
+
+ if(loop_count!=0) {
+if((loop_end>=0)&&(handle.position>=loop_end)) {handle.seek(loop_start); if(loop_count>0) loop_count--;}
+ return true;
+}
+  return ((handle.playing)||(loop_count!=0));
+}
+
+sound@ get_sound_handle() {return handle;}
+ void set_start(double s) {loop_start=s;}
+ void set_end(double e) {loop_end=e;}
+ void set_count(int l) {loop_count=l;}
+ void set_infinite() {loop_count=-1;}
+ void pause() {
+if((@handle!=null)&&(handle.active)) handle.pause();
+}
+ void play_pause() {
+ if((@handle!=null)&&(handle.active)) {
+ if(handle.playing) handle.pause();
+ else play();
+}
+}// play_pause.
+ void stop() {
+ if(@handle!=null) handle.stop();
+}
+ void seek(double s) {
+ if(@handle!=null) handle.seek(s);
+}
+ bool is_playing() {
+ return ((@handle!=null)&&(handle.playing));
+} 
+ double length() {
+ if((@handle==null)||(!handle.active)) return -1;
+ return handle.length;
+}
+}

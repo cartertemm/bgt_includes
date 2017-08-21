@@ -1,0 +1,11 @@
+/*
+Cette classe est utilisée pour les objets de "support" comme les inventaires
+*/
+
+class UtilActor : BaseObject
+{
+	UtilActor(string className="UtilActor", string name="")
+	{
+		super(className, name);
+	}
+}

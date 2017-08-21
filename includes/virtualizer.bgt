@@ -1,0 +1,169 @@
+class virtualizer
+{
+int charrepeat=1;
+string input(string text, string defaulttext="")
+{
+int cursor;
+string message;
+speak(text);
+cursor=0;
+string[] ms;
+if(defaulttext!="")
+{
+for(uint i=0; i<defaulttext.length(); i++)
+{
+ms.insert_last(defaulttext[i]);
+}
+}
+get_characters();
+while(true)
+{
+string char=get_characters();
+if (key_down(KEY_LCONTROL) or key_down(KEY_RCONTROL))
+{
+if (key_pressed(KEY_V))
+{
+speak("text pasted");
+string cl=clipboard_read_text();
+for (uint i=0; i<cl.length(); i++)
+{
+ms.insert_at(cursor,cl[i]);
+cursor+=1;
+}
+}
+if (key_pressed(KEY_C))
+{
+string a;
+for (uint i=0; i<ms.length(); i++)
+{
+a+=ms[i];
+}
+speak("text copied");
+clipboard_copy_text(a);
+}
+}
+if (key_pressed(KEY_F2))
+{
+if (charrepeat==1)
+{
+speak("character repeat off");
+charrepeat=0;
+}
+else
+{
+speak("character repeat on");
+charrepeat=1;
+}
+}
+if(char!="")
+{
+if (charrepeat==1)
+{
+speak(char);
+}
+ms.insert_at(cursor,char);
+cursor+=1;
+}
+if(key_pressed(KEY_BACK) and ms.length() > 0 and cursor>=1)
+{
+string char=ms[cursor-1];
+speak(char);
+ms.remove_at(cursor-1);
+cursor-=1;
+}
+if(key_pressed(KEY_DELETE) and ms.length() > 0 and cursor>0 and cursor<ms.length())
+{
+string char=ms[cursor+1];
+speak(char);
+ms.remove_at(cursor+1);
+}
+if(key_pressed(KEY_DOWN) or key_pressed(KEY_UP))
+{
+string a;
+for (uint i=0; i<ms.length(); i++)
+{
+a+=ms[i];
+}
+speak(a);
+}
+if(key_pressed(KEY_LEFT) and cursor>0)
+{
+if(ms.length()>0)
+{
+cursor-=1;
+if (cursor>=ms.length())
+{
+speak("Blank");
+}
+else
+{
+speak(ms[cursor]);
+}
+}
+else
+speak("blank");
+}
+if(key_pressed(KEY_RIGHT) and cursor<ms.length())
+{
+if(ms.length() > 0)
+{
+cursor+=1;
+if (cursor>=ms.length())
+speak("Blank");
+else
+speak(ms[cursor]);
+}
+else
+speak("blank");
+}
+if(key_pressed(KEY_HOME))
+{
+if(ms.length() > 0)
+{
+cursor=0;
+if (cursor>=ms.length())
+speak("Blank");
+else
+speak(ms[cursor]);
+}
+else
+speak("blank");
+}
+if(key_pressed(KEY_END))
+{
+if(ms.length() > 0)
+{
+cursor=ms.length()+1;
+if (cursor>=ms.length())
+speak("Blank");
+else
+speak(ms[cursor]);
+}
+else
+speak("blank");
+}
+if(key_pressed(KEY_ESCAPE))
+{
+speak("Cancel.");
+return "";
+}
+else if(key_pressed(KEY_RETURN))
+{
+if (ms.length() > 0)
+{
+for (uint i=0; i<ms.length(); i++)
+{
+message+=ms[i];
+}
+return message;
+}
+else if (ms.length()==0)
+{
+speak("Cancel.");
+return "";
+}
+}
+}
+return "";
+}
+}

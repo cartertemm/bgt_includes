@@ -1,0 +1,23 @@
+/*
+The symplest fade in and out code in 1 function
+*/
+
+void fade (sound@ handle, double final_volume, double delay)
+{
+if (handle.volume == final_volume)
+{
+return;
+}
+while (handle.volume != final_volume)
+{
+if (handle.volume > final_volume)
+{
+handle.volume=handle.volume-1;
+}
+else if (handle.volume < final_volume)
+{
+handle.volume=handle.volume+1;
+}
+wait (delay);
+}
+}

@@ -1,0 +1,105 @@
+int counter;
+string browserfilename;
+string[] browserfiles, browserfolders, browseritems, ds;
+string browserdir;
+string browserdirname;
+string select_file(string top_dir)
+{
+counter=-1;
+browserdir=top_dir;
+ds=string_split(browserdir, "\\", true);
+browserdirname=ds[ds.length()-1];
+populate_list();
+speak(browserdir+": items view list: "+browseritems[0]+" not selected 1 of "+browseritems.length());
+while(true)
+{
+wait(5);
+if(key_pressed(KEY_ESCAPE))
+{
+return "";
+}
+if(key_pressed(KEY_DOWN) and counter < browseritems.length()-1)
+{
+if(counter >= 0)
+{
+counter++;
+speak(browseritems[counter]+" "+(counter+1)+" of "+browseritems.length());
+}
+else
+{
+counter=0;
+speak(browseritems[counter]+" "+(counter+1)+" of "+browseritems.length());
+}
+}
+else if(key_pressed(KEY_UP) and counter > 0)
+{
+counter--;
+speak(browseritems[counter]+" "+(counter+1)+" of "+browseritems.length());
+}
+if(key_pressed(KEY_RETURN) and counter >= 0)
+{
+if(counter < browserfolders.length())
+{
+goforward();
+}
+else
+{
+return openfile();
+}
+}
+if(key_pressed(KEY_BACK) and browserdirname!="C:")
+{
+goback();
+}
+}
+return browserfilename;
+}
+void goback()
+{
+browserdir=string_replace(browserdir, "\\"+browserdirname, "", true);
+counter=-1;
+ds=string_split(browserdir, "\\", true);
+browserdirname=ds[ds.length()-1];
+populate_list();
+if (browseritems.length()>0)
+{
+speak(browserdir+": items view list: "+browseritems[0]+" not selected 1 of "+browseritems.length());
+}
+}
+void goforward()
+{
+browserdir+="\\"+browseritems[counter];
+counter=-1;
+ds=string_split(browserdir, "\\", true);
+browserdirname=ds[ds.length()-1];
+populate_list();
+if (browseritems.length()>0)
+{
+speak(browserdir+": items view list: "+browseritems[0]+" not selected 1 of "+browseritems.length());
+}
+}
+void populate_list()
+{
+browserfolders=find_directories(browserdir+"\\*");
+browserfiles=find_files(browserdir+"\\*");
+browseritems.resize(0);
+for(uint i=0; i<browserfolders.length(); i++)
+{
+browseritems.insert_last(browserfolders[i]);
+}
+for(uint i=0; i<browserfiles.length(); i++)
+{
+browseritems.insert_last(browserfiles[i]);
+}
+if (browseritems.length()<=0)
+{
+speak(browserdir+" is empty.");
+wait(500);
+goback();
+}
+}
+string openfile()
+{
+browserfilename=browserdir+"\\"+browseritems[counter];
+return browserfilename;
+}

@@ -1,0 +1,66 @@
+/* Librería joystick_button_capture / Library joystick_button_capture
+Versión 1.
+Descripción / Description:
+Fecha de creación / Creation date: 
+Version 1: 3 de febrero de 2016 / February 3, 2016.
+Version 2: 5 de febrero de 2016 / February 5, 2016.
+Creado por / Created by: Camilo Ortiz de Graffi Games.
+
+Novedades / Changelog:
+Version 2: Añadida captura de flechas de dirección. Added arrow keyss capture.
+Version 1: Captura botones del joystick. Capture joystick buttons.
+
+Información en español:
+Esta librería permite dos cosas: capturar las flechas y el botón pulsado del joystick.
+Fue pensada para los juegos que tengan un menú donde el jugador pueda cambiar
+el botón usada para cierta acción, por ejemplo, para saltar.
+En esta librería se usa como variable global el objeto joystick llamado stick. Si lo deseas,
+puedes modificarlo por el que uses en tu juego.
+Acá está la función que puedes llamar en el script del juego:
+int cualquier_boton = joystick_button_capture(); // Asigna int del botón pulsado
+Para configurar los botones no se necesita ningún argumento, pero para configurar las flechas
+de direcciones se debe mandar como argumento true. Quedaría así:
+int flecha_arriba = joystick_button_capture(true); // Asigna int de flecha de dirección
+
+
+English information:
+This library allows two tnings: capture arrow keys and the button pressed in the joystick.
+It was made for games that have setting menu where the gamer change the button used
+for differents events (for example, jump).
+In this library is used as global variable the joystick object named stick. If you want, you
+can modify it for the object joystick that you use in the game.
+There is the function that you can call in your script:
+int any_button = joystick_button_capture(); // Sets the button pressed
+To sets the buttons is not neccesary an argument. But, if you want to sets the arrow keys,
+you need write as argument true. For example:
+int up_arrow = joystick_button_capture(true); // Asigna int de flecha de dirección
+*/
+
+// Objeto de joystick usado. Si quieres puedes cambiarlo.
+// Joystik object used. If you want, you can modifify it
+joystick stick;
+
+// Función. Function
+int joystick_button_capture(bool arrow_key = false) {
+int value; // Aloja la tecla que pulso el usuario. Store the user's key pressed
+bool done = false; // Se usa en el bucle de pulsar botón. It is used in loop button pressed
+
+while(!done) {
+// Asigna flechas. Sets arrows keys
+if(arrow_key) {
+// Flechas de direcciones. Arrows keys
+if(stick.x == -1000 || stick.y == -1000) { value = -1000; done = true; }
+if(stick.x == 1000 || stick.y == 1000) { value = 1000; done = true; }
+} // if
+
+// Asigna botones. Sets buttons.
+else { 
+for(int i=0; i<stick.buttons; i++) {
+if(stick.button_pressed(i)) { value = i; done = true; break; } 
+} // for
+} // else
+wait(5);
+} // while
+
+return value; // Retorna la tecla. Returns key
+} // fin. end

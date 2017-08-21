@@ -1,0 +1,3 @@
+void progress_pan(sound@ handle, int current, int max) {
+handle.pan=(current*200/max)-100;
+}

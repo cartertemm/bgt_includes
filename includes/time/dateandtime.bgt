@@ -1,0 +1,94 @@
+string timesecs;
+string included;
+string included2;
+string time;
+string date;
+string ampm;
+int hour2;
+string get_date(bool include_weekday=false, bool numerical=true)
+{
+date="";
+if (numerical==true)
+{
+if (include_weekday==true)
+{
+date+=DATE_WEEKDAY_NAME+", "+DATE_MONTH+"-"+DATE_DAY+"-"+DATE_YEAR;
+}
+else
+{
+date+=DATE_MONTH+"-"+DATE_DAY+"-"+DATE_YEAR;
+}
+}
+else
+{
+if (include_weekday==true)
+{
+date=DATE_WEEKDAY_NAME+", "+DATE_MONTH_NAME+" "+DATE_DAY+", "+DATE_YEAR;
+}
+else
+{
+date=DATE_MONTH_NAME+" "+DATE_DAY+", "+DATE_YEAR;
+}
+}
+return date;
+}
+string get_time(bool twelvehour=true, bool include_timesecs=true)
+{
+if (TIME_SECOND<10)
+{
+included2="0";
+}
+else
+{
+included2="";
+}
+if (TIME_MINUTE<=9)
+{
+included="0";
+}
+else
+{
+included="";
+}
+if (TIME_HOUR<12)
+{
+ampm="AM";
+}
+if (TIME_HOUR>=12)
+{
+hour2=TIME_HOUR-12;
+ampm="PM";
+}
+if (TIME_HOUR==0)
+{
+hour2=12;
+}
+if (TIME_HOUR>0 and TIME_HOUR<=12)
+{
+hour2=TIME_HOUR;
+}
+timesecs=TIME_SECOND;
+if (twelvehour==true)
+{
+if (include_timesecs==true)
+{
+time=hour2+"-"+included+TIME_MINUTE+"-"+included2+timesecs+" "+ampm;
+}
+else
+{
+time=hour2+"-"+included+TIME_MINUTE+" "+ampm;
+}
+}
+else
+{
+if (include_timesecs==true)
+{
+time=TIME_HOUR+"-"+included+TIME_MINUTE+"-"+included2+timesecs;
+}
+else
+{
+time=TIME_HOUR+"-"+included+TIME_MINUTE;
+}
+}
+return time;
+}

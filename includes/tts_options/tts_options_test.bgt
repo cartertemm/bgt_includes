@@ -1,0 +1,19 @@
+#include "tts_options.bgt"
+tts_voice voice;
+tts_options options;
+void main()
+{
+show_game_window("voice menu");
+options.keyhook=true;
+options.intro="choose a voice from the following menu with your up and down arrows. Press enter to select, and Press left and write to ajust the speaking rate.";
+options.output_path="";
+options.encryption_key="filevoiceenc";
+options.wrap=true;
+options.allow_control=true;
+options.allow_escape=true;
+options.allow_pitch=true;
+options.allow_rate=true;
+options.allow_volume=true;
+options.load(voice);
+options.run(voice);
+}

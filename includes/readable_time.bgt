@@ -1,0 +1,49 @@
+//Readable time, created by Lucas Brown.
+string ms_to_readable_time(uint ms)
+{
+uint days, hours, minutes,seconds;
+seconds=ms/1000;
+minutes = seconds / 60;
+seconds %= 60;
+hours = minutes / 60;
+minutes %= 60;
+days = hours / 24;
+hours %= 24;
+days=round(days,0);
+string ret;
+if(days>0)
+{
+string d=days>1 ? "days" : "day";
+ret+=days+" "+d;
+}
+if(days>0&&(hours>0||minutes>0||seconds>0))
+ret+=", ";
+if(hours>0)
+{
+string h=hours>1 ? "hours" : "hour";
+ret+=hours+" "+h;
+}
+if(hours>0&&(minutes>0||seconds>0))
+ret+=", ";
+if(minutes>0)
+{
+string m=minutes>1 ? "minutes" : "minute";
+ret+=minutes+" "+m;
+}
+if(minutes>0&&seconds>0)
+ret+=", ";
+if(seconds>0)
+{
+string s=seconds>1 ? "seconds" : "second";
+ret+=seconds+" "+s;
+}
+string[] ret2=string_split(ret,", ",true);
+if(ret2.length>1)
+{
+int slength=ret2[(ret2.length-1)].length();
+ret=string_trim_right(ret,(slength+2));
+ret+=" and ";
+ret+=ret2[(ret2.length-1)];
+}
+return ret;
+}

@@ -1,0 +1,86 @@
+/*
+This class assumes you're using sound_pool defined as pool, and assumes you're using ogg extension. Change this if you're using different method.
+To choose weapon, type for example:
+@selected_weapon=knife;
+To equip selected weapon, for example when pressing Enter in weapons menu or pressing a key associated with it, type:
+selected_weapon.equip();
+To use it, for example when user presses spacebar or anything that fires a weapon, type:
+selected_weapon.use();
+Note, the short name variable is used for e.g. weapon shot filename. The long name can be used for tts object to announce the name of currently taken weapon when pressing weapon selection key or when you navigate through the weapon selection menu.
+*/
+
+weapon@ selected_weapon;
+weapon knife("knife", "knife", 1, 100, 2, 0, 10);
+weapon gun("gun", "gun", 2, 500, 20, 0, 50, true, 100, 5);
+
+class weapon
+{
+timer weapon_timer;
+string short_name, long_name;
+int number;
+int speed;
+int horizontal_range;
+int vertical_range;
+int damage;
+bool needs_ammo;
+int ammo;
+int bullets_per_round, shots;
+weapon(string w_short_name, string w_long_name, int w_number, int w_speed, int w_hrange, int w_vrange, int w_damage, bool w_needs_ammo=false, int w_ammo=0, int w_bullets_per_round=0)
+{
+short_name=w_short_name;
+long_name=w_long_name;
+number=w_number;
+speed=w_speed;
+horizontal_range=w_hrange;
+vertical_range=w_vrange;
+damage=w_damage;
+needs_ammo=w_needs_ammo;
+ammo=w_ammo;
+bullets_per_round=w_bullets_per_round;
+shots=w_bullets_per_round;
+}
+string equip()
+{
+return long_name;
+}
+void reload()
+{
+if((needs_ammo)&&(ammo>0)&&(shots<=0))
+{
+pool.play_stationary("sounds/weapons/"+short_name+"/reload.ogg", false);
+shots=bullets_per_round;
+}
+}
+void use()
+{
+if(weapon_timer.elapsed<speed)
+{
+return;
+}
+weapon_timer.restart();
+if(needs_ammo)
+{
+if(ammo<=0||shots<=0)
+{
+return;
+}
+ammo-=1;
+shots-=1;
+}
+pool.play_stationary("sounds/weapons/"+short_name+"/"+short_name+".ogg", false);
+target_hit();
+}
+string check_ammo()
+{
+if(needs_ammo)
+{
+return ammo+" ammunition";
+}
+return "";
+}
+}
+
+void target_hit()
+{
+//Code goes here when someone was hit.
+}

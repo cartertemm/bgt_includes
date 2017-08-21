@@ -1,0 +1,583 @@
+#include "Controlers\\Controlers.bgt"
+#include "Events\\EventsClassTree.bgt"
+#include "Actors\\ObjectsClassTree.bgt"
+
+#include "Scene.bgt"
+#include "ConfigurationInfo.bgt"
+#include "utils.bgt"
+#include "HELogger.bgt"
+
+/*
+La classe Game gère tout le jeu, scène, input, réseau, boucle de jeu.
+EN: The Game class makes working everything: scene, keyboard input, network, game loop
+*/
+class Game
+{
+	HELogger logger();
+
+	string gameName;
+	/*
+	Contient tous les objets en jeu qui nécessitent de pouvoir y accéder et d'être mis à jour. En résumé, tous les objets qui interviennent en jeu, plus des méthodes spécifiques.
+	EN: Contains every objects that should interact in the game and specific methods.
+	*/
+	Scene scene;
+	/*
+	Contient les informations de configuration
+	EN: Contains the game informations
+	*/
+	ConfigurationInfo config;
+	/*
+	Contient les informations de/des utilisateurs (filtres d'entrée clavier par exemple)
+	EN: Contains the informations of the users (keyboard input filters for example)
+	*/
+	Controler@[] users;
+	/*
+	Contient la liste des events à traiter
+	EN: Contains the list of the events to process
+	*/
+	Event@[] events;
+	/*
+	Contient lors de la boucle de jeu la liste des modifications à apporter au tour de boucle actuel
+	EN: When the game is running, it contains the list of all modifications of the actual loop
+	*/
+	dictionary[] editList;
+	
+	StaticActor@ listener = null;
+	float listener_x=-1;
+	float listener_y=-1;
+	
+	timer tick;
+	bool continueLoop=true;
+	
+	
+	Game(string name)
+	{
+		this.gameName = name;
+		logger.add_entry("Game object created");
+	}
+	
+	~Game()
+	{
+		logger.add_entry("Game object destroyed");
+		logger.write("Log\\log.log", true);
+	}
+	
+	void quit()
+	{
+		continueLoop=false;
+	}
+	
+	int setListener(StaticActor@ o)
+	{
+		@listener = o;
+		scene.se.update_listener_2d(listener.getX(), listener.getY(), 0);
+		
+		listener_x = listener.getX();
+		listener_y = listener.getY();
+		
+		return 0;//ok
+	}
+	
+	int setListener(string name)
+	{
+		@listener = cast<StaticActor>(scene.getActorByName(name));
+		scene.se.update_listener_2d(listener.getX(), listener.getY(), 0);
+		
+		listener_x = listener.getX();
+		listener_y = listener.getY();
+		
+		return 0;//ok
+	}
+	
+	
+	int setListener(int x, int y)
+	{
+		if(@scene.worldbox!=null && (x>scene.getWorldBoxLength() || y>scene.getWorldBoxWidth() || x<0 || y<0))
+			return -1;
+		
+		dictionary param;
+		param.set("className", "StaticActor");
+		param.set("name", "listener");
+		
+		@listener = cast<StaticActor>(@scene.addActor(param));
+		
+		scene.se.update_listener_2d(listener.getX(), listener.getY(), 0);
+		
+		listener_x = listener.getX();
+		listener_y = listener.getY();
+		return 0;
+	}
+	
+	StaticActor@ getListener()
+	{
+		if(@listener==null)
+			exception("Can't get listener from game.getListener() : listener hasn't been defined");
+		
+		return @listener;
+	}
+	
+	float getListenerX()
+	{
+		if(@listener==null)
+			exception("Can't get listener from game.getListenerX() : listener hasn't been defined");
+		
+		return this.listener.getX();
+	}
+	
+	float getListenerY()
+	{
+		if(@listener==null)
+			exception("Can't get listener from game.getListenerY() : listener hasn't been defined");
+		
+		return this.listener.getY();
+	}
+	
+	/*
+	Méthode qui boucle une partie. N'appeler cette méthode qu'après avoir chargé la partie avec la méthode load
+	EN: This is the game loop function. This function should never be called before the load function, or it will result in an error
+	*/
+	void run()
+	{
+		logger.add_entry("Launching game.run() method! (game loop)");
+		tick.restart();
+		show_game_window(this.gameName);
+
+		Event@ e = GameStartedEvent();
+		events.insert_last(e);
+		
+		
+		/*
+		Vérifications avant boucle de jeu
+		EN: security check before starting the game loop
+		*/
+		while(continueLoop)
+		{
+			/*
+			Traiter les entrées clavier des utilisateurs locaux
+			EN: processing keyboard inputs of localUsers
+			*/
+			for(int id=0; id<users.length(); id++)
+			{
+				if(users[id].local == true)
+				{
+					users[id].processInputs();
+				}
+			}
+			
+			if(config.getMultiHost()==true)
+			{
+				/*
+				Si multi, envoyer les events locaux
+				EN: if multiplayer game, send local events
+				*/
+			
+				/*
+				Attendre retour de la liste des modifications
+				EN: Wait for the return of the modifications list
+				*/
+				
+				/*
+				Appliquer la liste de modifications
+				EN: Apply the modifications list
+				*/
+			}
+			else
+			{
+				/*
+				Taiter localement les évènements
+				EN: process events
+				*/
+				processEvents(@events, @editList);
+			}
+			
+			/*
+			Tick des objets
+			EN: calling tick of objects
+			*/
+			for(int i=0; i<scene.objects.length(); i++)
+			{
+				scene.objects[i].tick();
+			}
+			
+			this.listener.updateListener();
+			
+			//SoundManager.update();
+			wait(5);
+		}
+	}
+	
+	/*
+	Cette méthode traite la liste des évènements.
+	EN: this method process the events list.
+	*/
+	void processEvents(Event@[]@ events, dictionary[]@ editList)
+	{
+		int l = events.length;
+		int continueProcessing=0;
+				for(int i=0; i<l; i++)
+				{
+					continueProcessing = events[i].process(@editList);
+					
+					events.remove_at(0);
+					l = events.length;
+				}
+	}
+	
+	/*
+	Ajoute un utilisateur local à la liste des utilisateurs. La différence est que celui-ci est consulté à chaque rafraichissement pour les entrées clavier. Les autres n'existent pas en jeu solo ou ne font que stocker des informations globales en multi.
+	EN: add a user to the users list. The difference between a normal user and a localUser is that localUsers are checked for local keyboard inputs. There aren't any other user in a singleplayer game, or in a multiplayer game they just store global informations about other users.
+	*/
+	int addLocalControler(Controler@ c)
+	{
+		users.insert_last(@c);
+		int id = users.length()-1;
+		logger.add_entry("Local controler added (id="+id+")");
+		return id;
+	}
+	
+	/*
+	Methode permettant de charger une partie à partir des configurations données contenues dans un objet ConfigurationInfo.
+	Si l'attribut multiHost est à true, alors le jeu lance un serveurDédié nommé hostProgramName, en lui donnant les informations de ConfigurationInfo. Puis cet objet s'y connecte en temps que client via la méthode connectHost. Le serveur chargera toujours le jeu AVANT d'accepter les connexions de joueurs et du host. Le serveur ne fera jamais rien passé le chargement tant que le host n'est pas connecté.
+	Pour plus d'informations sur la gestion du réseau, voir les commentaires dans server.bgt
+	
+	INFO: Si des informations de groupe ou mode de jeu ont déjà été définies avant le chargement et qu'un fichier map est donné, alors toute information qu'il contiendra écrasera les informations précédentes.
+	
+	
+	EN : This is the method that load the Game, with the informations of the given ConfigurationInfo object
+	If the multiHost attribute in the ConfigurationInfo object == true, the Game launches a dedicated server which name is given in the hostProgramName attribute. it will give it the ConfigurationInfo informations. Then, the Game object should connect to the dedicated server with the connectHost method. The server will load the informations BEFORE it can accept connections from players or the host.
+	For more informations on the network parts of the HE, check the commentaries in the server.bgt file
+	
+	INFO: If the ConfigurationInfo file has already some informations about the game type for example, and if you specified a map file, any information about the already specified informations in the file will override the first ones.
+	*/
+	void load()
+	{	
+		/*
+		Si ConfigurationInfo n'a pas de chemin d'accès à un fichier map défini via setMapFile, ne pas charger d'objets
+		EN: if the ConfigurationInfo object has no given path for the map file, don't load anything on the scene except the global informations.
+		*/
+		
+		timer mapLoadingTime;
+		
+		//NO NETWORK WORKING ACTUALLY, ONLY SINGLEPLAYER GAMES
+		if(config.getMultiHost() == false)
+		{
+			/*
+			Charger les informations globales si besoin
+			EN: load the global informations if necessary
+			*/
+			
+			
+			/*
+			Charger la scène du fichier map si besoin.
+			EN: load the informations of the given map file if necessary
+			*/
+			file mapFile;
+			
+			if(config.getMapFile() != "")
+			{
+				logger.add_entry("Loading map '"+config.getMapFile()+"'...");
+				loadMap(config.getMapFile());
+				logger.add_entry("Loaded map in "+mapLoadingTime.elapsed+"ms");
+			}
+		}
+		else
+		{
+		
+		}
+	}
+	
+	/*
+	Cette méthode charge la map dont le chemin d'accès est donné en argument
+	-> prototypes et acteurs
+	-> géométrie
+	-> sons
+	
+	EN: This method loads the map of the given path:
+	-> prototype and actors
+	-> geometry
+	-> sounds
+	*/
+	void loadMap(string mapFilePath)
+	{
+		//Parser le fichier en un format lisible par les fonctions de chargement
+		//EN: Parsing the file to get a readable format for the loading functions
+		string[][]parsedFile = parseFilePart(mapFilePath, 
+											 "###BOF", 
+											 "###EOF", 
+											 "\n", 
+											 ": ,=");
+		
+		
+		//DEBUG: uncomment the following code to see how the engine parses the file to load informations
+		
+		/*
+		string tableau;
+		for(int i=0; i<parsedFile.length(); i++)
+		{
+			tableau=tableau+i+":";
+			for(int j=0; j<parsedFile[i].length(); j++)
+				tableau=tableau+" ["+parsedFile[i][j]+"]";
+			
+			tableau+="\n";
+		}
+		alert("Tableau", tableau);
+		*/
+		
+		//1. Charger les informations générales
+		//EN: Load general informations
+		loadGeneralInfos(parsedFile);
+		
+		//2. Charger la géométrie de la map et les acteurs
+		//EN: Load map geometry and actors
+		loadActors(parsedFile);
+		
+		//3. Charger les évènements
+		//EN: Load events
+		loadEvents(parsedFile);
+	}
+	
+	/*
+	Cette fonction charge les informations générales s'il y en a: mode de jeu, nombre max de joueurs, etc.
+	EN: This method loads the global informations if there are some in the file: game mode, max number of players, etc.
+	*/
+	void loadGeneralInfos(string[][] parsedFile)
+	{
+		//Chercher début du bloc ###INFOS
+		//EN: looking for the beginning of the ###INFOS block
+		int i=0;
+		for(i; parsedFile[i][0]!="###INFOS" && i<parsedFile.length(); i++){}
+		i++;
+		
+		//Récupération des données dans un dictionnaire
+		//EN: gathering informations into a dictionary
+		dictionary global_info;
+		
+		for(i; parsedFile[i][0]!="###"; i++)
+		{
+			
+			if(parsedFile.length()==1)
+				exception("Incorrect informations in the global informations of the loaded map file (a line has only one information, guess an attribute without specified value)");
+			
+			global_info.set(parsedFile[i][0], parsedFile[i][1]);
+		}
+		
+		//Mise à jour des informations de configuration
+		//EN: update the configuration informations
+		config.load(global_info);
+	}
+	
+	/*
+	Cette fonction doit charger les évènements éventuels scriptés
+	EN: This function loads scripted events from the file
+	*/
+	void loadEvents(string[][] parsedFile)
+	{
+		//Chercher début du bloc ###EVENTS
+		//EN: looking for the beginning of the ###EVENTS block
+		int i=0;
+		for(i; parsedFile[i][0]!="###EVENTS" && i<parsedFile.length(); i++){}
+		i++;
+		
+		//Récupération des données dans un dictionnaire
+		//EN: gathering informations into a dictionary
+		dictionary global_info;
+		
+		for(i; parsedFile[i][0]!="###"; i++)
+		{
+			if(parsedFile[i].length()==1)
+				exception("Incorrect informations in the event informations of the loaded map file (a line has only one information, guess an attribute without specified value)");
+			
+			i = loadNextEvent(parsedFile, i);
+			
+			global_info.set(parsedFile[i][0], parsedFile[i][1]);
+		}
+	}
+	
+	int loadNextEvent(string[][] parsedFile, int line)
+	{
+		dictionary EventInfos;
+		
+		/*
+		Récupérer les informations du fichier
+		EN: gathering the informations from the file
+		*/
+		EventInfos.set("className", parsedFile[line][0]);
+		if(parsedFile[line].length()>1)
+			EventInfos.set("name", parsedFile[line][1]);
+		
+		line++;
+		for(line; parsedFile[line][0] != "#"; line++)
+		{
+			EventInfos.set(parsedFile[line][0], parsedFile[line][1]);
+		}
+		
+		/*
+		Appeler la fonction scene.addActor avec le dictionnaire comme unique argument pour ajouter le nouvel acteur à la liste des objets de la scène
+		EN: Calling the actor creating function scene.addActor with the dictionary as the only parameter, to add the new actor to the scene objects list
+		*/
+		string className;
+		EventInfos.get("className", className);
+		
+		scene.addEvent(EventInfos);
+		
+		return line;
+	}
+	
+	/*
+	Cette fonction charge les acteurs du fichier donné
+	EN: this function loads the actors of the given file
+	*/
+	void loadActors(string[][] parsedFile)
+	{
+		/*
+			Parcourir de ###ACTORS à ###
+			EN: Browse from ###ACTORS to ###
+		*/
+		int i=0;
+		for(i; parsedFile[i][0]!="###ACTORS" && i<parsedFile.length(); i++){}
+		
+		//Chargement des acteurs un par un
+		//EN: Loading actors one by one
+		i++;
+		for(i; parsedFile[i][0]!="###"; i++)
+		{
+			i = loadNextActor(parsedFile, i);
+		}
+		
+		logger.add_entry("Loaded "+scene.objects.length+" actor(s) on the scene from the file");
+	}
+	
+	/*
+	Cette fonction charge le prochain acteur à partir de la ligne line
+	EN: This function loads the next actor, at the ligne line
+	*/
+	int loadNextActor(string[][] parsedFile, int line)
+	{
+		dictionary ObjectInfos;
+		
+		/*
+		Récupérer les informations du fichier
+		EN: gathering the informations from the file
+		*/
+		ObjectInfos.set("className", parsedFile[line][0]);
+		if(parsedFile[line].length()>1)
+			ObjectInfos.set("name", parsedFile[line][1]);
+		
+		line++;
+		for(line; parsedFile[line][0] != "#"; line++)
+		{
+			ObjectInfos.set(parsedFile[line][0], parsedFile[line][1]);
+		}
+		
+		/*
+		Appeler la fonction scene.addActor avec le dictionnaire comme unique argument pour ajouter le nouvel acteur à la liste des objets de la scène
+		EN: Calling the actor creating function scene.addActor with the dictionary as the only parameter, to add the new actor to the scene objects list
+		*/
+		string className;
+		ObjectInfos.get("className", className);
+		if(className=="WorldBox")
+		{
+			int width, length;
+			string s_width, s_length;
+			
+			ObjectInfos.get("width", s_width);
+			ObjectInfos.get("length", s_length);
+			width = string_to_number(s_width);
+			length = string_to_number(s_length);
+			
+			scene.setWorldBox(width, length);
+			logger.add_entry("Set WorldBox actor (w="+width+"; l="+length+")");
+		}
+		else
+		{
+			scene.addActor(ObjectInfos);
+			logger.add_entry("Loaded a "+className+" actor");
+		}
+		return line;
+	}
+
+	/*
+	Cette méthode sauvegarde l'état complet du jeu (fonctions inadaptées pour du multijoueur)
+	EN: this method saves the total state of a game (don't use this for a multiplayer game)
+	*/
+	void save(string filename)
+	{	
+		logger.add_entry("Saving game state in file '"+filename+"'...");
+		timer mapSavingTime;
+		
+		//NO NETWORK WORKING ACTUALLY, ONLY SINGLEPLAYER GAMES
+		if(config.getMultiHost() == false)
+		{
+			file saveFile;
+			if(saveFile.open(filename, "w")==false)
+				exception("Could not open the file '"+filename+"' for saving");
+			
+			saveFile.write("###BOF\n\n");
+			
+			//1. Sauvegarder les informations générales
+			//EN: Save general informations
+			saveGeneralInfos(@saveFile);
+			
+			//2. Sauvegarder les évènements
+			//EN: Save events
+			saveEvents(@saveFile);
+			
+			//3.Sauvegarder la géométrie de la map et les acteurs
+			//EN: Save map geometry and actors
+			saveActors(@saveFile);
+			
+			saveFile.write("###EOF");
+			saveFile.close();
+			logger.add_entry("Saved file in "+mapSavingTime.elapsed+"ms");
+		}
+		else
+		{
+		
+		}
+		//DEBUG: uncomment the following code and to code of the timer some lines before this to see how much time it takes to load a map (your map?).
+		//alert("Map saving time", "Map saved in "+mapSavingTime.elapsed+"ms");
+	}
+	
+	/*
+	Cette fonction sauvegarde les informations générales s'il y en a: mode de jeu, nombre max de joueurs, etc.
+	EN: This method saves the global informations if there are some in the file: game mode, max number of players, etc.
+	*/
+	void saveGeneralInfos(file@ saveFile)
+	{
+		saveFile.write("###INFOS\n");
+		
+		saveFile.write("###\n\n");
+	}
+	
+	/*
+	Cette fonction sauvegarde les évènements éventuels scriptés
+	EN: This function saves existing events
+	*/
+	void saveEvents(file@ saveFile)
+	{
+		saveFile.write("###EVENTS\n");
+		
+		saveFile.write("###\n\n");
+	}
+	
+	/*
+	Cette fonction sauvegarde les acteurs de la scene
+	EN: this function saves the actors of the scene
+	*/
+	void saveActors(file@ saveFile)
+	{
+		saveFile.write("###ACTORS\n");
+		
+		if(@scene.worldbox!=null)
+		{
+			logger.add_entry("Saving WorldBox "+scene.worldbox.toString());	
+			scene.worldbox.save(@saveFile);
+		}
+		for(int i=0; i<scene.objects.length; i++)
+		{
+			scene.objects[i].save(@saveFile);
+		}
+		
+		saveFile.write("###\n");
+	}
+}

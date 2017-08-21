@@ -1,0 +1,210 @@
+/*
+XPack!
+This class is designed to give you more flexibility with the pack file object, supporting things such as auto encryption and subdirectory adding and extracting.
+Please refer to the bgt documentation for the methods of the pack_file object.
+There are also added methods, which will be listed below.
+to check properties, you must use this code
+xpack.internalpack.property
+where
+xpack is the instance of XPack you have declared.
+internalpack is the internal pack_file object that does the things.
+and property is the property you wish to check
+such as, if my xpack instance was x, I would type this to check the active property
+x.internalpack.active
+
+constructor
+this class has a constructor, that allows you to set two default values with ease.
+there are two peramitors to this constructor, however both are optional and default to blank strings.
+the first peramitor is the extraction path, a path that will be prepended to every final extracted file.
+Please note that if you wish to use this path, you must append a / for it to work properly.
+the second peramitor is the encryption key, and allows you to set a key for encrypting and decrypting files on the fly with the default add_file and extract_file methods. If this is a blank string, no encryption/decryption will take place.
+please note that encryption and decryption must use your hard drive, discussed later.
+
+quick note:
+any method that you will be using subfoldering on, whether it be add or extract, must only use a forward slash instead of a backslash.
+
+added methods:
+extract_all()
+type: void
+extracts all files in the pack to the extraction path, and any additional subfolders will be created if need be. Also will on the fly decrypt files if encryption_key is set.
+
+auto_add_everything(string base_path)
+type: void
+peramitors: 1: the path to start searching for files.
+this function will take a folder, and all subfolders, and add the contained files to the pack.
+Notes:
+the base_path string must not end with a slash, as one is automatically appended.
+the files added to the pack will only use forward slashes to indicate folder levels, such as sounds/player/die.ogg
+this function will add the base_path to the filenames, so if you told it to search in sounds, everything it would find would be prepended with sounds/
+
+auto_add_file and auto_extract_file
+boolean functions, that take one argument. the filename. This is more of an internal function. It is used to pass the filename to the function in question twice.
+
+disk usage:
+
+when this class is initialized, it will automatically create the xpack directory inside your temp folder.
+when it is destroyed, it will delete this directory.
+This directory is used for encryption and decryption, as there is no direct way to use file_encrypt on files inside a pack.
+every time a file is encrypted, the resulting file will temporarily reside in this directory, before it is added to the pack.
+every time a file is decrypted, the encrypted file will temporarily reside in this directory, and the decrypted one wil reside in the extraction path after decryption is complete.
+these files are deleted after the operation, however if they contain subdirectories, the directory will stay, to avoid having to delete and recreate the same directories while adding each individual file.
+as I said, when the class is terminated, either by being nullified, removed from an array though I don't know why you'd want an array of these, or the program exiting, the xpack directory and all of it's subdirectories and files are deleted.
+
+I hope you enjoy XPack!
+*/
+class xpack
+{
+pack_file internalpack;
+string encryption_key;
+string extraction_path;
+xpack(string extpath="", string dkey="")
+{
+extraction_path=extpath;
+encryption_key=dkey;
+directory_create(DIRECTORY_TEMP+"/xpack");
+}
+~xpack()
+{
+directory_delete(DIRECTORY_TEMP+"/xpack");
+}
+bool create(string filename)
+{
+return internalpack.create(filename);
+}
+bool extract_file(string internal_name, string file_on_disk)
+{
+if(encryption_key=="")
+{
+if(string_contains(internal_name,"/",1)==-1)
+return internalpack.extract_file(internal_name,extraction_path+file_on_disk);
+else
+{
+string[] dirs=string_split(file_on_disk,"/",false);
+string t=string_trim_right(file_on_disk,dirs[dirs.length-1].length());
+directory_create(extraction_path+t);
+return internalpack.extract_file(internal_name,file_on_disk);
+}
+}
+else
+{
+bool ret;
+if(string_contains(internal_name,"/",1)==-1)
+{
+ret=internalpack.extract_file(internal_name,DIRECTORY_TEMP+"/xpack/"+file_on_disk);
+if(ret==false) return ret;
+else
+{
+ret=file_decrypt(DIRECTORY_TEMP+"/xpack/"+file_on_disk,extraction_path+file_on_disk,encryption_key);
+file_delete(DIRECTORY_TEMP+"/xpack/"+file_on_disk);
+return ret;
+}
+}
+else
+{
+string[] dirs=string_split(file_on_disk,"/",false);
+string t=string_trim_right(file_on_disk,dirs[dirs.length-1].length());
+directory_create(DIRECTORY_TEMP+"/xpack/"+t);
+directory_create(extraction_path+t);
+ret=internalpack.extract_file(internal_name,DIRECTORY_TEMP+"/xpack/"+file_on_disk);
+if(ret==false) return ret;
+else
+{
+ret=file_decrypt(DIRECTORY_TEMP+"/xpack/"+file_on_disk,extraction_path+file_on_disk,encryption_key);
+directory_delete(DIRECTORY_TEMP+"/xpack/"+t);
+return ret;
+}
+}}
+}
+bool auto_extract_file(string filename)
+{
+return this.extract_file(filename,filename);
+}
+string[] list_files()
+{
+return internalpack.list_files();
+}
+file@ get_file(string name)
+{
+return internalpack.get_file(name);
+}
+bool close()
+{
+return this.internalpack.close();
+}
+bool file_exists(string internal_name)
+{
+return this.internalpack.file_exists(internal_name);
+}
+bool open(string filename)
+{
+return this.internalpack.open(filename);
+}
+void extract_all()
+{
+string[] filelist=this.list_files();
+for(int i=0; i<filelist.length; i++)
+{
+this.auto_extract_file(filelist[i]);
+}
+}
+bool add_file(string file_on_disk, string internal_name)
+{
+if(encryption_key=="") return internalpack.add_file(file_on_disk, internal_name);
+else
+{
+if(string_contains(file_on_disk,"/",1)==-1&&string_contains(file_on_disk,"\\",1)==-1)
+{
+directory_create(DIRECTORY_TEMP+"/xpack");
+file_encrypt(file_on_disk,DIRECTORY_TEMP+"/xpack/"+file_on_disk,encryption_key);
+bool ret=internalpack.add_file(DIRECTORY_TEMP+"/xpack/"+file_on_disk,internal_name);
+file_delete(DIRECTORY_TEMP+"/xpack/"+file_on_disk);
+return ret;
+}
+else
+{
+string[] dirs=string_split(file_on_disk,"/",false);
+string t=string_trim_right(file_on_disk,dirs[dirs.length-1].length());
+directory_create(DIRECTORY_TEMP+"/xpack/"+t);
+file_encrypt(file_on_disk,DIRECTORY_TEMP+"/xpack/"+file_on_disk,encryption_key);
+bool ret=internalpack.add_file(DIRECTORY_TEMP+"/xpack/"+file_on_disk,internal_name);
+file_delete(DIRECTORY_TEMP+"/xpack/"+file_on_disk);
+return ret;
+}
+}
+}
+bool auto_add_file(string filename)
+{
+return this.add_file(filename, filename);
+}
+void auto_add_everything(string base_path)
+{
+recursive(base_path+"/");
+for(int i=0; i<allarray.length; i++)
+{
+this.auto_add_file(allarray[i]);
+}
+allarray.resize(0);
+}
+private string[] allarray;
+//thanks sam tupy for this recursive function
+private void recursive(string path)
+{
+string[] folders=find_directories(path+"*");
+string[] files=find_files(path+"*");
+string[] total=folders;
+for(uint i=0; i<files.length(); i++)
+{
+total.insert_last(files[i]);
+}
+for(uint i=0; i<total.length(); i++)
+{
+if(i<folders.length())
+{
+recursive(path+total[i]+"/");
+}
+else if(i>=folders.length())
+{
+allarray.insert_last(path+total[i]);
+}
+}
+}}

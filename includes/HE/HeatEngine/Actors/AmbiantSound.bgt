@@ -1,0 +1,52 @@
+class AmbiantSound : SystemActor
+{
+	string soundPath="NONE";
+	int soundID=-1;
+	string volume="0";
+	
+	AmbiantSound(string className="AmbiantSound", string name="")
+	{
+		super(className, name);
+		volume=0;
+	}
+	
+	void load(dictionary infos)
+	{
+		SystemActor::load(infos);
+		
+		if(infos.exists("volume"))
+		{
+			infos.get("volume", this.volume);
+		}	
+		if(infos.exists("soundPath"))
+		{
+			infos.get("soundPath", soundPath);
+			if(this.soundID!=-1)
+			{
+				game.scene.se.destroy_sound(this.soundID);
+				this.soundID = game.scene.se.play_stationary_extended(this.soundPath, true, 0.0, 0, this.getVolume(), 90);
+			}
+		}
+	}
+	
+	dictionary parseObject()
+	{
+		dictionary infos = SystemActor::parseObject();//Ici on récupère les valeurs de la classe mère récurvisement / EN: here we gather the values of the mother class
+		
+		infos.set("soundPath", this.soundPath);
+		infos.set("volume", this.volume);
+		
+		return infos;
+	}
+	
+	int getVolume()
+	{
+		return string_to_number(this.volume);
+	}
+	
+	void gameStarted()
+	{
+		if(this.soundPath!="")
+			this.soundID = game.scene.se.play_stationary_extended(this.soundPath, true, 0.0, 0, this.getVolume(), 90);
+	}
+}

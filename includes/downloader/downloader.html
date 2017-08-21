@@ -1,0 +1,238 @@
+<html>
+<head>
+<title>downloader class</title>
+</head>
+<body>
+<h1>downloader class</h1>
+The downloader object is a higher level wrapper on the http object, and is designed specifically for downloading files to disk as smoothly as possible with no unnecessary complications for the scripter.<br>
+<br>
+downloader()<br>
+<br>
+Parameters:<br>
+None.<br>
+<br>
+Remarks:<br>
+The downloader object downloads files in chunks of approximately 4KB at a time to disk in order to obtain optimal performance. If a download fails for whatever reason, all files and directories created are smoothly deleted.<br>
+<h2>Error Constants</h2>
+<table>
+<tr>
+<td>Constant</td>
+<td>Value</td>
+<td>Description</td>
+</tr>
+<tr>
+<td>dl_err_ok</td>
+<td>0</td>
+<td>Everything went well.</td>
+</tr>
+<tr>
+<td>dl_err_internet_failure</td>
+<td>-1</td>
+<td>There was an internet related error.</td>
+</tr>
+<tr>
+<td>dl_err_network_failure</td>
+<td>-2</td>
+<td>There was a network related error.</td>
+</tr>
+<tr>
+<td>dl_err_download_not_found</td>
+<td>-3</td>
+<td>The file could not be accessed on the server (such as a 403 or 404 return code).</td>
+</tr>
+<tr>
+<td>dl_err_dir_failure</td>
+<td>-4</td>
+<td>A new directory could not be created.</td>
+</tr>
+<tr>
+<td>dl_err_file_failure</td>
+<td>-5</td>
+<td>The destination file could not be written to.</td>
+</tr>
+<tr>
+<td>dl_err_no_download_active</td>
+<td>-6</td>
+<td>No download is currently active (triggered if you attempt to abort an inactive download).</td>
+</tr>
+</table>
+<h2>Methods</h2>
+<h3>initiate_download</h3>
+Initiates an asynchronus download.<br>
+<br>
+bool initiate_download(string source_url, string destination_file)<br>
+<br>
+Parameters<br>
+source_url<br>
+The URL of the file you wish to download.<br>
+destination_file<br>
+The file that the download should write to.<br>
+<br>
+Return value<br>
+True on success, false on failure.<br>
+<br>
+Remarks<br>
+If an error occurs, an error flag will be set.<br>
+<h3>monitor</h3>
+Retrieves the next chunk of the download.<br>
+<br>
+bool monitor()<br>
+<br>
+Parameters<br>
+None.<br>
+<br>
+Return value<br>
+True on success, false on failure.<br>
+<br>
+Remarks<br>
+This method must be called continuously in order for the download to work smoothly.<br>
+<br>
+If an error occurs, an error flag will be set, and any data already downloaded will automatically be removed.<br>
+<h3>abort</h3>
+Aborts a currently active download.<br>
+<br>
+bool abort()<br>
+<br>
+Parameters<br>
+None.<br>
+<br>
+Return value<br>
+True on success, false on failure.<br>
+<br>
+Remarks<br>
+This will abort a download, resetting all properties and removing any data already downloaded.<br>
+<br>
+If a download is found to be active when the object is destroyed, this method will be called automatically.<br>
+<h3>get_percentage</h3>
+<br>
+Returns the current percentage of the download rounded to the nearest 2 decimal places.<br>
+<br>
+double get_percentage()<br>
+<br>
+Parameters<br>
+None.<br>
+<br>
+Return value<br>
+The percentage on success, or -1 on failure.<br>
+<br>
+Remarks<br>
+If there is no download active, this method will return -1. If details of the active download aren't yet retrieved, the method will return 0 until such time as the information is available.<br>
+<h3>get_total_size</h3>
+Retrieves the size of the download.<br>
+<br>
+double get_total_size()<br>
+<br>
+Parameters<br>
+None.<br>
+<br>
+Return value<br>
+The total size of the download in bytes on success, 0 on failure.<br>
+<br>
+Remarks<br>
+None.<br>
+<h3>get_downloaded_size</h3>
+Returns the number of questions in the quiz bank.<br>
+<br>
+double get_downloaded_size()<br>
+<br>
+Parameters<br>
+None.<br>
+<br>
+Return value<br>
+The number of bytes downloaded on success, 0 if the download isn't active, or -1 on failure.<br>
+<br>
+Remarks<br>
+None.<br>
+<h3>get_remaining_size</h3>
+Calculates the number of bytes left to download.<br>
+<br>
+double get_remaining_size()<br>
+<br>
+Parameters<br>
+None.<br>
+<br>
+Return value<br>
+The remaining size on success, -1 on failure.<br>
+<br>
+Remarks<br>
+None.<br>
+<h3>get_server_date</h3>
+Retrieves the date on the server from the download headers.<br>
+<br>
+string get_server_date()<br>
+<br>
+Parameters<br>
+None.<br>
+<br>
+Return value<br>
+The server date on success, or a blank string on failure.<br>
+<br>
+Remarks<br>
+None.<br>
+<h3>get_modified_date</h3>
+This method retrieves the file's last modified date.<br>
+<br>
+string get_modified_date()<br>
+<br>
+Parameters<br>
+None.<br>
+<br>
+Return value<br>
+The last modified date on success, or a blank string on failure.<br>
+<br>
+Remarks<br>
+None.<br>
+<h3>get_server_type</h3>
+Retrieves the server type.<br>
+<br>
+string get_server_type()<br>
+<br>
+Parameters<br>
+None.<br>
+<br>
+Return value<br>
+The server type on success, or a blank string on failure.<br>
+<br>
+Remarks<br>
+None.<br>
+<h3>get_mime_type</h3>
+Retrieves the mime or content type of the download.<br>
+<br>
+string get_mime_type()<br>
+<br>
+Parameters<br>
+None.<br>
+<br>
+Return value<br>
+The mime type on success, or a blank string on failure.<br>
+<br>
+Remarks<br>
+None.<br>
+<h3>is_active</h3>
+Checks whether a download is active.<br>
+<br>
+bool is_active()<br>
+<br>
+Parameters<br>
+None.<br>
+<br>
+Return value<br>
+True if a download exists, false otherwise.<br>
+<br>
+Remarks<br>
+This property will always be true, providing no errors have occurred, right up until the moment the file is completely downloaded. Therefore when monitoring for new content you should always check on this property before deciding whether the download will continue.<br>
+<h3>get_last_error</h3>
+Retrieves the last error that has occurred.<br>
+<br>
+int get_last_error()<br>
+<br>
+Parameters<br>
+None.<br>
+<br>
+Return value<br>
+One of the error codes (see above).<br>
+<br>
+Remarks<br>
+This flag is always reset when a new method is called.<br>
+</body>
+</html>

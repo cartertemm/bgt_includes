@@ -1,0 +1,11 @@
+/*
+Cette classe est utilisée pour les objets globaux: gérant un système, une conversation, tout ce qui n'est ni physiquement visible ni positionnable. Des ambiances permanentes par exemple.
+*/
+
+class SystemActor : BaseObject
+{
+	SystemActor(string className="SystemActor", string name="")
+	{
+		super(className, name);
+	}
+}

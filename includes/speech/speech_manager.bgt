@@ -1,0 +1,528 @@
+/*
+Speech manager class
+By Jason SantaAna-White
+
+You may use this class in your games. All I ask is that you give credit where credit is due.
+*/
+
+class speech_manager {
+// Declare variables
+bool modified = false;
+int mode = 0, voice = 0;
+string file, key, lib_directory="lib";
+string[] readers = {"JAWS", "Window-Eyes", "System Access", "NVDA"};
+string[] voices;
+tts_voice sapi;
+// Configuration menu variables
+bool old_modified_state = false;;
+int old_mode, old_voice, old_volume, old_rate, old_pitch, pos;
+bool SpeakOption = false;
+
+/*
+init(string data_file="", string key="") = void
+
+Initialization function.
+data_file: The file to save the speech configuration data to.
+key: The key to encrypt the datafile with.
+*/
+
+void init(string data_file, string key="") {
+// Set variables, then deserialize.
+this.file = data_file;
+this.key = key;
+
+screen_reader_set_library_path(3, this.lib_directory + "/saapi32.dll");
+screen_reader_set_library_path(4, this.lib_directory + "/nvdaapi32.dll");
+if (!this.load()) {
+this.select_reader();
+} // if
+} // init
+
+/*
+~speech_manager()
+
+Class destructor
+*/
+
+~speech_manager() {
+this.save();
+for (int r = 3; r <= 4; r++) {
+screen_reader_unload_library(r);
+} // for
+if (this.mode == 1) {
+uninstall_keyhook();
+} // if
+} // ~speech_manager
+
+/*
+load() = bool
+
+Deserialization function
+*/
+
+bool load() {
+bool result = false;
+dictionary data;
+file reader;
+string raw;
+string mode = (this.key != "" ? "rb" : "r");
+
+if (this.file != "") {
+if (file_exists(this.file)) {
+if (reader.open(this.file, mode)) {
+raw = reader.read();
+if (this.key != "") {
+raw = string_decrypt(raw, this.key);
+} // if
+if (raw != "") {
+data = deserialize(raw);
+if (data.get_size() > 0 && data.exists("this.mode")
+&& data.exists("this.voice") && data.exists("this.volume")
+&& data.exists("this.rate") && data.exists("this.pitch")) {
+data.get("this.mode", this.mode);
+data.get("this.voice", this.voice);
+this.sapi.set_current_voice(this.voice);
+data.get("this.volume", this.sapi.volume);
+data.get("this.rate", this.sapi.rate);
+data.get("this.pitch", this.sapi.pitch);
+reader.close();
+if (!this.active()) {
+this.select_reader();
+} // if
+result = true;
+} // if
+} // if
+} // if
+} // if
+} // if
+this.modified = result;
+return result;
+} // load
+
+/*
+save() = bool
+
+Serialization function
+*/
+
+bool save() {
+bool result;
+dictionary data;
+file reader;
+string raw;
+string mode = (this.key != "" ? "wb" : "w");
+
+if (this.file != "") {
+if (reader.open(this.file, mode)) {
+data.set("this.mode", this.mode);
+data.set("this.voice", this.voice);
+data.set("this.volume", this.sapi.volume);
+data.set("this.rate", this.sapi.rate);
+data.set("this.pitch", this.sapi.pitch);
+raw = serialize(data);
+if (this.key != "") {
+raw = string_encrypt(raw, this.key);
+} // if
+reader.write(raw);
+reader.close();
+result = true;
+} // if
+} // if
+return result;
+} // save
+
+/*
+check_reader() = void
+
+Check to see whether the current reader is still running, or if a different reader has started running since the last call
+*/
+
+void check_reader() {
+if ((this.mode == 0 && (this.modified == false || this.sapi.active == false)) || (this.mode > 0 && !screen_reader_is_running(this.mode))) {
+this.select_reader();
+} // if
+} // check_reader
+
+/*
+select_reader() = int
+
+Chooses a reader to use
+*/
+
+int select_reader() {
+int old_reader = this.mode, r, reader = 0;
+
+if (this.mode > 0 && !screen_reader_is_running(this.mode)) {
+this.modified = false;
+} // if
+for (r = 1; r <= 4; r++) {
+if (screen_reader_is_running(r)) {
+reader = r;
+break;
+} // if
+} // for
+if (r == 5) {
+r = 0;
+if (this.sapi.active == false) {
+alert("Error", "Unable to find an active speech system."); // You might want to change this to do something else.
+exit(); // Same here.
+} // if
+} // if
+if (r != this.mode) {
+this.stop();
+} // if
+// Deal with installation/uninstallation of the keyhook, if JAWS becomes the active mode.
+if (old_reader != 1 && r == 1) {
+install_keyhook();
+} // if
+else if (old_reader == 1 && r != 1) {
+uninstall_keyhook();
+} // else if
+this.mode = r;
+return r;
+} // select_reader
+
+/*
+speak(string text) = bool
+
+Primary speech function
+
+text: The text to be spoken.
+
+Returns: true on success, false on failure.
+*/
+
+bool speak(string text) {
+this.check_reader();
+return (this.mode == 0 ? sapi.speak(text) : screen_reader_speak(this.mode, text));
+} // speak
+
+/*
+speak_interrupt(string text) = bool
+
+Speak after interrupting speech
+
+text: The text to be spoken.
+
+Returns: true on success, false on failure.
+*/
+
+bool speak_interrupt(string text) {
+this.check_reader();
+return (this.mode == 0 ? sapi.speak_interrupt(text) : screen_reader_speak_interrupt(this.mode, text));
+} // speak_interrupt
+
+/*
+speak_interrupt_wait(string text) = bool
+
+Interrupt speech and speak, waiting for speech to finish
+
+text: The text to be spoken.
+
+Returns: true on success, false on failure.
+*/
+
+bool speak_interrupt_wait(string text) {
+this.check_reader();
+return (this.mode == 0 ? sapi.speak_interrupt_wait(text) : screen_reader_speak_interrupt(this.mode, text));
+} // speak_interrupt_wait;
+
+/*
+speak_to_file(string filename, string text) = bool
+
+Saves synthesized text to a file. Only works with SAPI.
+filename: The name of the file to save the synthesized text to.
+text: The text to be spoken.
+
+Returns: true on success, false on failure.
+*/
+
+bool speak_to_file(string filename, string text) {
+return sapi.speak_to_file(filename, text);
+} // if
+
+/*
+speak_wait(string text) = bool
+
+Speaks text and waits until the reader is done speaking
+
+text: The text to be spoken.
+
+Returns: true on success, false on failure.
+*/
+
+bool speak_wait(string text) {
+this.check_reader();
+return (this.mode == 0 ? sapi.speak_wait(text) : screen_reader_speak(this.mode, text));
+} // if
+
+/*
+stop() = bool
+
+Stops speech
+
+Returns: true on success, false on failure.
+*/
+
+bool stop() {
+return (this.mode == 0 ? sapi.stop() : screen_reader_stop_speech(this.mode));
+} // if
+
+/*
+speaking() = bool
+
+Returns whether or not the reader is speaking.
+Included for easy access in SAPI mode, but will not work in screen reader mode.
+
+
+Returns: true if SAPI is speaking, false if SAPI is not speaking or the class is not in SAPI mode.
+*/
+
+bool speaking() {
+return (this.mode == 0 ? sapi.speaking : false);
+} // speaking
+
+/*
+active() = bool
+
+Returns whether or not the class is functioning properly
+*/
+
+bool active() {
+return (this.mode == 0 ? sapi.active : screen_reader_is_running(this.mode));
+} // active
+
+/*
+configure() = void
+
+Function to configure the speech manager
+*/
+
+void configure() {
+this.SpeakOption = true;
+this.old_modified_state = this.modified;
+this.old_mode = this.mode;
+this.old_voice = this.voice;
+this.old_volume = this.sapi.volume;
+this.old_rate = this.sapi.rate;
+this.old_pitch = this.sapi.pitch;
+this.pos = 1;
+this.sapi.refresh_voice_list();
+this.voices = this.sapi.get_voice_names();
+this.speak("Configuration keys: up and down to cycle between options, left and right to increase or decrease the selected option, enter to activate a selection.");
+while (this.speaking() == true) {
+if (key_pressed(KEY_SPACE) || key_pressed(KEY_RETURN)) {
+this.stop();
+} // if
+wait(5);
+} // while
+
+while (true) {
+if (this.SpeakOption==true) {
+this.SpeakOption=false;
+speak_option();
+} // if
+if (key_pressed(KEY_UP)) {
+move(1);
+} // if
+else if (key_pressed(KEY_DOWN)) {
+move(2);
+} // else if
+else if (key_pressed(KEY_LEFT)) {
+change(1);
+} // else if
+else if (key_pressed(KEY_RIGHT)) {
+change(2);
+} // else if
+else if (key_pressed(KEY_RETURN)) {
+if (this.select() == true) {
+break;
+} // if
+} // else if
+else if (key_pressed(KEY_ESCAPE)) {
+this.pos = 7;
+this.select();
+return;
+} // else if
+wait(5);
+} // while
+return;
+} // configure
+
+/*
+speak_option() = void
+
+Speaks the selected option in the configuration menu
+*/
+
+void speak_option() {
+if (this.pos==1)
+{
+this.speak_interrupt("Output mode: " + (this.mode == 0 ? "SAPI" : readers[this.mode-1]));
+} // if
+else if (this.pos==2) {
+this.speak_interrupt("SAPI voice: " + voices[this.voice]);
+} // else if
+else if (this.pos == 3) {
+this.speak_interrupt("SAPI volume: " + this.sapi.volume);
+} // else if
+else if (this.pos == 4) {
+this.speak_interrupt("SAPI rate: " + this.sapi.rate);
+} // else if
+else if (this.pos==5) {
+this.speak_interrupt("SAPI pitch: " + this.sapi.pitch);
+} // if
+else if (this.pos==6) {
+this.speak_interrupt("Save");
+} // if
+else if (this.pos==7) {
+this.speak_interrupt("Cancel");
+} // if
+} // speak_option
+
+/*
+move(int dir) = void
+
+Moves the configuration menu position up or down
+
+dir: The direction to move.
+*/
+
+void move(int dir) {
+if (dir==1 && this.pos > 1) {
+if (this.mode > 0 && this.pos == 6) {
+this.pos = 1;
+} // if
+else
+{
+--this.pos;
+} // else
+this.SpeakOption=true;
+} // if
+else if (dir==2 && this.pos<7) {
+if (this.mode > 0 && pos == 1) {
+pos = 6;
+} // if
+else
+{
+++pos;
+} // else
+this.SpeakOption=true;
+} // else if
+} // move
+
+/*
+change(int dir) = void
+
+modify the currently selected option in the configuration menu
+
+dir: The direction to change the selected option.
+*/
+
+void change(int dir) {
+if (this.pos==1)
+{
+if (dir==1 && this.mode > 0)
+{
+this.mode = 0;
+this.modified = true;
+this.SpeakOption=true;
+} // if
+else if (dir==2)
+{
+int old_reader = this.mode;
+if (this.select_reader() != old_reader) {
+this.modified = true;
+this.SpeakOption=true;
+} // if
+} // else if
+} // if
+else if (this.pos==2) {
+if (dir==1 && this.voice > 0) {
+--this.voice;
+this.sapi.set_current_voice(this.voice);
+this.SpeakOption=true;
+} // if
+else if (dir==2 && this.voice < voices.length() - 1) {
+++this.voice;
+this.sapi.set_current_voice(this.voice);
+this.SpeakOption=true;
+} // else if
+} // else if
+else if (this.pos == 3) {
+if (dir == 1 && this.sapi.volume > -100) {
+if (this.sapi.volume - 5 < -100) {
+this.sapi.volume = -100;
+} // if
+else
+{
+this.sapi.volume = this.sapi.volume - 5;
+} // else if
+this.SpeakOption = true;
+} // else if
+else if (dir == 2 && this.sapi.volume < 0) {
+if (this.sapi.volume + 5 > 0) {
+this.sapi.volume = 0;
+} // if
+else
+{
+this.sapi.volume = this.sapi.volume + 5;
+} // else
+this.SpeakOption = true;
+} // else if
+} // else if
+else if (this.pos==4) {
+if (dir==1 && this.sapi.rate>-10) {
+this.sapi.rate = this.sapi.rate - 1;
+this.SpeakOption=true;
+} // if
+else if (dir==2 && this.sapi.rate<10) {
+this.sapi.rate = this.sapi.rate + 1;
+this.SpeakOption=true;
+} // else if
+} // else if
+else if (this.pos == 5) {
+if (dir == 1 && this.sapi.pitch > -10) {
+this.sapi.pitch = this.sapi.pitch - 1;
+this.SpeakOption = true;
+} // if
+else if (dir == 2 && this.sapi.pitch < 10) {
+this.sapi.pitch = this.sapi.pitch + 1;
+this.SpeakOption = true;
+} // else if
+} // else if
+} // change
+
+/*
+select() = bool
+
+Activate a button in the configuration menu
+*/
+
+bool select() {
+if (this.pos==6) {
+if (!this.save()) {
+this.speak_interrupt_wait("Settings saved temporarily, but could not be saved to disk.");
+} // if
+else
+{
+this.speak_interrupt_wait("Settings saved.");
+} // else
+return true;
+} // if
+else if (this.pos==7)
+{
+this.modified = this.old_modified_state;
+this.mode = this.old_mode;
+this.voice = old_voice;
+this.sapi.set_current_voice(this.voice);
+this.sapi.volume = this.old_volume;
+this.sapi.rate = this.old_rate;
+this.sapi.pitch = this.old_pitch;
+this.speak_interrupt_wait("Canceled.");
+return true;
+} // else if
+return false;
+} // select
+
+} // class speech_manager

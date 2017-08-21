@@ -1,0 +1,116 @@
+class learn_game_sounds {
+bool speak_boundaries;
+bool speak_values;
+bool stop_arrow_keys;
+bool allow_escape;
+bool wrap;
+uint item_number;
+learn_game_sounds() {
+speak_values=false;
+stop_arrow_keys=true;
+item_number=0;
+speak_boundaries=false;
+allow_escape=true;
+wrap=false;
+desc_list.resize(0);
+name_list.resize(0);
+play_sound.close();
+}
+void add_item(string sound_description, string sound_load_name)
+{
+name_list.resize(name_list.length()+1);
+name_list[name_list.length()-1]=sound_load_name;
+desc_list.resize(desc_list.length()+1);
+desc_list[desc_list.length()-1]=sound_description;
+}
+int run(string title) {
+if(desc_list.length()==0)
+{
+alert("error, no items!","You have not added any items to the learn game sounds list. add at least 1 item to the list and try again.");
+return -1;
+}
+if(title=="") 
+{
+alert("error","title string is blank. The title string cannot be blank.");
+return -1;
+}
+text.speak(title);
+text.speak(desc_list[0]);
+while(true) {
+if(key_pressed(KEY_DOWN))
+{
+if(stop_arrow_keys) play_sound.stop();
+if(item_number<desc_list.length()-1)
+{
+item_number++;
+text.speak_interrupt(desc_list[item_number]);
+if(speak_values) text.speak(item_number+1+" of "+desc_list.length());
+continue;
+}
+if(item_number==desc_list.length()-1)
+{
+if(wrap==true)
+{
+item_number=0;
+text.speak_interrupt(desc_list[item_number]);
+if(speak_values) text.speak(item_number+1+" of "+desc_list.length());
+}
+if(wrap==false)
+{
+if(speak_boundaries) text.speak_interrupt(desc_list[item_number]);
+}
+}
+}
+if(key_pressed(KEY_RETURN))
+{
+play(item_number);
+}
+if(key_pressed(KEY_UP))
+{
+if(stop_arrow_keys) play_sound.stop();
+if(item_number>0)
+{
+item_number--;
+text.speak_interrupt(desc_list[item_number]);
+if(speak_values) text.speak(item_number+1+" of "+desc_list.length());
+continue;
+}
+if(item_number==0)
+{
+if(wrap==true)
+{
+item_number=desc_list.length()-1;
+text.speak_interrupt(desc_list[item_number]);
+if(speak_values) text.speak(item_number+1+" of "+desc_list.length());
+}
+if(wrap==false)
+{
+if(speak_boundaries) text.speak_interrupt(desc_list[item_number]);
+}
+}
+}
+if(key_pressed(KEY_ESCAPE)) {
+if(allow_escape)
+{
+return 0;
+}
+}
+wait(5);
+}
+return 1;
+}
+
+void play(long num) {
+play_sound.close();
+play_sound.load(name_list[num]);
+if(!play_sound.active) {alert("error, cannot find file!",name_list[num]+" was not found or was of an unsupported format. Please check the path and filename and make sure the format is correct."); return;}
+
+play_sound.volume=0;
+play_sound.pan=0;
+play_sound.play();
+}
+tts_voice text;
+string[] name_list;
+string[] desc_list;
+sound play_sound;
+}

@@ -1,0 +1,95 @@
+class Inventory : UtilActor
+{
+	PickableActor@[] content(0);
+	int itemsCount=0;
+	
+	Inventory(string className="Inventory", string name="", int maxLength=1)
+	{
+		super(className, name);
+		content.resize(maxLength);
+	}
+
+	void load(dictionary infos)
+	{
+		BaseObject::load(infos);
+		string tmp;
+		
+		if(infos.exists("itemsCount"))
+		{
+			infos.get("itemsCount", tmp);
+			this.itemsCount = string_to_number(tmp);
+		}
+		loadInventory(@infos);
+	}
+	
+	void loadInventory(dictionary@ infos)
+	{
+		string tmp;
+		for(int i=0; i<itemsCount; i++)
+		{
+			if(infos.exists("InventorySlot#"+i))
+			{
+				infos.get("InventorySlot#"+i, tmp);
+				dictionary config = deserialize(tmp);
+				PickableActor@ pa = PickableActor("PickableActor", "");
+				pa.load(config);
+				@this.content[i] = pa;
+			}
+		}
+	}
+	
+	dictionary parseObject()
+	{
+		dictionary infos = BaseObject::parseObject();//Ici on récupère les valeurs de la classe mère récurvisement / EN: here we gather the values of the mother class
+		saveInventory(@infos);
+		infos.set("itemsCount", ""+this.itemsCount);
+		infos.set("className", this.className);//toujours réécrire cette valeur EN: Always override this value
+		infos.set("name", this.name);//toujours réécrire cette valeur EN: Always override this value
+		
+		return infos;
+	}
+	
+	void saveInventory(dictionary@ infos)
+	{
+		for(int i=0; i<itemsCount; i++)
+		{
+			infos.set("InventorySlot#"+i, serialize(content[i].parseObject()));
+		}
+	}
+	
+	int getNumberOfItems()
+	{
+		return itemsCount;
+	}
+	
+	//Add a PickableActor to the inventory
+	bool addItem(PickableActor@ item)
+	{
+		return addItem(item, itemsCount);
+	}
+	
+	//Add a PickableActor to the slot X of the inventory. You can only do this if the slot wasn't empty.
+	bool addItem(PickableActor@ item, int pos)
+	{
+		if(itemsCount==content.length || pos >=content.length)
+			return false;
+		
+		
+		content.insert_at(pos, item);
+		itemsCount++;
+		return true;
+	}
+	
+	PickableActor@ removeItem(int pos)
+	{
+		if(@content[pos]!=null)
+		{
+			PickableActor@ ret = @content[pos];
+			@content[pos] = null;
+			itemsCount--;
+			return ret;
+		}
+		
+		return null;
+	}
+}

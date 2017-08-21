@@ -1,0 +1,41 @@
+timer SPEEDSTOP_TIMER_MAIN;
+int SPEEDSTOP_TIME_STAMP_MAIN=TIME_STAMP;
+timer SPEEDSTOP_MS_MATCH_TIMER_MAIN;
+bool SPEEDSTOP_ENABLE_DISABLE_MAIN=true;
+void speed_stop_reset(bool is_user_reset=true) // should be called before you want to start use in order to prevent accedental speedhack protection
+{
+SPEEDSTOP_TIMER_MAIN.restart();
+SPEEDSTOP_TIME_STAMP_MAIN=TIME_STAMP;
+if(is_user_reset)
+SPEEDSTOP_MS_MATCH_TIMER_MAIN.restart();
+}
+bool speed_stop_is_hacking(int slack_time=50) // true if hack detected. 
+{
+if(SPEEDSTOP_ENABLE_DISABLE_MAIN==false)
+return false;
+if(SPEEDSTOP_TIMER_MAIN.elapsed>1000+slack_time)
+{
+if(TIME_STAMP<=SPEEDSTOP_TIME_STAMP_MAIN and SPEEDSTOP_MS_MATCH_TIMER_MAIN.elapsed>2000)
+return true;
+}
+else
+{
+if(SPEEDSTOP_TIMER_MAIN.elapsed<1000-slack_time and SPEEDSTOP_MS_MATCH_TIMER_MAIN.elapsed>2000)
+{
+if(TIME_STAMP>SPEEDSTOP_TIME_STAMP_MAIN)
+return true;
+}
+if(TIME_STAMP>SPEEDSTOP_TIME_STAMP_MAIN)
+speed_stop_reset(false);
+}
+return false;
+}
+void speed_stop_disable() //pauses the speed_stop checks. 
+{
+SPEEDSTOP_ENABLE_DISABLE_MAIN=false;
+}
+void speed_stop_enable() //unpauses/enables speed_stop checks. 
+{
+SPEEDSTOP_ENABLE_DISABLE_MAIN=false;
+speed_stop_reset();
+}

@@ -1,0 +1,20 @@
+class kh
+{
+bool already_installed;
+void install()
+{
+if (screen_reader_is_running(1) and !already_installed)
+{
+install_keyhook();
+already_installed=true;
+}
+}
+void uninstall()
+{
+if(already_installed)
+{
+uninstall_keyhook();
+already_installed=false;
+}
+}
+}

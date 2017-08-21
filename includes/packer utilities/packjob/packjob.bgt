@@ -1,0 +1,50 @@
+// Simple Encryption and Pack Tool
+// Encrypt and pack all files in the specified directory
+// Written by J.J. Meddaugh
+// May 12, 2012
+// This code will only work in the Pro Single and Pro unlimited versions of bGT.
+// your encryption key
+string key = "put something here";
+// Directory to search, relative to current
+string dir = "sounds/*";
+// Output file, created in current directory by default
+string datafile = "data.dat";
+// The rest starts here
+pack_file data;
+uint count = 0;
+void main() {
+show_game_window("Encryption and Pack Tool");
+string[] files;
+data.create(datafile);
+files = find_files(dir + "/*.ogg");
+for(uint num=0; num<files.length(); num++)
+{
+// Leave .dat files alone as they were likely just created
+string temp = string_right(files[num], 4);
+if (temp == ".dat") continue;
+encrypt(files[num]);
+}
+alert("Results", count + " files processed");
+}
+bool encrypt(string inputfile) {
+string outputfile = "", base;
+// Remove any extension on the filename
+string temp = string_reverse(inputfile);
+int pos = string_contains(temp, ".", 1);
+if (pos == -1) base = inputfile;
+else base = string_left(inputfile, inputfile.length() - (pos+1));
+outputfile = base + ".dat";
+// Encrypt the file
+if(!file_exists(dir + "/" + inputfile)) {
+alert("Error", "Cannot find " + dir + "/" + inputfile);
+return false;
+}
+if(!file_encrypt(dir + "/" + inputfile, dir + "/" + outputfile, key)) {
+alert("Error", "Could not encrypt " + dir + "/" + inputfile);
+return false;
+}
+count++;
+//  File was encrypted, so add it to the pack_file
+data.add_file(dir + "/" + outputfile, base);
+return true;
+}

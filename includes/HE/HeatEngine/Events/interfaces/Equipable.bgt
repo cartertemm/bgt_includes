@@ -1,0 +1,7 @@
+//Determine si un objet est équipable. Un objet équipable est toujours utilisable.
+//Determines if an item is equipable. An equipable object is always usable
+
+interface Equipable
+{
+	void equiped();
+}
