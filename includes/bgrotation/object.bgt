@@ -1,0 +1,82 @@
+#include "rotation.bgt"
+#include "3d.bgt"
+#include "c:\\bgIncludes\\FiniteStateMachine.bgt"
+
+funcdef form@ movement_callback(object@ f, vector v, vector angle, double dt, dictionary data); //string data="");
+
+
+box@ new_box(double x, double y, double z, double w, double h, double d) {box ret(x, y, z, w, h, d); return ret;};
+sphere@ new_sphere(vector c, double r) {sphere ret(c, r); return ret;}
+sphere@ new_sphere(double x, double y, double z, double r) {sphere ret(x, y, z, r); return ret;}
+cylinder@ new_cylinder(vector c, vector a, double r, bool capped=false) {cylinder ret(c, a, r); ret.capsule=capped; return ret;}
+cone@ new_cone(vector c, vector a, double r, double t=-1.0) {cone ret(c, a, r, t); return ret;}
+mesh@ new_mesh(shape@ xy=null, shape@ xz=null, shape@ zy=null, string n="") {mesh ret(n, xy, xz, zy); return ret;}
+
+class object : FSM {
+	string name="", holes="";
+	form@ bounds=null;
+	vector v(0,0,0), f(0, 0, 0);
+	vector angle(0,0,0); // yaw, roll, pitch. Yaw roughly corresponds to theta, and pitch to phi.
+	movement_callback@ callback=null;
+	dictionary data;
+	bool flagged=false; // collision optimization.
+	int type=s_solid;
+	object() {init();}
+	object(string n) {init(); name=n;}
+	object(string n, form@ b) {init(); name=n; @bounds=b;}
+	void init() {
+		@bounds=new_sphere(0,0,0,0.5);
+	}
+	
+	void set_callback(movement_callback@ mc) {
+		@callback=mc;
+	}
+	
+	int geti(string k) {
+		int ret=-1;
+		if(data.exists(k)) data.get(k, ret);
+		return ret;
+	}
+	double getd(string k) {
+		double ret=-1;
+		if(data.exists(k)) data.get(k, ret);
+		return ret;
+	}
+	string gets(string k) {
+		string ret="";
+		if(data.exists(k)) data.get(k, ret);
+		return ret;
+	}
+	void seti(string k, int val) {data.set(k, val);}
+	void setd(string k, double d) {data.set(k, d);}
+	void sets(string k, string s) {data.set(k, s);}
+	void set(string k, double d) {data.set(k, d);}
+	void set(string k, string s) {data.set(k, s);}
+	
+	void always(double dt) {
+		if(@callback!=null) callback(this, v, angle, dt, data);
+		
+	}
+	box@ get_bounds() {return bounds.get_bounds();}
+	sphere@ get_envelope() {return bounds.get_envelope();}
+	bool intersects(sphere@ s) {return bounds.intersects(s);}
+	bool intersects(object@ o) {return this.intersects(o.get_envelope());}
+}// object.
+object@ new_object(string n, form@ f=null) {
+		object ret(n);
+		if(@f!=null) @(ret.bounds)=f;
+		return ret;
+}
+
+form@ default_movement(object@ o, vector v, vector angle, double dt, dictionary data) {
+	if(@o==null) return null;
+	form@ f=o.bounds;
+	if(@f==null) return f;
+	vector d(v.x*cosine(angle.x)*cosine(angle.z), v.y*sine(angle.x)*cosine(angle.z), v.z*sine(angle.z));
+	form@ ret = f.translate(d*dt);
+	o.v+=o.f*dt;
+	
+	// Do some dictionary checks for collisions detection, if applicable.
+	
+	return ret;
+}

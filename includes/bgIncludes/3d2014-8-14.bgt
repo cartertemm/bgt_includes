@@ -1,0 +1,814 @@
+//#include "geom.bgt"
+// DANGIT!
+#include "math.bgt"
+
+ vector iterateLine3D(vector start, vector end, double d) {
+ // AAAARRRRGGGGHHH!!!
+ double dy=end.y-start.y;
+ double dx=end.x-start.x;
+ double dz=end.z-start.z;
+ // Ok. d2=x2+y2+z2.
+ // We know dy/dx/dz.
+ // We know the hypotenuse... but... we can't know much else, can we?
+ // *DIES*
+
+
+// 5:16 AM 9/14/2012: New plan, Gohan!
+ // Let's get all parametric.
+
+ // So we have this:
+// x=start.x+(dx*t)
+ // And so on for y and z
+ // now, how do we get distance out of that? Ooh, I can actually do this!
+ // square root dx2+dy2+dz2 is the distance covered by t=1.
+ // so, since we have the desired distance, we divide that by the ... *sigh* fricken vector length, and it gives us t.
+
+ vector ret;
+ double dt=square_root((dx*dx)+(dy*dy)+(dz*dz));
+ double t=d/dt;
+ ret.x=start.x+(dx*t);
+ ret.y=start.y+(dy*t);
+ ret.z=start.z+(t*dz);
+ return ret;
+}// Iterate Line 3D.
+
+
+// Constants for atopness
+ const int NO_COLLISION=-1, COLLIDE_ONLY=0, COLLIDE_ATOP=1;
+ double distance3d(vector p1, vector p2) {return distance3d(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z);}
+ double distance3d(double x1, double y1, double z1, double x2, double y2, double z2) {
+ return square_root(
+( (x2-x1)*(x2-x1) )
+ +((y2-y1)*(y2-y1))
+ +((z2-z1)*(z2-z1))
+);
+}// Distance3d.
+interface Shape3D {
+
+void moveTo(double x, double y, double z);
+ void moveBy(double dx, double dy, double dz);
+ double getTop(double x, double z);
+ bool collide(Box@ b);
+
+// Returns 0 if the boxes collide, but b is not atop this,
+ // 1 if b is resting atop this,
+ // and -1 if b does not collide with this.
+ int atop(Box@ b);
+ bool contains(vector p);
+
+ bool collide(Shape3D@ s);
+ int atop(Shape3D@ s);
+ Box@ getBounds();
+ vector getCenter(); // WE NEED THIS!
+ // Rotation?
+
+}// Shape3D.
+
+
+// OMFG
+
+ class Box : Shape3D {
+ double x; double y; double z;
+ double width; double height; double depth;
+ int slope;
+ Box() {x=0; y=0; z=0; width=0; height=0; depth=0; slope=-1;}
+ Box(double xx, double yy, double zz, double w, double h, double d) {x=xx; y=yy; z=zz; width=w; height=h; depth=d; slope=-1;}
+ void moveTo(double xx, double yy, double zz) {x=xx; y=yy; z=zz;}
+ void moveBy(double dx, double dy, double dz) {x+=dx; y+=dy; z+=dz;}
+ double getTop(double xx, double zz) {
+ if((xx<x)||(xx>x+width)||(zz<z)||(zz>z+depth)) return MIN_VALUE;
+ if((slope<0)||(slope>=32)) return y+height;
+
+ double ret=y+height;
+ switch (slope) {
+ case east : {
+// At x, top is y; at x+width, top is y+height. Simple, right?
+ ret = (height*((xx-x)/width))+y;
+
+}; break;
+ case west : {
+ ret = (-height*((xx-x)/width))+(y+height);
+}; break;
+ case north : {
+ ret = (height*((zz-z)/depth))+y;
+}; break;
+ case south : {
+ ret = (-height*((zz-z)/depth))+(y+height);
+}; break;
+  // Intermediates and inversions are not important enough to bother with right now?
+}// Slope switch.
+ return round(ret, 3);
+}// Get top
+ vector getCenter() {
+ return newVector(x+(width/2), y+(height/2), z+(depth/2));
+}// Get Center.
+
+// Returns 0 if the boxes collide, but b is not atop this,
+ // 1 if b is resting atop this,
+ // and -1 if b does not collide with this.
+ int atop(Box@ b) {
+ // This checks to see if the collision qualifies as b resting atop this.
+ if(!collide(b)) return -1;
+ if(b.y<y) return 0;
+
+ // Now. For it to be atop, there must be one line of intersection, and it must have a constant y value of whatever getTop is at that point.
+ // The line must be along either the x or the z axis, but that kinda goes without saying.
+ // Well, actually, there is one other case:
+ if(slope<0) return (b.y==y+height) ? 1 : 0;
+
+
+ // 5:13 AM 5/3/2012: I'm getting sick of bugs with slopes, so I'm doing this drastic thing:
+ b.y=round(b.y, 3); // Oh nos precision~!
+// In other cases, we pretty much need to check every possibility. Boo.
+
+ int ret=0;
+ vector p(x+width, y+height, z+depth); vector q(b.x+b.width, b.y+b.height, b.z+b.depth);
+// switch (~( (~slope)|(up|down) ) ) {
+ switch (slope) {
+/* case east :
+ case west : {
+
+// There are four possible lines of intersection. Check all of them. I know of no quicker way to do this. -_-
+ // We return 0 immediately if b.y<ry for any of those points.
+ // if b.y>ry, the other lines might still touch, so we keep checking.
+
+ double ry=y+height;
+ if((x>=b.x)&&(x<=q.x)) {ry=getTop(x, z); if(b.y<ry) return 0; if(b.y==ry) ret = 1;}
+ if((p.x>=b.x)&&(p.x<=q.x)) {ry=getTop(p.x, z);  if(b.y<ry) return 0; if(b.y==ry) ret = 1;}
+ if((b.x>=x)&&(b.x<=p.x)) {ry=getTop(b.x, z);  if(b.y<ry) return 0; if(b.y==ry) ret = 1;}
+ if((q.x>=x)&&(q.x<=p.x)) {ry=getTop(q.x, z);  if(b.y<ry) return 0; if(b.y==ry) ret = 1;}
+}; break;
+ case north :
+ case south : {
+
+ double ry=y+height;
+ if((z>=b.z)&&(z<=q.z)) {ry=getTop(x, z); if(b.y<ry) return 0; if(b.y==ry) ret = 1;}
+ if((p.z>=b.z)&&(p.z<=q.z)) {ry=getTop(x, p.z);  if(b.y<ry) return 0; if(b.y==ry) ret = 1;}
+ if((b.z>=z)&&(b.z<=p.z)) {ry=getTop(x, b.z);  if(b.y<ry) return 0; if(b.y==ry) ret = 1;}
+ if((q.z>=z)&&(q.z<=p.z)) {ry=getTop(x, q.z);  if(b.y<ry) return 0; if(b.y==ry) ret = 1;}
+
+}; break;
+*/
+ case east : {
+ if(x+width<b.x+b.width) ret = (b.y==y+height) ? 1 : 0;
+ else ret = (b.y==getTop(b.x+b.width, z)) ? 1 : 0;
+}; break;
+ case west : {
+ if(x>b.x) ret = (b.y==y+height) ? 1 : 0;
+ else ret = (b.y==getTop(b.x, z)) ? 1 : 0;
+
+}; break;
+ case north : {
+ if(z+depth<b.z+b.depth) ret = (b.y==y+height) ? 1 : 0;
+ else ret = (b.y==getTop(x, b.z+b.depth)) ? 1 : 0;
+}; break;
+ case south : {
+ if(z>b.z) ret = (b.y==y+height) ? 1 : 0;
+ else ret = (b.y==getTop(x, b.z)) ? 1 : 0;
+
+}; break;
+ default : {
+// Default.
+ if(b.y==y+height) ret=1;
+ }
+ }// Slope switch.
+
+ return ret;
+}// On Top.
+ bool collide(Box@ b) {
+ if(@b==null) return false;
+ vector p(x+width, y+height, z+depth);
+ vector q (b.x+b.width, b.y+b.height, b.z+b.depth);
+ bool ret = (
+ (((y>=b.y)&&(y<=q.y))||((p.y>=b.y)&&(p.y<=q.y))||((b.y>=y)&&(b.y<=p.y))||((q.y>=y)&&(q.y<=p.y)))&&
+ (((x>=b.x)&&(x<=q.x))||((p.x>=b.x)&&(p.x<=q.x))||((b.x>=x)&&(b.x<=p.x))||((q.x>=x)&&(q.x<=p.x)))&&
+ (((z>=b.z)&&(z<=q.z))||((p.z>=b.z)&&(p.z<=q.z))||((b.z>=z)&&(b.z<=p.z))||((q.z>=z)&&(q.z<=p.z)))
+);
+ if((ret)&&(slope>=0)) {
+ if(b.y<=y) return true; // That's the easy situation.
+
+ // I think I'm going to have to switch slope again, and I do not like that idea.
+ switch (slope) {
+ case east :
+ case west : {
+ // The line of intersection is along the z axis.
+
+ // Unfortunately, there are multiple possibilities that we need to check.
+
+// Simplest: the entirety of this is between b.x and q.x
+ if((x>=b.x)&&(x<=q.x)&&(p.x>=b.x)&&(p.x<=q.x)) ret=true;
+ else {
+ bool rr=false;
+ if((x>=b.x)&&(x<=q.x)) {double ry=getTop(x, z); if(  ((ry>=b.y)&&(ry<=q.y))||((b.y>=y)&&(b.y<=ry))||((q.y>=y)&&(q.y<=ry)) ) rr=true; }
+ if(!rr) {
+if((p.x>=b.x)&&(p.x<=q.x)) {double ry=getTop(p.x, z); if(  ((ry>=b.y)&&(ry<=q.y))||((b.y>=y)&&(b.y<=ry))||((q.y>=y)&&(q.y<=ry)) ) rr=true; }
+ if(!rr) {
+ if((b.x>=x)&&(b.x<=p.x)) {double ry=getTop(b.x, z); if(  ((ry>=b.y)&&(ry<=q.y))||((b.y>=y)&&(b.y<=ry))||((q.y>=y)&&(q.y<=ry)) ) rr=true; }
+ if(!rr) {
+ if((q.x>=x)&&(q.x<=p.x)) {double ry=getTop(q.x, z); if(  ((ry>=b.y)&&(ry<=q.y))||((b.y>=y)&&(b.y<=ry))||((q.y>=y)&&(q.y<=ry)) ) rr=true; }
+}}}// No point if we already have a true.
+ ret=rr;
+}// Overlap, check two potential lines.
+
+}; break;
+ case north :
+ case south : {
+ // line of intersection is along the x axis.
+ if((z>=b.z)&&(z<=q.z)&&(p.z>=b.z)&&(p.z<=q.z)) ret=true;
+ else {
+ bool rr=false;
+ if((z>=b.z)&&(z<=q.z)) {double ry=getTop(x, z); if(  ((ry>=b.y)&&(ry<=q.y))||((b.y>=y)&&(b.y<=ry))||((q.y>=y)&&(q.y<=ry)) ) rr=true; }
+ if(!rr) {
+if((p.z>=b.z)&&(p.z<=q.z)) {double ry=getTop(x, p.z); if(  ((ry>=b.y)&&(ry<=q.y))||((b.y>=y)&&(b.y<=ry))||((q.y>=y)&&(q.y<=ry)) ) rr=true; }
+ if(!rr) {
+ if((b.z>=z)&&(b.z<=p.z)) {double ry=getTop(x, b.z); if(  ((ry>=b.y)&&(ry<=q.y))||((b.y>=y)&&(b.y<=ry))||((q.y>=y)&&(q.y<=ry)) ) rr=true; }
+ if(!rr) {
+ if((q.z>=z)&&(q.z<=p.z)) {double ry=getTop(x, q.z); if(  ((ry>=b.y)&&(ry<=q.y))||((b.y>=y)&&(b.y<=ry))||((q.y>=y)&&(q.y<=ry)) ) rr=true; }
+}}}// No point if we already have a true.
+ ret=rr;
+}// Overlap, check two potential lines.
+
+
+}; break;
+ default : {
+ // Don't wanna.
+ }// Default.
+ }// Slope switch.
+
+
+
+}// Slope.
+ return ret;
+ }// Collide.
+ bool contains(vector p) {
+ vector q(x+width, y+height, z+depth);
+ return (
+ (p.x>=x)&&(p.x<=q.x)&&(p.y>=y)&&(p.y<=q.y)&&(p.z>=z)&&(p.z<=q.z)
+);
+}
+ Box@ clone() {
+ Box ret(x, y, z, width, height, depth); return ret;
+}
+ Box@ getRotated(int f) {
+ Box@ ret=clone();
+ switch (f) {
+ case north :
+ case northwest :
+ case southeast :
+ case south : {
+ @ret=newBox(x, y, z, depth, height, width);
+ }; break;
+ default : {
+ if((f&(up|down))!=0) switch (~((~f)|(up|down))) {
+ case north :
+ case south :
+ case northeast :
+ case southwest : {
+  @ret=newBox(x, y, z, depth, width, height);
+}; break;
+ default : {
+ @ret=newBox(x, y, z, height, width, depth);
+}
+ }// Ups.
+}
+ }// Return by face.
+ return ret;
+}// Rotated.
+
+ vector[] points() {
+ vector v(x+width, y+height, z+depth);
+ vector[] ret={
+ newVector(x, y, z),
+ newVector(v.x, y, z),
+ newVector(v.x, v.y, z), // 2, southeast top
+ newVector(v.x, v.y, v.z), // 3, northeast top
+ newVector(x, v.y, z), // 4, southwest top
+ newVector(x, y, v.z),
+ newVector(x, v.y, v.z), // 6, northwest top
+ newVector(v.x, y, v.z)
+};
+ if(slope>=0) {
+ switch (slope) {
+ case east : {
+ ret.remove_at(6);
+ ret.remove_at(4);
+}; break;
+ case west : {
+ ret.remove_at(3); ret.remove_at(2);
+}; break;
+ case north : {
+ ret.remove_at(4); ret.remove_at(2);
+}; break;
+ case south : {ret.remove_at(6); ret.remove_at(3);}; break;
+ }// Slopeswitch.
+}// POOSTICK!
+ return ret;
+}// Points.
+
+ bool collide(Shape3D@ s) {
+ Box@ b=cast<Box>(s);
+ if(@b!=null) return collide(b);
+ return s.collide(this);
+}// Collide.
+ int atop(Shape3D@ s) {
+ Box@ b=s.getBounds();
+ return atop(b);
+}
+ Box@ getBounds() {return newBox(x, y, z, width, height, depth);}
+}// Box.
+
+ vector newVector(double x, double y, double z=0.0) {vector ret(x, y, z); return ret;}
+ Box@ newBox() {Box ret; return ret;}
+ Box@ newBox(double x, double y, double z, double w, double h, double d) {Box ret(x, y, z, w, h, d); return ret;}
+
+ // Direction constants.
+ // Notice, I want to use "up" and "down" as state constants as well.
+ const uint east=0, west=1, north=2, south=3, northeast=4, northwest=5, southeast=6, southwest=7, up=8, down=16, lean=24;
+
+// Axis constants.
+ const uint XAXIS=0, YAXIS=1, ZAXIS=2;
+
+class Cylinder : Shape3D {
+
+ double x; double y; double z;
+ double radius;
+ double height;
+ uint axis;
+ // And being able to make it more eliptical would be neat, but no.
+ Cylinder() {x=0; y=0; z=0; radius=0; height=0; axis=YAXIS;}
+ Cylinder(double xx, double yy, double zz, double r, double h) {x=xx; y=yy; z=zz; radius=r; height=h; axis=YAXIS;}
+ void moveTo(double tx, double ty, double tz) {x=tx; y=ty; z=tz;}
+ void moveBy(double dx, double dy, double dz) {x+=dx; y+=dy; z+=dz;}
+ Box@ getBounds() {
+ // depends on axis.
+ double bx=x-radius; double by=y; double bz=z-radius;
+ double bw=2*radius; double bh=height; double bd=2*radius;
+ switch (axis) {
+ case XAXIS : {
+ bx=x; by=y-radius; bz=z;
+ bw=height; bh=2*radius; bd=2*radius;
+}; break;
+ case ZAXIS : {
+ bx=x-radius; by=y-radius; bz=z;
+ bw=2*radius; bh=2*radius; bd=height;
+}; break;
+}// axis switch.
+ return newBox(bx, by, bz, bw, bh, bd);
+}// Get Bounds.
+ bool contains(vector p) {
+ bool ret=false;
+ switch (axis) {
+ case YAXIS : {
+  if((p.y<y)||(p.y>y+height)) ret=false;
+ else ret=distance3d(x, p.y, z, p.x, p.y, p.z)<=radius;
+}; break;
+ case XAXIS : {
+  if((p.x<x)||(p.x>x+height)) ret=false;
+ else ret=distance3d(p.x, y, z, p.x, p.y, p.z)<=radius;
+}; break;
+ case ZAXIS : {
+  if((p.z<z)||(p.z>z+height)) ret=false;
+ else ret=distance3d(x, y, p.z, p.x, p.y, p.z)<=radius;
+}; break;
+}
+ return ret;
+}// contains.
+ double getTop(double xx, double zz) {
+ if(!contains(newVector(xx, y, zz))) return MIN_VALUE; 
+ if(radius==0.0) return y;
+  double ret=y+height;
+ if(axis==XAXIS) {
+ // Z determines the height?
+ // It's a simple trig problem, only I have to think through several levels of rotation.
+ double dz=zz-z;
+ ret= absolute(sine(arc_cosine(dz/radius)))+y;
+}// X Axis.
+ else if(axis==ZAXIS) {
+ ret = absolute(sine(arc_cosine( (xx-x)/radius)))+y;
+}// Z Axis.
+ return ret;
+}// get top.
+ int atop(Box@ b) {
+ if(!collide(b)) return -1;
+
+ if(axis==YAXIS) return (round(b.y, 3)==round(y+height, 3)) ? COLLIDE_ATOP : COLLIDE_ONLY;
+ return (round(b.y, 3)==round(y+radius, 3)) ? 1 : 0;
+}// Atop, box.
+ int atop(Shape3D@ s) {return atop(s.getBounds());}
+
+ bool collide(Box@ b) {
+ if(@b==null) return false;
+ Box@ b2=getBounds();
+ if(!b2.collide(b)) return false;
+
+// Ooh, this is tricky.
+
+ // Hm, let's first test the points of the box for collision.
+ vector[] p=b.points();
+ for(uint i=0; i<p.length(); i++) {if(contains(p[i])) {return true;}}
+
+ // Failing that, we now need to figure out if there is any overlap in any dimention, which presumably there is, since b2.collide(b) returned true.
+
+ // Problem being... which dimention? 
+ // Well, first, let's try this:
+ if(b.contains(newVector(x, y, z))) return true;
+ if((b.contains(getTop()))||(b.contains(getCenter()))) return true;
+ // But of course, they might be overlapping near the edges. This calls for distance 2d, I fear.
+ // But! Distance 3d works just fine if the 'z's are 0.
+ // Or any of the parameters, in fact.
+
+
+ return true;
+}// Collide.
+ vector getBase() { return newVector(x, y, z);}
+ vector getTop() {
+ vector ret=getBase();
+  switch (axis) {
+ case XAXIS : ret.x+=height; break;
+ case YAXIS : ret.y+=height; break;
+ case ZAXIS : ret.z+=height; break;
+}
+ return ret;
+}// Top.
+ vector getCenter() {
+ vector p1=getBase();
+ vector p2=getTop();
+ return newVector(
+ (p1.x+p2.x)/2,
+ (p1.y+p2.y)/2,
+ (p1.z+p2.z)/2
+);
+}
+ bool collide(Shape3D@ s) {
+ if(@s==null) return false;
+ Box@ b=s.getBounds();
+ if(!collide(b)) return false;
+
+ Box@ b2=cast<Box>(s);
+ if(@b2!=null) return collide(b2); // Slopes are not accounted for by bounds.
+
+ Cylinder@ c=cast<Cylinder>(s);
+ if(@c!=null) {
+ // This one has a nice trick, but it has a teeny-tiny catch.
+ if(axis==c.axis) {
+ vector p1(x, y, z);
+ vector p2(c.x, c.y, c.z);
+ if(axis==YAXIS) {p1.y=0; p2.y=0;}
+ else if(axis==XAXIS) {p1.x=0; p2.x=0;}
+ else if(axis==ZAXIS) {p1.z=0; p2.z=0;}
+ return (distance3d(p1, p2)<=radius+c.radius);
+}// The axes are the same.
+ else {
+ // This has the same problems as the box collision. -_-.
+ if((contains(newVector(c.x, c.y, c.z)))||(c.contains(newVector(x, y, z)))) return true;
+ if((contains(c.getTop()))||(contains(c.getCenter()))||(c.contains(getTop()))||(c.contains(getCenter()))) return true;
+
+}// Promble. Yes, misspelling intentional.
+}// Cylinder collision Jutsu!
+ else {
+ if((s.contains(getBase()))||(s.contains(getTop()))||(s.contains(getCenter()))) return true;
+
+  // How do I determine if an arbitrary line is contained? Bah! Bah, I say!
+
+}
+
+ return collide(s.getBounds());
+}// Collide with an arbitrary shape.
+
+}// Cylinder
+
+class Sphere : Shape3D {
+
+  double x; double y; double z; double radius;
+
+ Sphere() {x=0; y=0; z=0; radius=1;}
+ Sphere(double xx, double yy, double zz, double r) {x=xx; y=yy; z=zz; radius=r;}
+ vector getCenter() {return newVector(x, y, z);}
+ bool contains(vector p) {return distance3d(x, y, z, p.x, p.y, p.z)<=radius;}
+ double getTop(double xx, double zz) {
+ if(!contains(newVector(xx, y, zz))) return MIN_VALUE;
+
+ // Umm. This is... hard. Like, really hard.
+ // I mean, circle-wise, I can get y based on x, or y based on z, but how do I combine those?
+ // What is the equation for a sphere? x^2+y^2+z^2=r^2? Or change all those to cubes?
+ // The distance formula is curiously still at squares. It is also similar to the pythagorean theorem, which holds for right triangles and is suspiciously similar to the equation for a circle (centered at the origin).
+// So, I will assume that spheres work the same, for now.
+ // So, solve x2+y2+z2=r2 for y, given x, z and r.
+ double dx=xx-x; double dz=zz-z;
+ return square_root(
+ (radius*radius)-(dx*dx)-(dz*dz)
+)+y;
+}// Get Top. Oh, my.
+
+ void moveTo(double dx, double dy, double dz) {x=dx; y=dy; z=dz;}
+ void moveBy(double dx, double dy, double dz) {x+=dx; y+=dy; z+=dz;}
+
+ Box@ getBounds() {
+ return newBox(x-radius, y-radius, z-radius, radius*2, radius*2, radius*2);
+}
+ int atop(Shape3D@ s) { if(@s==null) return -1; return atop(s.getBounds());}
+ int atop(Box@ b) {
+ if(!collide(b)) return -1;
+
+ // Ok. How. We can draw a line between the centers, but what good does that do if we can't project the distance to the edge? On boxes. Spheres happen to be the one case where projecting from center to edge is easy.
+
+ return (round(b.y, 3)==round(y+radius, 3)) ? 1 : 0;
+}// box.
+ bool collide(Box@ b) {if(@b==null) return false;
+ vector[] p=b.points();
+ vector c=getCenter();
+ if(b.contains(c)) return true;
+ for(uint i=0; i<p.length(); i++) {if(distance3d(p[i], c)<=radius) {return true;}}
+
+ vector c2=b.getCenter();
+ vector c3=iterateLine3D(c, c2, radius+0.0015);
+ return b.contains(c3);
+}// Box collision with spheres.
+ bool collide(Shape3D@ s) {
+ if(@s==null) return false;
+ // Should we bother doing type casting?
+ // Nah.
+ vector c=getCenter();
+ vector c2=s.getCenter();
+ vector c3=iterateLine3D(c, c2, radius+0.002);
+ return s.contains(c3);
+}// Shape.
+
+}// Sphere.
+
+
+ class Line3D : Shape3D {
+ vector start; vector end;
+ vector d; // [dx, dy, dz]
+ double dt; // the length of d, stored for efficiency.
+ double it; // iterator.
+
+ Line3D() {init(0, 0, 0, 0, 0, 0);}
+ Line3D(double x, double y, double z, double x2, double y2, double z2) {init(x, y, z, x2, y2, z2);}
+ Line3D(vector s, vector e) {init(s.x, s.y, s.z, e.x, e.y, e.z);}
+ void init(double x1, double y1, double z1, double x2, double y2, double z2) {
+ start.x=x1; start.y=y1; start.z=z1;
+ end.x=x2; end.y=y2; end.z=z2;
+ d.x=x2-x1; d.y=y2-y1; d.z=z2-z1;
+  dt=square_root((d.x*d.x)+(d.y*d.y)+(d.z*d.z));
+ it=0.0;
+}// init line3d.
+
+ vector getFromStart(double distance) {
+ if(dt==0) return newVector(start.x, start.y, start.z);
+ double t=distance/dt;
+ return newVector(
+ start.x+(d.x*t),
+ start.y+(d.y*t),
+ start.z+(d.z*t)
+);
+}// Get a point on this line a given distance from the start point.
+
+ vector getCenter() {
+return getFromStart(dt/2);
+}// getCenter of a line.
+ vector iterate(double dit) {
+ it+=dit;
+ return getFromStart(dit);
+}// Iterate.
+ void setIterator(double dit) {it=dit;}
+ bool contains(vector v) {
+
+ // Return true if this point satisfies all 3 parametric equations?
+ double t=(v.x-start.x)/((d.x==0) ? 0.001 : d.x);
+ // Let's round, to be nice.
+ t=round(t, 3);
+ double ty=(v.y-start.y)/((d.y==0) ? 0.001 : d.y);
+ if(t!=round(ty, 3)) return false;
+ double tz=(v.z-start.z)/((d.z==0) ? 0.001 : d.z);
+ if(t!=round(tz, 3)) return false;
+
+ return true;
+}// Contains.
+ bool collide(Box@ b) {
+ if(@b==null) return false;
+ if ((b.contains(start))||(b.contains(end))) return true;
+
+ // In the likely other case, there needs to be a better way of testing this than iterating along the line.
+ // For instance, plane-collision? Except meh.
+double prec=dt*0.01;
+ // If this line is just too huge, or the box is just too small, this test will probably fail.
+ double dit=0;
+ for(uint i=0; i<100; i++) {
+ vector c=getFromStart(dit); dit+=prec;
+ if(b.contains(c)) return true;
+}// Loop.
+
+ return false;
+}// Collision? With a box? From a line?
+ bool collide(Shape3D@ b) {
+ if(@b==null) return false;
+ if ((b.contains(start))||(b.contains(end))) return true;
+
+ // In the likely other case, there needs to be a better way of testing this than iterating along the line.
+ // For instance, plane-collision? Except meh.
+double prec=dt*0.01;
+ // If this line is just too huge, or the box is just too small, this test will probably fail.
+ double dit=0;
+ for(uint i=0; i<100; i++) {
+ vector c=getFromStart(dit); dit+=prec;
+ if(b.contains(c)) return true;
+}// Loop.
+
+ return false;
+}// Collision? With a box? From a line?
+
+ // Lines aren't likely to be atop anything.
+ int atop(Box@ b) {return -1;}
+ int atop(Shape3D@ s) {return -1;}
+
+ bool isDone() {
+ return (it>=1.0);
+}// Iterator.  
+
+ Box@ getBounds() {
+ double x1=start.x; double x2=end.x; double y1=start.y; double y2=end.y; double z1=start.z; double z2=end.z;
+ if(x1>x2) {x1=x2; x2=start.x;}
+ if(y1>y2) {y1=y2; y2=start.y;}
+ if(z1>z2) {z1=z2; z2=start.z;}
+ return newBox(
+ x1, y1, z1,
+ x2-x1, y2-y1, z2-z1
+);
+} // get bounds.
+ void moveBy(double tx, double ty, double tz) {start.x+=tx; end.x+=tx; start.y+=ty; end.y+=ty; start.z+=tz; end.z+=tz;}
+ void moveTo(double tx, double ty, double tz) {
+double dx=tx-start.x; start.x=tx; end.x+=dx;
+ double dy=ty-start.y; start.y=ty; end.y+=dy;
+ double dz=tz-start.z; start.z=tz; end.z+=dz;
+} // Icgh.
+ double getTop(double x, double z) {return start.y;}
+
+ // Returns the distance between this line3d and an arbitrary point.
+ double getDistance(vector p) {
+
+ // If cross/dot products would kindly burst into flames and die, that would be great.
+
+vector ap(p.x-start.x, p.y-start.y, p.z-start.z);
+
+
+ double vl=d.length();
+ if(vl==0) return ap.length();
+ vector cp=cross(ap, d);
+
+ return cp.length()/vl;
+}// get distance.
+ vector getProjection(vector p) {
+return linePointIntersection(start, end, p);
+}
+ Line3D@ getIntersection(vector p) {
+ vector p2=linePointIntersection(start, end, p);
+ Line3D ret(p, p2);
+ return ret;
+}// Intersecting line.
+
+ void rotate(vector p, double theta, uint axis=YAXIS) {
+ start= (::rotate3d(start, p, theta, axis));
+ end= (::rotate3d(end, p, theta, axis));
+ init(start.x, start.y, start.z, end.x, end.y, end.z);
+}// rotate.
+}// Line3D.
+ Line3D@ newLine3D(vector p1, vector p2) {Line3D ret(p1, p2); return ret;}
+
+
+// This is for the general case
+ // Note that this has chances of returning false negatives if the concavity of the shapes is unusual.
+
+bool gen_collide(Shape3D@ s1, Shape3D@ s2, double prec=0.001) {
+ vector c1=s1.getCenter();
+ vector c2=s2.getCenter();
+ Line3D l(c1, c2);
+ while(!l.isDone()) {
+ vector c=l.iterate(l.dt*prec);
+ bool ret = s1.contains(c);
+ if(ret==s2.contains(c)) return ret;
+}// Loop.
+
+ return true;
+}// General collision.
+
+
+
+ // I found this and modified it for BGT. I also modified the distance part to skip extra root/squaring that the original version would have invoked, as the general application for this would be called too often to invoke that sort of unnecessary overhead.
+// by someone going by "Bammer"
+ vector linePointIntersection (vector p1, vector p2, vector pX) {
+
+ double u = ((pX.x - p1.x) * (p2.x - p1.x)) + ((pX.y - p1.y) * (p2.y - p1.y)) + ((pX.z - p1.z) * (p2.z - p1.z));
+//double dist = distance3d (p1, p2);
+ double dist = ((p2.x-p1.x)*(p2.x-p1.x))+((p2.y-p1.y)*(p2.y-p1.y))+((p2.z-p1.z)*(p2.z-p1.z));
+u = u/(dist); // (dist*dist)
+
+vector t(0,0,0);
+t.x = p1.x + u * (p2.x - p1.x);
+t.y = p1.y + u * (p2.y - p1.y);
+t.z = p1.z + u * (p2.z - p1.z);
+return t;
+}
+
+
+// Now that I have the power of line-point distances, I can do this:
+
+ class  CappedConic : Line3D {
+// vector start; vector end;
+ double r1; double r2;
+
+ CappedConic(vector p1, vector p2, double ra, double rb) {start=p1; end=p2;
+ Line3D::init(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z);
+ r1=ra; r2=rb;}
+ CappedConic(Line3D@ l, double ra, double rb) {
+ start=newVector(l.start.x, l.start.y, l.start.z);
+  end=newVector(l.end.x, l.end.y, l.end.z);
+ Line3D::init(start.x, start.y, start.z, end.x, end.y, end.z);
+ r1=ra; r2=rb;
+}
+
+// It's easier to get the radius based on the distance from start or end, but we usually start with a vector.
+ double getRadius(vector v) {
+ if(!(Line3D::contains(v))) v=linePointIntersection(start, end, v);
+ vector dd(v.x-start.x, v.y-start.y, v.z-start.z);
+ return getRadius(dd.length());
+}// get radius.
+ double getRadius(double dist) {
+ if(dist==0) return r1;
+ double dl=d.length();
+ if(round(dist, 3)==round(dl, 3)) return r2;
+ // We assume radius is a linear progression.
+// that is, r=r1+k*(r2-r1),
+ // where k is the ratio of dist to dl. I think. I hope.
+
+ return r1+(
+(dist/dl)*(r2-r1)
+);
+}// get Radius.
+
+ bool contains(vector p) {
+ double pd=getDistance(p);
+ if((pd>r1)&&(pd>r2)) return false;
+
+ // Now we find the radius at p and check it.
+ double pr=getRadius(p);
+ return (absolute(pd)<=absolute(pr));
+}// contains.
+ double getTop(double x, double z) {
+ vector p(x, 0, z);
+ p=linePointIntersection(start, end, p);
+ double r=getRadius(p);
+ return p.y+r;
+}// Get Top.
+ bool collide(Box@ b) {
+
+// There is a catch with gen_collide that can make it fail on these, so let's try this first:
+ Sphere@ s2=newSphere(start.x, start.y, start.z, r1);
+ if(s2.collide(b)) return true;
+ @s2=newSphere(end.x, end.y, end.z, r2);
+ if(s2.collide(b)) return true;
+ return gen_collide(b, this);
+}
+ bool collide(Shape3D@ s) {
+ Sphere@ s2=newSphere(start.x, start.y, start.z, r1);
+ if(s2.collide(s)) return true;
+ @s2=newSphere(end.x, end.y, end.z, r2);
+ if(s2.collide(s)) return true;
+
+return gen_collide(s, this);}
+ vector getCenter() {return Line3D::getCenter();}
+  // umm.
+
+ void rotate(vector p, double theta, uint axis=YAXIS) {Line3D::rotate(p, theta, axis);}
+}// Conics.
+
+Sphere@ newSphere(double x, double y, double z, double r) {Sphere ret(x, y, z, r); return ret;}
+ Sphere@ newSphere(vector p, double r) {Sphere ret(p.x, p.y, p.z, r); return ret;}
+
+CappedConic@ newCappedConic(vector p1, vector p2, double r1, double r2) {CappedConic ret(p1, p2, r1, r2); return ret;}
+
+
+// 1:59 PM 8/14/2014:
+
+vector rotate3d(vector o, vector p, double theta, uint axis) {
+ // This only does rotation around a line parallel to one of the dimentional axes, which passes through p.
+ vector temp;
+ if(axis==XAXIS) {temp.x=o.z; temp.y=o.y; temp.z=o.x;}
+ else if(axis==YAXIS) {temp.x=o.x; temp.y=o.z; temp.z=o.y;}
+ else {temp.x=o.x; temp.y=o.y; temp.z=o.z;}
+ temp=rotate(temp, p, theta);
+ vector ret(temp.x, temp.y, o.z); // zaxis, I believe.
+ if(axis==XAXIS) {ret.x=o.x; ret.z=temp.x; ret.y=temp.y;}
+ else if(axis==YAXIS) {ret.x=temp.x; ret.y=o.y; ret.z=temp.y;}
+ return ret;
+}
+
+
+// 4:13 PM 10/1/2015:
+Cylinder@ newCylinder(double x, double y, double z, double r, double h, int axis=YAXIS) {
+	Cylinder ret(x, y, z, r, h);
+	ret.axis=axis;
+	return ret;
+}
+
+

@@ -1,0 +1,121 @@
+
+enum graphics_types {
+IMAGE, RECT, ELLIPSE, LINE, TEXT
+};
+
+// These constants are probably engine-level:
+const int FONT_PLAIN=0, FONT_BOLD=1, FONT_ITALLIC=2, FONT_BOLD_ITALLIC=3;
+
+
+class graphics_item {
+	
+	int z=-1; // Ignored when sorting.
+	string filename="";
+	string caption="";
+	// font information.
+	//image@ handle=null;
+	int type;
+	bool stationary;
+	long color; // Mask for images, drawcolor for everything else.
+	float scale_x=1.0;
+	float scale_y=1.0;
+	int source_x=0;
+	int source_y=0;
+	int width;
+	int height;
+	long[] palette;
+	int x;
+	int y;
+	// Silly question: if you alter the source coordinates for non-images, do we get to truncate parts of the shape/text? For example, sections of an ellipse?
+}
+
+
+class graphics {
+ 
+ float scale_x;
+ float scale_y;
+ int screen_x;
+ int screen_y;
+ int screen_width;
+ int screen_height;
+ bool autoflip;
+ long[] palette; // for 8bit images.
+
+ long background_color;
+ 
+ graphics_item@[] items;
+ int last_viewer_x;
+ int last_viewer_y;
+ int[] replace_stack;
+ 
+ 
+ 
+ void destroy_item(int slot) {}
+ void destroy_all() {}
+ void update_viewer(int viewer_x, int viewer_y)
+{
+	this.last_viewer_x=viewer_x;
+	this.last_viewer_y=viewer_y;
+	this.display();
+}
+	
+	void update_item(int slot, int x, int y) {}
+	void update_extended(int slot, int x, int y, ulong mask, float scale_x, float scale_y, int source_x, int source_y, int source_width, int source_height) {}
+
+int draw_image(string filename, int viewer_x, int viewer_y, int image_x, int image_y, long mask, float scale_x=1.0, float scale_y=1.0, int source_x=0, int source_y=0, int source_width=-1, int source_height=-1) {return -1;}
+int draw_rect(int viewer_x, int viewer_y, int rect_x, int rect_y, int rect_width, int rect_height, long color, int pen_size=0) {return -1;}
+int draw_ellipse(int viewer_x, int viewer_y, int rect_x, int rect_y, int rect_width, int rect_height, long color, int pen_size=0) {return -1;}
+int draw_line(int viewer_x, int viewer_y, int x1, int y1, int x2, int y2, long color, int pen_size=1) {return -1;}
+int draw_text(string text, int x, int y, string font="SansSerif", int style=FONT_PLAIN, int size=12) {return -1;}
+
+int draw_image_stationary(string filename, int viewer_x, int viewer_y, int image_x, int image_y, long mask, float scale_x=1.0, float scale_y=1.0, int source_x=0, int source_y=0, int source_width=-1, int source_height=-1) {return -1;}
+int draw_rect_stationary(int viewer_x, int viewer_y, int rect_x, int rect_y, int rect_width, int rect_height, long color, int pen_size=0) {return -1;}
+int draw_ellipse_stationary(int viewer_x, int viewer_y, int rect_x, int rect_y, int rect_width, int rect_height, long color, int pen_size=0) {return -1;}
+int draw_line_stationary(int viewer_x, int viewer_y, int x1, int y1, int x2, int y2, long color, int pen_size=1) {return -1;}
+
+void set_master_palette(long[] new_palette) {
+	// Changes the palette for all existing items.
+}
+
+uint replace(int slot) {
+	replace_stack.insert_last(slot);
+	return replace_stack.length();
+}
+
+void display()
+{
+	// This method should almost never be called outside of this class.
+	// if autoflip is true, this method is called every time a draw or update method is invoked.
+	// otherwise, it should only be called sparingly, such as when updating the viewer position or scale.
+}
+
+void scale(float sx, float sy) {
+	this.scale_x=sx;
+	this.scale_y=sy;
+	this.display();
+}
+
+int update_z(int slot, int z) {
+	// Changes the z index of an item.
+	// Items are sorted by z index, so this alters its slot. Be careful when using this method.
+	
+	// this is slow. Use sparingly.
+	// range check.
+	graphics_item@ gi=this.items[slot];
+	this.items.insert_at(z, gi);
+	this.items.remove_at(slot);
+	return z;
+}
+int send_back(int slot, int dz) {return this.update_z(slot, slot-dz);}
+int send_forward(int slot, int dz) {return this.update_z(slot, slot+dz);}
+int send_to_front(int slot) {
+	// move to the last slot in use.
+	// Be careful with the range check in update_z, so as not to create gaps.
+	return slot;
+}
+int send_to_back(int slot) {
+	// yay, this one's easy!
+	return this.update_z(slot, 0);
+}
+
+}

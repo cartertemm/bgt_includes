@@ -1,0 +1,45 @@
+
+dictionary a;
+
+string gets(string key) {
+	string ret="";
+	if(a.exists(key)) a.get(key, ret);
+	return ret;
+}
+
+int getn(string key) {
+	int ret=-1;
+	if(a.exists(key)) a.get(key, ret);
+	return ret;
+}
+int geti(string key) {
+	int ret=-1;
+	if(a.exists(key)) a.get(key, ret);
+	return ret;
+}
+float getf(string key) {
+	float ret=-1;
+	if(a.exists(key)) a.get(key, ret);
+	return ret;
+}
+double getd(string key) {
+	double ret=-1;
+	if(a.exists(key)) a.get(key, ret);
+	return ret;
+}
+
+vector getV(string s) {
+	vector ret(getd(s + ".x"), getd(s + ".y"), getd(s + ".z"));
+	return ret;
+}
+
+void setV(string s, double x, double y, double z) {
+	a.set(s + ".x", x);
+	a.set(s + ".y", y);
+	a.set(s + ".z", z);
+}
+void setV(string s, vector v) {
+	a.set(s + ".x", v.x);
+	a.set(s + ".y", v.y);
+	a.set(s + ".z", v.z);
+}

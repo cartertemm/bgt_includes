@@ -1,0 +1,1149 @@
+//user_data class. Beginner BGT programmers are advised not to attempt modification of this code. This collection of classes attempts to simplify the process of saving and loading game data.
+
+
+
+class master_key
+{
+//this is an internal class which creates a random decryption key. This key is used to hide the value of string values.
+
+string master;
+master_key()
+{
+for(int i=0;i<=random(50, 128);i++)
+master += hex_to_string(number_to_hex_string(random(0, 255)));
+}
+
+}
+class user_data:master_key
+{
+
+//this is the main class.
+ud_int8[] smallints;
+ud_int[] normints;
+ud_int32[] longints;
+ud_bool[] bools;
+ud_string[] strings;
+ud_signed[] sints;
+ud_signed32[] slongs;
+//these objects represent the different types of variables available in BGT. Due to memory obfuscation, these values currently all take up 64 bits within ram; however the smaller options will take up less space within the save file, thus reducing loading times.
+
+sound success;
+string key;
+uint[] header;
+
+
+
+user_data()
+
+{
+key = "";
+}
+
+
+void set_header_value(uint slot, uint value)
+
+{
+//this function sets header data, which may be important for loading saves for some games where a variable quantity of user-defined classes exist which save variables.
+if(header.length() < slot + 1)
+header.resize(slot + 1);
+header[slot] = value;
+
+
+
+
+}
+
+uint get_header_value(uint slot)
+{
+
+//this function retrieves header information
+
+if(header.length() < slot + 1)
+return 0;
+return header[slot];
+
+
+
+}
+void clear_header()
+
+{
+header.resize(0);
+
+}
+
+void set_decryption_key(string the_key)
+
+{
+key = string_encrypt(the_key, master);
+
+}
+bool set_success_sound(string filename)
+
+{
+//define a sound file which will play when file saving is complete.
+success.load(filename);
+return success.active;
+
+
+}
+
+
+
+
+
+ud_signed@create_signed()
+
+{
+//creates a value which will take up 16 bits within the save data. These values can be either positive or negative.
+sints.resize(sints.length() + 1);
+return sints[sints.length() - 1];
+
+}
+
+ud_signed32@create_signed32()
+
+{
+//creates a value which takes up 32 bits within the save file. This value can also be either positive or negative.
+
+slongs.resize(slongs.length() + 1);
+return slongs[slongs.length() - 1];
+}
+ud_int8@ create_int8()
+{
+
+//creates a value which takes up 8 bits within the save file. Must be a positive number.
+smallints.resize(smallints.length() + 1);
+return smallints[smallints.length() - 1];
+}
+
+ud_int@ create_int()
+{
+//creates a value which takes up 16 bits within the save file. Must be positive.
+normints.resize(normints.length() + 1);
+return normints[normints.length() - 1];
+}
+
+ud_int32@ create_int32()
+{
+//creates a value which takes up 32 bits within the save file. Must be positive.
+longints.resize(longints.length() + 1);
+return longints[longints.length() - 1];
+}
+ud_bool@ create_bool()
+{
+//creates a boolean value which takes up one bit within the save file.
+
+bools.resize(bools.length() + 1);
+return bools[bools.length() - 1];
+}
+ud_string@ create_string()
+{
+//creates a string value within the save file.
+strings.resize(strings.length() + 1);
+return strings[strings.length() - 1];
+}
+void unload()
+
+{
+//unloads a saved game from memory which was previously loaded. This function returns all of your variables to their default values.
+for(int i=0;i<strings.length();i++)
+strings[i]="";
+for(int i=0;i<slongs.length();i++)
+slongs[i]=0;
+for(int i=0;i<sints.length();i++)
+sints[i]=0;
+for(int i=0;i<longints.length();i++)
+longints[i]=0;
+for(int i=0;i<normints.length();i++)
+normints[i]=0;
+for(int i=0;i<smallints.length();i++)
+smallints[i]=0;
+for(int i=0;i<bools.length();i++)
+bools[i].value=false;
+
+
+}
+bool save(string filename)
+{
+
+//this function saves your game's state to a file. You must specify a file name when calling this function so it knows where to save the data.
+
+
+//the next series of checks insures that the data stored within your variables is valid.
+if(strings.length() > 65535||sints.length() > 65535||slongs.length() > 65535||longints.length() > 65535||normints.length() > 65535||smallints.length() > 65535||bools.length() > 65535)
+return false;
+for(int i=0;i<strings.length();i++)
+{
+if(string_contains(strings[i].show(), hex_to_string("00"), 1) > -1)
+return false;
+}
+string final;
+string temp;
+int usage;
+//this section saves the header information block.
+usage = header.length();
+temp = number_to_hex_string(usage);
+while(temp.length() < 4)
+temp = "0" + temp;
+final += temp;
+if(header.length() > 0)
+
+{
+
+//store the actual header values
+for(int i=0;i<header.length();i++)
+
+{
+usage = header[i];
+temp = number_to_hex_string(usage);
+while(temp.length() < 4)
+temp = "0" + temp;
+final+=temp;
+}
+}
+
+
+
+
+
+
+
+//the next section collects the number of each type of variable which has been created. These length values must be stored within the save file so that the correct number of values can be taken in later when the data is reloaded.
+
+usage = strings.length();
+temp = number_to_hex_string(usage);
+while(temp.length() < 4)
+temp = "0"+temp;
+final += temp;
+usage = slongs.length();
+temp = number_to_hex_string(usage);
+while(temp.length() < 4)
+temp = "0"+temp;
+final+=temp;
+usage = sints.length();
+temp = number_to_hex_string(usage);
+while(temp.length() < 4)
+temp = "0"+temp;
+final+=temp;
+
+
+usage = longints.length();
+temp = number_to_hex_string(usage);
+while(temp.length() < 4)
+temp = "0"+temp;
+final+=temp;
+usage = normints.length();
+temp = number_to_hex_string(usage);
+while(temp.length() < 4)
+temp = "0"+temp;
+final+=temp;
+usage = smallints.length();
+temp = number_to_hex_string(usage);
+while(temp.length() < 4)
+temp = "0"+temp;
+final+=temp;
+usage = bools.length();
+temp = number_to_hex_string(usage);
+while(temp.length() < 4)
+temp = "0"+temp;
+final+=temp;
+
+//the next section writes your string values into the save data.
+if(strings.length() > 0)
+{
+for(int i=0;i<strings.length();i++)
+final +=string_to_hex(strings[i].show())+"00";
+}
+
+//the next part saves signed integers. If integers are negative, they are multiplied by -1 to render them positive; a flag is then set within the save file so that their negative values will be restored upon game load.
+
+string negatives;
+uint8 negcount = 0;
+int64 tempnum;
+if(slongs.length() > 0)
+{
+for(int i=0;i<slongs.length();i++)
+{
+tempnum = slongs[i].show();
+if(tempnum < 0)
+{
+slongs[i].negative = true;
+tempnum *= -1;
+}
+temp = number_to_hex_string(tempnum);
+while(temp.length() < 8)
+temp = "0" + temp;
+final += temp;
+if(slongs[i].negative)
+{
+negatives = "1" + negatives;
+}
+else
+{
+negatives = "0" + negatives;
+}
+negcount++;
+if(negcount == 8)
+negcount = 0;
+}
+while(negcount > 0&&negcount < 8)
+{
+negatives += "0";
+negcount++;
+}
+negatives = bits_to_string(negatives);
+final+=negatives;
+negatives = "";
+negcount = 0;
+}
+
+if(sints.length() > 0)
+{
+for(int i=0;i<sints.length();i++)
+{
+tempnum = sints[i].show();
+if(tempnum < 0)
+{
+sints[i].negative = true;
+tempnum *= -1;
+}
+temp = number_to_hex_string(tempnum);
+while(temp.length() < 4)
+temp = "0" + temp;
+final += temp;
+if(sints[i].negative)
+{
+negatives = "1" + negatives;
+}
+else
+{
+negatives = "0" + negatives;
+}
+negcount++;
+if(negcount == 8)
+negcount = 0;
+}
+while(negcount > 0&&negcount < 8)
+{
+negatives += "0";
+negcount++;
+}
+negatives = bits_to_string(negatives);
+final+=negatives;
+negatives = "";
+}
+//the next section deals with the regular unsigned integers.
+
+
+if(longints.length() > 0)
+{
+for(int i=0;i<longints.length();i++)
+{
+temp = number_to_hex_string(longints[i].show());
+while(temp.length() < 8)
+temp = "0" + temp;
+final += temp;
+}
+}
+
+
+if(normints.length() > 0)
+{
+for(int i=0;i<normints.length();i++)
+{
+temp = number_to_hex_string(normints[i].show());
+while(temp.length() < 4)
+temp = "0" + temp;
+final += temp;
+}
+}
+
+if(smallints.length() > 0)
+{
+for(int i=0;i<smallints.length();i++)
+{
+temp = number_to_hex_string(smallints[i].show());
+while(temp.length() < 2)
+temp = "0" + temp;
+final += temp;
+}
+}
+
+//the next part deals with boolean values. These are saved as individual bits, so it takes 8 of them to make up one byte. If you have created fewer than 8 booleans, the remainder of the byte will contain filler because this block of the data has to end on an 8 bit boundry.
+
+if(bools.length() > 0)
+{
+uint8 bitcount = 0;
+temp = "";
+for(int i=0;i<bools.length();i++)
+{
+if(!bools[i].value)
+{
+temp += "0";
+}
+else
+{
+temp += "1";
+}
+bitcount++;
+if(bitcount == 8)
+bitcount = 0;
+
+}
+if(bitcount > 0&&bitcount < 8)
+{
+while(bitcount < 8)
+{
+temp += "0";
+bitcount++;
+}
+}
+temp = bits_to_string(temp);
+final+=temp;
+
+}
+//the last portion of the save function creates the header and file hash. It then writes the data to the file.
+
+file output;
+output.open(filename, "wb");
+final = string_to_upper_case(final);
+final = hex_to_string(final);
+string hash = string_hash(final, 2, false);
+hash = hex_to_string(hash);
+final = "UD!"+hash + final;
+if(key !="")
+
+{
+final = string_encrypt(final, string_decrypt(key, master));
+}
+
+output.write(final);
+if(success.active)
+success.play();
+
+
+return true;
+
+}
+
+
+
+bool load(string filename, bool header_only = false)
+{
+//this function loads a saved game back into memory. It takes a filename as an argument.
+if(!file_exists(filename))
+return false;
+file savefile;
+savefile.open(filename, "rb");
+string data = savefile.read();
+if(key !="")
+data = string_decrypt(data, string_decrypt(key, master));
+//the next part extracts the header and hash data from the save file and checks it for validity.
+
+string hash = string_mid(data, 1, 3);
+if(hash != "UD!")
+return false;
+data = string_mid(data, 4, data.length());
+hash = string_mid(data, 1, 64);
+data = string_mid(data, 65, data.length());
+hash = string_to_hex(hash);
+if(hash !=string_hash(data, 2, false))
+
+{
+return false;
+}
+
+
+data = string_to_hex(data);
+
+//the next part loads up the header information block.
+int headlength = hex_to_dec(string_mid(data, 1, 4));
+data = string_mid(data, 5, data.length());
+
+
+header.resize(headlength);
+if(headlength > 0)
+
+{
+
+
+//load header information
+string headdata = string_mid(data, 1, (headlength * 4));
+data = string_mid(data, headdata.length() + 1, data.length());
+for(int i=0;i<headlength;i++)
+
+{
+
+header[i] = hex_to_dec(string_mid(headdata, 1, 4));
+headdata = string_mid(headdata, 5, headdata.length());
+}
+if(header_only)
+return true;
+
+
+}
+
+
+
+//the next part loads up the length block from the save file. This block tells us how many of each type of variable had been previously saved.
+
+int[] lengths(7);
+for(int i=0;i<7;i++)
+{
+lengths[i] = hex_to_dec(string_mid(data, 1, 4));
+data = string_mid(data, 5, data.length());
+}
+
+//checks to make sure that the lengths saved in the file aren't greater than the number of variables available and rejects the data if this is the case.
+if(strings.length() < lengths[0]||slongs.length() < lengths[1]||sints.length() < lengths[2]||longints.length() < lengths[3]||normints.length() < lengths[4]||smallints.length() < lengths[5]||bools.length() < lengths[6])
+return false;
+//load string values from memory
+
+string nc = hex_to_string("00");
+data = hex_to_string(data);
+for(int i=0;i<lengths[0];i++)
+{
+strings[i].value = strings[i].obfuscate(string_mid(data, 1, string_contains(data, nc, 1)));
+data = string_mid(data, string_contains(data, nc, 1) + 2, data.length());
+
+
+
+}
+//begin loading the signed values into memory and making them negative if their flags are set.
+data = string_to_hex(data);
+int collect = 0;
+for(int i=0;i<lengths[1];i++)
+{
+slongs[i].value = slongs[i].obfuscate(hex_to_dec(string_mid(data, collect, 8)));
+collect+=8;
+data = string_mid(data, collect+1, data.length());
+collect = 0;
+}
+if(lengths[1] > 0)
+{
+data = string_to_bits(data);
+uint8 bitcount = 0;
+string bits;
+for(int i=0;i<lengths[1];i++)
+{
+bits += data[i];
+bitcount++;
+if(bitcount == 8)
+bitcount = 0;
+}
+data = string_mid(data, bits.length()+1, data.length());
+
+if(bitcount > 0&&bitcount < 8)
+data = string_mid(data, (8 - bitcount + 1), data.length());
+data = bits_to_string(data);
+for(int i=0;i<lengths[1];i++)
+{
+if(bits[i] == "1")
+slongs[i].value = slongs[i].obfuscate(slongs[i].retrieve(slongs[i].value) * -1);
+}
+
+}
+
+
+
+
+
+
+
+for(int i=0;i<lengths[2];i++)
+{
+sints[i].value = sints[i].obfuscate(hex_to_dec(string_mid(data, collect, 4)));
+collect+=4;
+data = string_mid(data, collect+1, data.length());
+collect = 0;
+}
+if(lengths[2] > 0)
+{
+data = string_to_bits(data);
+uint8 bitcount = 0;
+string bits;
+for(int i=0;i<lengths[2];i++)
+{
+bits += data[i];
+bitcount++;
+if(bitcount == 8)
+bitcount = 0;
+}
+data = string_mid(data, bits.length()+1, data.length());
+
+if(bitcount > 0&&bitcount < 8)
+data = string_mid(data, (8 - bitcount + 1), data.length());
+data = bits_to_string(data);
+for(int i=0;i<lengths[2];i++)
+{
+if(bits[i] == "1")
+sints[i].value = sints[i].obfuscate(sints[i].retrieve(sints[i].value) * -1);
+}
+
+
+
+}
+collect = 1;
+
+
+
+//now we start loading the other variables
+
+
+for(int i=0;i<lengths[3];i++)
+{
+longints[i].value = longints[i].obfuscate(hex_to_dec(string_mid(data, collect, 8)));
+collect+=8;
+
+
+}
+
+
+for(int i=0;i<lengths[4];i++)
+{
+normints[i].value = normints[i].obfuscate(hex_to_dec(string_mid(data, collect, 4)));
+collect+= 4;
+
+
+}
+for(int i=0;i<lengths[5];i++)
+{
+smallints[i].value = smallints[i].obfuscate(hex_to_dec(string_mid(data, collect, 2)));
+
+collect += 2;
+
+
+}
+//last but not least, we load the booleans
+
+data = string_mid(data, collect, data.length());
+data = string_to_bits(data);
+for(int i=0;i<lengths[6];i++)
+{
+if(data[i] == "0")
+{
+bools[i].value = false;
+}
+else
+{
+bools[i].value = true;
+}
+}
+
+
+
+return true;
+
+
+
+
+}
+
+
+
+
+
+}
+
+
+
+
+
+class ud_dummy
+{
+//parent class for the other variables. It provides random obfuscation values.
+
+uint8[] randoms;
+int64 value;
+
+ud_dummy()
+
+{
+randoms.resize(3);
+randoms[0] = random(1, 8);
+randoms[1] = random(3, 50);
+randoms[2] = random(1, 200);
+
+}
+
+
+
+int64 obfuscate(int64 data)
+{
+//disguises variable's contents using a mathematical formula based on the random values created earlier.
+
+data = (data ^ randoms[0])*randoms[1]+randoms[2];
+return data;
+}
+int64 retrieve(double data)
+{
+//reverses obfuscation on variables, returning them to their true values.
+
+data -= randoms[2];
+data /=randoms[1];
+data ^=randoms[0];
+return data;
+}
+
+
+//next are the opperator overloads.
+
+void opAssign(int64 data)
+{
+this.value = obfuscate(data);
+}
+void opPostInc()
+{
+this.value = obfuscate(retrieve(this.value) + 1);
+}
+void opPostDec()
+{
+this.value = obfuscate(retrieve(this.value) - 1);
+}
+void opAddAssign(double data)
+{
+data = (retrieve(this.value)) + data;
+this.value = obfuscate(data);
+}
+void opSubAssign(double data)
+{
+opAddAssign(data * -1);
+}
+void opMulAssign(double data)
+{
+data = (retrieve(this.value)) * data;
+this.value = obfuscate(data);
+}
+void opDivAssign(double data)
+{
+data = (retrieve(this.value)) / data;
+data = round(data, 0);
+this.value = obfuscate(data);
+}
+void opModAssign(double data)
+
+{
+data = (retrieve(this.value)) % data;
+this.value = obfuscate(data);
+}
+void opAndAssign(double data)
+{
+
+data = (retrieve(this.value)) & data;
+this.value = obfuscate(data);
+}
+void opOrAssign(double data)
+{
+data = (retrieve(this.value)) | data;
+this.value = obfuscate(data);
+}
+void opXorAssign(double data)
+{
+data = (retrieve(this.value)) ^ data;
+this.value = obfuscate(data);
+}
+void opShlAssign(double data)
+{
+data = (retrieve(this.value)) << data;
+this.value = obfuscate(data);
+}
+void opShrAssign(double data)
+{
+data = (retrieve(this.value)) >> data;
+this.value = obfuscate(data);
+}
+void opUshrAssign(double data)
+{
+data = (retrieve(this.value)) >>> data;
+this.value = obfuscate(data);
+}
+double opAdd(double first, double second)
+{
+return obfuscate(first+second);
+}
+double opAdd_r(double first, double second)
+{
+return opAdd(first, second);
+}
+double opSub(double first, double second)
+{
+return obfuscate(first-second);
+}
+double opSub_r(double first, double second)
+{
+return opSub(first, second);
+}
+double opMul(double first, double second)
+{
+return obfuscate(first*second);
+}
+double opMul_r(double first, double second)
+{
+return opMul(first, second);
+}
+double opDiv(double first, double second)
+{
+return obfuscate(first/second);
+}
+double opDiv_R(double first, double second)
+{
+return opDiv(first, second);
+}
+double opMod(double first, double second)
+{
+return obfuscate(first%second);
+}
+double opAnd(double first, double second)
+{
+return obfuscate(first&second);
+}
+double opAnd_r(double first, double second)
+{
+return opAnd(first, second);
+}
+double opOr(double first, double second)
+{
+return obfuscate(first|second);
+}
+double opOr_r(double first, double second)
+{
+return opOr(first, second);
+}
+double opXor(double first, double second)
+{
+return obfuscate(first^second);
+}
+double opXor_r(double first, double second)
+{
+return opXor(first, second);
+}
+double opShl(double first, double second)
+{
+return obfuscate(first<<second);
+}
+double opShl_r(double first, double second)
+{
+return opShl(first, second);
+}
+double opShr(double first, double second)
+{
+return obfuscate(first>>second);
+}
+double opShr_r(double first, double second)
+{
+return opShr(first, second);
+}
+double opUshr(double first, double second)
+{
+return obfuscate(first>>>second);
+}
+double opUshr_r(double first, double second)
+{
+return opUshr(first, second);
+}
+bool opEquals(double data)
+{
+return(retrieve(this.value) == data);
+}
+int opCmp(double data)
+{
+if(data == retrieve(this.value))
+return 0;
+if(retrieve(this.value) < data)
+return -1;
+if(retrieve(this.value) > data)
+return 1;
+return 0;
+}
+double opIndex(int i=0)
+{
+return retrieve(this.value);
+}
+int64 show()
+{
+return retrieve(this.value);
+}
+
+}
+
+
+class ud_signed:ud_dummy
+
+{
+//signed 16 bit integer object
+
+
+bool negative;
+ud_signed()
+{
+value = 0;
+negative = false;
+}
+
+
+}
+class ud_signed32:ud_dummy
+
+{
+
+//signed 32 bit integer object
+bool negative;
+ud_signed32()
+{
+value = 0;
+negative = false;
+}
+
+}
+class ud_int:ud_dummy
+{
+//unsigned 16 bit integer object
+ud_int()
+{
+value = 0;
+}
+
+
+}
+
+
+
+class ud_bool
+{
+//boolean object
+bool value;
+ud_bool()
+{
+value = false;
+}
+void  opAssign(bool data)
+{
+this.value = data;
+}
+bool opEquals(bool data)
+{
+if(this.value == data)
+return true;
+return false;
+}
+
+
+
+}
+
+
+
+class ud_int8:ud_dummy
+{
+//unsigned 8 bit integer object
+ud_int8()
+{
+value = 0;
+}
+
+
+}
+
+
+
+class ud_int32:ud_dummy
+{
+//32 bit unsigned integer object
+
+ud_int32()
+{
+value = 0;
+}
+
+
+}
+
+
+
+class ud_string:master_key
+{
+
+//string value object.
+string value;
+ud_string()
+{
+value = "";
+}
+string obfuscate(string data)
+{
+//encrypts string values using random master key
+
+return string_encrypt(data, master);
+}
+
+//opperator overloads
+
+void opAssign(string data)
+{
+this.value = obfuscate(data);
+}
+void opAddAssign(string data)
+{
+this.value = obfuscate(retrieve(this.value) + data);
+
+
+}
+
+string retrieve(string data)
+
+{
+
+//internal retrieve function
+
+return string_decrypt(data, master);
+}
+
+
+string show()
+{
+//decrypts string values stored in memory using random decryption key
+
+return string_decrypt(this.value, master);
+}
+
+
+}
+
+//the rest of the script consists of internal processing functions such as functions which convert hex to binary, and hex to decimal.
+
+
+
+string string_to_bits(string what_data)
+{
+string[] hex(16);
+string[] binary(16);
+what_data = string_replace(what_data, "0", "G", true);
+what_data=string_replace(what_data, "1", "H", true);
+for(int i=2;i<10;i++)
+hex[i]=""+i;
+hex[10]="A";
+hex[11]="B";
+hex[12]="C";
+hex[13]="D";
+hex[14]="E";
+hex[15]="F";
+hex[0]="G";
+hex[1]="H";
+binary[0]="0000";
+binary[1]="0001";
+binary[2]="0010";
+binary[3]="0011";
+binary[4]="0100";
+binary[5]="0101";
+binary[6]="0110";
+binary[7]="0111";
+binary[8]="1000";
+binary[9]="1001";
+binary[10] = "1010";
+binary[11]="1011";
+binary[12]="1100";
+binary[13]="1101";
+binary[14]="1110";
+binary[15]="1111";
+for(int i=0;i<16;i++)
+what_data = string_replace(what_data, hex[i], binary[i], true);
+
+
+
+return what_data;
+}
+
+
+string bits_to_string(string what_data)
+{
+string[] hex(16);
+string[] binary(16);
+for(int i=2;i<10;i++)
+hex[i]=""+i;
+hex[10]="A";
+hex[11]="B";
+hex[12]="C";
+hex[13]="D";
+hex[14]="E";
+hex[15]="F";
+hex[0]="G";
+hex[1]="H";
+binary[0]="0000";
+binary[1]="0001";
+binary[2]="0010";
+binary[3]="0011";
+binary[4]="0100";
+binary[5]="0101";
+binary[6]="0110";
+binary[7]="0111";
+binary[8]="1000";
+binary[9]="1001";
+binary[10] = "1010";
+binary[11]="1011";
+binary[12]="1100";
+binary[13]="1101";
+binary[14]="1110";
+binary[15]="1111";
+string collect;
+string result;
+for(int position = 0;position<what_data.length();position=position+4)
+{
+collect = what_data[position] + what_data[position + 1]+what_data[position + 2]+what_data[position + 3];
+for(int i=0;i<16;i++)
+{
+if(collect == binary[i])
+collect = hex[i];
+}
+result += collect;
+}
+result = string_replace(result, "G", "0", true);
+result = string_replace(result, "H", "1", true);
+ return result;
+
+}
+
+double hex_to_dec(string hex)
+{
+int[] numbers(hex.length());
+for(int i=0;i<hex.length();i++)
+{
+if(hex[i]!="0"&&hex[i]!="1"&&hex[i]!="2"&&hex[i]!="3"&&hex[i]!="4"&&hex[i]!="5"&&hex[i]!="6"&&hex[i]!="7"&&hex[i]!="8"&&hex[i]!="9"&&hex[i]!="A"&&hex[i]!="B"&&hex[i]!="C"&&hex[i]!="D"&&hex[i]!="E"&&hex[i]!="F")
+return 0;
+}
+string process;
+for(int i=0;i<hex.length();i++)
+{
+process = hex[i];
+if(process == "A")
+process = "10";
+if(process == "B")
+process = "11";
+if(process == "C")
+process = "12";
+if(process == "D")
+process = "13";
+if(process == "E")
+process = "14";
+if(process == "F")
+process = "15";
+numbers[i]=string_to_number(process);
+
+}
+int n;
+for(int i=0;i<hex.length();i++)
+{
+n = (hex.length() - i - 1);
+numbers[i]=numbers[i]*(power(16, n));
+}
+double result=0;
+for(int i=0;i<hex.length();i++)
+result+=numbers[i];
+return result;
+
+}
+
+string toString(string thestring, ud_dummy convert)
+{
+return ""+convert.retrieve(convert.value);
+}

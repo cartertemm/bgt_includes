@@ -1,0 +1,90 @@
+ const int MENU_ENTER=0, MENU_VALUE_SELECT=1;
+ class MenuItem {
+
+   string label;
+   int type; int value;
+   int max; int min;
+   bool loop;
+   string values;
+ // Audio says meh.
+ string select; string change; // The game can react to nulls.
+
+   MenuItem(string txt) {init(); label=txt;}
+   MenuItem(string txt, int t) {init(); label=txt; type=t;}
+ void init() {
+ max=8; min=0; label=""; type=MENU_ENTER; value=0;
+ loop=false;
+ }
+   string getValueLabel() {
+ if(values=="") return "" + value + "";
+ string[] inef=string_split(values, "\n", true);
+ return inef[value];
+}
+   string toString() {
+ string ret=label;
+ if(type==MENU_VALUE_SELECT) ret="" + label + ":  " + getValueLabel();
+ return ret;
+}
+}//Menu Item.
+
+   class Menu {
+
+
+ MenuItem@[] items;
+   string bgm; // Hehehe. :P.
+   string backgroundImage;
+//   Rectangle2D backgroundBounds=newRectangle2D.Double(0.0, 0.0, 1000.0, 800.0); // O dot O.
+//   Paint backgroundColor=Color.black;
+   string title;
+   Menu@ previous;
+   int selected;
+ string toplay; 
+   Menu(string txt) {init(); title=txt;}
+ void init() {@previous=null; selected=0; toplay="";
+ }
+   void selectNext() {selected++; if(selected>=items.length()) selected=0; toplay=move;}
+   void selectPrevious() {selected--; if(selected<0) selected=items.length()-1; toplay=move;}
+   void changeBy(int dx) {
+// try {
+ if((items[selected]).type!=MENU_VALUE_SELECT) return;
+ MenuItem@ mi; @mi=items[selected];
+ mi.value+=dx;
+ bool playSound=mi.loop;
+ if(mi.value<mi.min) {if(mi.loop) mi.value=mi.max; else mi.value=mi.min;}
+ else if(mi.value>mi.max) { if(mi.loop) mi.value=mi.min; else mi.value=mi.max;}
+ else playSound=true; // I don't like putting this in this class, let alone this method.
+ if(playSound) {
+if(mi.change=="") toplay=toggle; else toplay=mi.change;}
+// } catch (Exception exception) {}
+}//Toggle.
+ string move;
+string toggle;
+string activate;
+
+   MenuItem@ getCurrent() {return items[selected];}
+   MenuItem@ get(int index) {return items[index];}
+   void add(string txt) {items.insert_last(newMenuItem(txt));}
+   void add(string txt, int t) {items.insert_last(newMenuItem(txt, t));}
+   string toString() {
+ string ret=" ";
+ ret = ret + title;
+ ret = ret + ":\n";
+ for(int i=0; i<items.length(); i++) ret=ret + "" + items[i].toString() + "\n";
+ return ret;
+}
+ string error;
+   int follow() {
+// try {
+ MenuItem@ mi; @mi=getCurrent(); //=(items.get(selected));
+ if(mi.type!=MENU_ENTER) {if(error!="") toplay=error; return -0xEFFF;}
+ if(mi.select=="") toplay=activate; else toplay=mi.select;
+ return mi.value;
+// } catch (Exception Handbag) {}
+// return -0xEFFF;
+}
+}//Menu? Thing? Hotdog?
+
+ MenuItem@ newMenuItem(string txt) {MenuItem ret(txt); return ret;}
+ MenuItem@ newMenuItem(string txt, int t) {MenuItem ret(txt, t); return ret;}
+ Menu@ newMenu(string txt) {Menu ret(txt); return ret;}
+

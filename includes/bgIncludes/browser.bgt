@@ -1,0 +1,165 @@
+#include "custom_voice.bgt"
+
+
+ string select_file(string top, custom_voice@ v) {
+ string[] history;
+ string[] dirs;
+ string[] files;
+ if((top.length()>0)&&(top[top.length()-1]!="/")&&(top[top.length()-1]!="\\")) top += "\\";
+ int histLevel=0;
+ history.insert_last(top);
+ dirs=find_directories(top + "*");
+ files=find_files(top + "*");
+ v.speak("Browse. Use tab and the arrow keys to navigate. Press enter or space bar to activate a button.");
+ int focus=0;
+ int findex=0;
+ int dindex=0;
+ while(true) {
+ if((key_down(KEY_LCONTROL))||(key_down(KEY_RCONTROL))) v.stop();
+ bool speak=true;
+ if(key_pressed(KEY_ESCAPE)) return "";
+ else if((key_down(KEY_LMENU))&&(key_pressed(KEY_F4))) return "";
+ if((key_pressed(KEY_LEFT))||(key_pressed(KEY_UP))) {
+ if(focus==0) {// Directory.
+ dindex--; if(dindex<0) {dindex=0; speak=false; v.speak_interrupt("Top of list");}
+ else if((dindex>=0)&&(dindex<dirs.length())) v.speak_interrupt(dirs[dindex]);
+}
+ else if(focus==1) {
+ findex--; if(findex<0) {findex=0; v.speak_interrupt("Top of list"); speak=false;}
+ else if((findex>=0)&&(findex<files.length())) v.speak_interrupt(files[findex]);
+ }// Select file.
+ else if(focus==6) v.speak_interrupt(top);
+}// Select previous.
+ else if((key_pressed(KEY_DOWN))||(key_pressed(KEY_RIGHT))) {
+ if(focus==0) {// Directory.
+ dindex++; if(dindex>=dirs.length()) {dindex=dirs.length()-1; speak=false; v.speak_interrupt("Bottom of list");}
+ else if((dindex>=0)&&(dindex<dirs.length())) v.speak_interrupt(dirs[dindex]);
+}
+ else if(focus==1) {
+ findex++; if(findex>=files.length()) {findex=files.length()-1; v.speak_interrupt("Bottom of list"); speak=false;}
+ else if((findex>=0)&&(findex<files.length())) v.speak_interrupt(files[findex]);
+ }// Select file.
+ else if(focus==6) v.speak_interrupt(top);
+ }// Select next.
+ else if(key_pressed(KEY_TAB)) {
+ if((key_down(KEY_LSHIFT))||(key_down(KEY_RSHIFT))) focus--;
+ else focus++;
+ speak=false;
+ if(focus<0) focus=6; else if(focus>6) focus=0;
+ switch (focus) {
+ case 0 : {
+ v.speak_interrupt("Folder list. " + (((dindex>=0)&&(dindex<dirs.length())) ? dirs[dindex] : "zero items"));
+ }; break;
+ case 1 : {
+ v.speak_interrupt("File list. " + (((findex>=0)&&(findex<files.length())) ? files[findex] : "zero items"));
+}; break;
+ case 2 : v.speak_interrupt("OK button (enter)"); break;
+ case 3 : v.speak_interrupt("Cancel button (escape)"); break;
+ case 4 : v.speak_interrupt("Back button (backspace)"); break;
+ case 5 : v.speak_interrupt("Forward button"); break;
+ case 6 : {v.speak_interrupt("Set top level directory: edit. Type in text and press enter."); get_characters();}; break;
+ }// Focusswitch.
+
+ }// Tab.
+ else if((key_pressed(KEY_RETURN))||(key_pressed(KEY_SPACE))) {
+
+ if(focus==3) {v.speak_interrupt("Canceled"); return "";}
+ else if(focus==4) {
+ if(histLevel<=0) {histLevel=0; v.speak_interrupt("No earlier history available");}
+ else {
+ histLevel--;
+ dirs=find_directories(history[histLevel] + "*");
+ dindex=0; findex=0;
+ files=find_files(history[histLevel] + "*");
+ v.speak_interrupt("Back to " + history[histLevel]);
+}
+}// Back.
+ else if(focus==5) {
+ if(histLevel>=history.length()-1) {histLevel=history.length()-1; v.speak_interrupt("No later history available");}
+ else {
+ histLevel++;
+ dirs=find_directories(history[histLevel] + "*");
+ dindex=0; findex=0;
+ files=find_files(history[histLevel] + "*");
+ v.speak_interrupt("Back to " + history[histLevel]);
+}
+
+ }// Forward.
+ else if(focus==6) {
+ if(key_down(KEY_RETURN)) {
+ return select_file(top, v);
+} // Otherwise, the edit routine will catch it.
+}
+ else if(focus==0) {
+if(dirs.length()>0) {
+ history.insert_last(history[histLevel] + dirs[dindex] + "\\"); histLevel=history.length()-1;
+ dirs=find_directories(history[histLevel] + "*");
+ files=find_files(history[histLevel] + "*");
+ findex=0; dindex=0;
+ v.speak_interrupt("Selecting " + history[histLevel] + ".  " + dirs.length() + " subfolders found, and " + files.length() + " files found.");
+} else v.speak_interrupt("no selection");
+}// Select folder.
+ else {
+ if((findex>=0)&&(findex<files.length())) return history[histLevel] + files[findex];
+ else v.speak_interrupt("No file selected");
+ }// Return the selected file, if possible.
+ speak=false;
+ }// Enter.
+ else if(key_pressed(KEY_HOME)) {
+ if(focus==0) {dindex=0; v.speak_interrupt("Folder list home");}
+ else if(focus==1) {findex=0; v.speak_interrupt("file list home");}
+}
+ else if(key_pressed(KEY_END)) {
+ if(focus==0) {dindex=dirs.length()-1; v.speak_interrupt("folder list end");}
+ else if(focus==1) {findex=files.length()-1; v.speak_interrupt("File list end");}
+}
+ else if(key_pressed(KEY_BACK)) {
+ if(focus==6) {
+ if(top.length()>0) top=string_left(top, top.length()-1);
+ if(top.length()>0) v.speak_interrupt(top);
+ else v.speak_interrupt("blank");
+}// Backspace.
+ else {
+ if(histLevel<=0) {histLevel=0; v.speak_interrupt("No earlier history available");}
+ else {
+ histLevel--;
+ dirs=find_directories(history[histLevel] + "*");
+ dindex=0; findex=0;
+ files=find_files(history[histLevel] + "*");
+ v.speak_interrupt("Back to " + history[histLevel]);
+}
+}// Back.
+ speak=false;
+ }// Back.
+
+ else {
+speak=false;
+ string c=get_characters();
+ if(focus==6) {
+
+ v.speak_interrupt(c);
+ top += c;
+}
+ else if(focus==0) {
+if(c!="")  for(uint i=dindex+1; i<dirs.length(); i++) {
+ string dirname=string_to_lower_case(dirs[i]);
+ c=string_to_lower_case(c);
+ if(string_contains(dirname, c, 1)==0) {dindex=i; i=dirs.length(); v.speak_interrupt(dirname);}
+}
+ }// See if the first letter of a file or directory matches what is typed.
+ else if(focus==1) {
+if(c!="")  for(uint i=findex+1; i<files.length(); i++) {
+ string dirname=string_to_lower_case(files[i]);
+ c=string_to_lower_case(c);
+ if(string_contains(dirname, c, 1)==0) {findex=i; i=files.length(); v.speak_interrupt(dirname);}
+}
+
+ }// File.
+}// typing.
+
+
+ wait(5);
+}// Loop.
+
+ return "";
+}

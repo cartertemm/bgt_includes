@@ -1,0 +1,350 @@
+#include "quickdict.bgt"
+#include "custom_voice2.bgt"
+#include "clock.bgt"
+#include "KeyC.bgt"
+
+sound@ bgm, nextbgm;
+string curbgm, nextTrack;
+int fade=0;
+dictionary preloads;
+
+void playsong(string fn, bool loop=true) {
+	if(curbgm!=fn or @bgm==null) {
+		if(@bgm!=null) bgm.stop();
+		@bgm=getBGM(fn);
+		curbgm=fn;
+		nextTrack=fn; // 6:22 AM 12/13/2016 Derp. This is necessary to prevent it from immediately changing tracks.
+		bgm.volume=getf("BGMVolume");
+		fade=0; // 3:05 PM 1/29/2017. Infinite fade is bad.
+	}
+	if(@bgm!=null and !bgm.playing) {
+		if(loop) bgm.play_looped();
+		else bgm.play();
+	}
+}
+
+sound@ getBGM(string fn) {
+	if(preloads.exists(fn)) {
+		sound@ temp=null;
+		preloads.get(fn, @temp);
+		return temp;
+	}
+	sound@ ret; sound temp; @ret=temp;
+	ret.load(fn);
+	preloads.set(fn, @ret);
+	return ret;
+}
+
+void updatebgm(bool fademe=true) {
+	//string rep="";
+	if(@bgm==null) @bgm=nextbgm;
+	if(@bgm==null) return;
+	if((fade!=0) and fademe) {
+		//rep += "fade is " + fade + ". BGM Volume changing from " + bgm.volume + " to " + (bgm.volume+fade) + "...\r\n";
+		bgm.volume=bgm.volume+fade;
+		if(fade>0 and bgm.volume>=getf("BGMVolume")) fade=0;
+		//rep += "\tbgm volume is " + bgm.volume + ".\r\n";
+	}// standard fade.
+	if(@nextbgm!=null and @nextbgm!=@bgm and nextbgm.playing and fademe) {
+		//if(rep.length()<2048) rep=clipboard_read_text() + "\r\n\r\n" + rep;
+		//rep += "Crossfade: from " + curbgm + " to " + nextTrack + ", fade=" + fade + "\r\n\tbgm.volume: " + bgm.volume + "\r\n\tnextbgm.volume: " + nextbgm.volume + "\r\n\tBgm.playing: " + bgm.playing + "\r\n";
+		nextbgm.volume=nextbgm.volume-fade;
+		if(bgm.volume<=-50 or !bgm.playing) {
+			//rep += "Swapping nextbgm with bgm...\r\n\t";
+			bgm.stop();
+			@bgm=nextbgm;
+			curbgm=nextTrack;
+			if(bgm.volume<getf("BGMVolume")) fade=absolute(fade);
+			else fade=0;
+			//rep += "Done. curbgm=" + curbgm + ", fade=" + fade + ", bgm.volume=" + bgm.volume + "\r\n";
+		}// swap.
+	}// cross fade.
+	else if(nextTrack!="" and nextTrack!=curbgm) {
+		//rep += "Fading: fade=" + fade + ", bgm.volume=" + bgm.volume + ", from " + curbgm + ", to " + nextTrack + ".\r\n";
+		if(bgm.volume<=-50) playsong(nextTrack);
+		else if(fade<0) bgm.volume=bgm.volume-fade;
+		else bgm.volume=bgm.volume-1;
+	}// fade to next.
+	//if(rep.length()>0) clipboard_copy_text(rep);
+}
+
+void crossfade(string fn, int f, bool loop=true) {
+	fade=-absolute(f);
+	if(fn==curbgm) return; //?
+	if(@nextbgm==null or @nextbgm==@bgm) {sound temp; @nextbgm=temp;}
+	@nextbgm=getBGM(fn);
+	nextbgm.volume=-50;
+	if(loop) nextbgm.play_looped();
+	else nextbgm.play();
+	nextTrack=fn;
+	//clipboard_copy_text("Cross fade information:\r\n" + "Current track: " + curbgm + ", bgm.playing: " + bgm.playing + ", volume " + bgm.volume + "\nNext track: " + nextTrack + ", nextbgm.playing: " + nextbgm.playing + ", volume: " + nextbgm.volume + "\nFade is set to " + fade + ".");
+}
+
+const string HEXKEY="0123456789ABCDEF";
+int hex_to_digits(string hex) {
+	string h=string_to_upper_case(hex);
+	int ret=0;
+
+	for(uint i=0; i<h.length(); i++) {
+		int n=string_contains(HEXKEY, h[i], 1);
+		if(n<0) n=0; // Umm?
+		ret=(ret*16)+n;
+	}
+	return ret;
+}
+int hex_to_number(string hex) {return hex_to_digits(hex);}
+
+// 12:38 PM 9/18/2016: updated to catch 0s and include interpolation between frames for hq 8bit pitched noise.
+const string header=hex_to_string("524946464856000057415645666D742012000000010001002256000044AC00000200100000006461746122560000");
+const string footer=hex_to_string("4449535006000000010000000000");
+
+sound@ noise(uint length, uint drag=0) {
+	uint samples=(length*44100)/1000;
+string ret="";
+int lh=0;
+for(uint i=0; i<samples; i++) {
+int hh=random(0, 255);
+for(uint j=0; j<drag; j++) {
+double m=hh-lh;
+int dh=lh+(m/drag);
+if(dh<0x10) ret += "0";
+ret+=hex_to_string(string_to_upper_case(dh));
+}
+if(hh<0x10) ret += "0"; // Could randomize this?
+ret+=hex_to_string(string_to_upper_case(hh));
+lh=hh;
+}
+sound snd;
+snd.load_from_memory(header + ret + footer);
+return snd;
+}
+
+string randstring(string[] ar) {
+	uint l=ar.length();
+	if(l==0) return "";
+	if(l==1) return ar[0];
+	return ar[random(0, l-1)];
+}
+
+string[] newString(string s0, string s1="", string s2="", string s3="", string s4="", string s5="", string s6="", string s7="", string s8="", string s9="", string s10="", string s11="", string s12="", string s13="", string s14="", string s15="") {
+	string[] ret={s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15};
+	int i=15;
+	while(i>0 and ret[i]=="") i--;
+	ret.resize(i+1);
+	return ret;
+}
+
+// 5:55 AM 2/4/2017: BGT doesn't actually have this, go figure.
+string number_to_hex_string64(uint64 i) {
+	if(i<=0xffffffff) return number_to_hex_string(i&0xffffffff);
+	string ret=number_to_hex_string(i&0xffffffff);
+	uint l=ret.length();
+	for(uint i=l; i<8; i++) ret = "0" + ret;
+	// Python: ret=ret.join(["0" for i in xrange(8-l)]);
+	return number_to_hex_string(i>>32) + ret;
+}
+uint64 hex_to_digits64(string hex) {
+	uint l=hex.length();
+	if(l<=8) {
+		uint64 ret=hex_to_digits(hex)&0x10000000ffffffff; //+0x0000000100000000;
+		ret-=0x1000000000000000;
+		return ret;
+	}
+	string high=string_left(hex, l-8);
+	string low=string_right(hex, 8);
+	uint64 ret=hex_to_digits(low); //+0x0000000100000000;
+	if((ret&0x80000000)!=0 and (ret&0x100000000)!=0) ret+=0x100000000;
+	string txt="low: " + low + ". High: " + high + ".\r\n";
+	//high=string_to_lower_case(high);
+	for(int i=l-9; i>=0; i--) {
+		int x=hex_to_digits(high[i]);
+		txt += i + ": " + high[i] + ", " + x + ", ";
+		x|=(i<<4);
+		txt += x + ", " + number_to_hex_string64(htable64[x]) + "\r\n";
+		uint64 y=htable64[x];
+		if(ret|y<ret) {alert("FUCK!", "RRRRAAAAAAA!"); exit();}
+		ret=ret|y;
+	}
+	//alert("hex 64 report", hex + ":\r\n" + txt);
+	//alert("Final Check", number_to_hex_string64(ret) + "\r\nTop nibble: " + (ret>>60));
+	return ret;
+}
+const uint64[] htable64 = {
+	0x0000000000000000,
+	0x1000000000000000,
+	0x2000000000000000,
+	0x3000000000000000,
+	0x4000000000000000,
+	0x5000000000000000,
+	0x6000000000000000,
+	0x7000000000000000,
+	0x8000000000000000,
+	0x9000000000000000,
+	0xa000000000000000,
+	0xb000000000000000,
+	0xc000000000000000,
+	0xd000000000000000,
+	0xe000000000000000,
+	0xf000000000000000,
+	0x0000000000000000,
+	0x0100000000000000,
+	0x0200000000000000,
+	0x0300000000000000,
+	0x0400000000000000,
+	0x0500000000000000,
+	0x0600000000000000,
+	0x0700000000000000,
+	0x0800000000000000,
+	0x0900000000000000,
+	0x0a00000000000000,
+	0x0b00000000000000,
+	0x0c00000000000000,
+	0x0d00000000000000,
+	0x0e00000000000000,
+	0x0f00000000000000,
+	0x0000000000000000,
+	0x0010000000000000,
+	0x0020000000000000,
+	0x0030000000000000,
+	0x0040000000000000,
+	0x0050000000000000,
+	0x0060000000000000,
+	0x0070000000000000,
+	0x0080000000000000,
+	0x0090000000000000,
+	0x00a0000000000000,
+	0x00b0000000000000,
+	0x00c0000000000000,
+	0x00d0000000000000,
+	0x00e0000000000000,
+	0x00f0000000000000,
+	0x0000000000000000,
+	0x0001000000000000,
+	0x0002000000000000,
+	0x0003000000000000,
+	0x0004000000000000,
+	0x0005000000000000,
+	0x0006000000000000,
+	0x0007000000000000,
+	0x0008000000000000,
+	0x0009000000000000,
+	0x000a000000000000,
+	0x000b000000000000,
+	0x000c000000000000,
+	0x000d000000000000,
+	0x000e000000000000,
+	0x000f000000000000,
+	0x0000000000000000,
+	0x0000100000000000,
+	0x0000200000000000,
+	0x0000300000000000,
+	0x0000400000000000,
+	0x0000500000000000,
+	0x0000600000000000,
+	0x0000700000000000,
+	0x0000800000000000,
+	0x0000900000000000,
+	0x0000a00000000000,
+	0x0000b00000000000,
+	0x0000c00000000000,
+	0x0000d00000000000,
+	0x0000e00000000000,
+	0x0000f00000000000,
+	0x0000000000000000,
+	0x0000010000000000,
+	0x0000020000000000,
+	0x0000030000000000,
+	0x0000040000000000,
+	0x0000050000000000,
+	0x0000060000000000,
+	0x0000070000000000,
+	0x0000080000000000,
+	0x0000090000000000,
+	0x00000a0000000000,
+	0x00000b0000000000,
+	0x00000c0000000000,
+	0x00000d0000000000,
+	0x00000e0000000000,
+	0x00000f0000000000,
+	0x0000000000000000,
+	0x0000001000000000,
+	0x0000002000000000,
+	0x0000003000000000,
+	0x0000004000000000,
+	0x0000005000000000,
+	0x0000006000000000,
+	0x0000007000000000,
+	0x0000008000000000,
+	0x0000009000000000,
+	0x000000a000000000,
+	0x000000b000000000,
+	0x000000c000000000,
+	0x000000d000000000,
+	0x000000e000000000,
+	0x000000f000000000,
+	0x0000000000000000,
+	0x0000000100000000,
+	0x0000000200000000,
+	0x0000000300000000,
+	0x0000000400000000,
+	0x0000000500000000,
+	0x0000000600000000,
+	0x0000000700000000,
+	0x0000000800000000,
+	0x0000000900000000,
+	0x0000000a00000000,
+	0x0000000b00000000,
+	0x0000000c00000000,
+	0x0000000d00000000,
+	0x0000000e00000000,
+	0x0000000f00000000
+};
+string vecstr(vector v, int r=1) {return "(" + round(v.x, r) + ", " + round(v.y, r) + ", " + round(v.z, r) + ")";}
+
+int[] newInt(int i0, int i1=0x7bcdefff, int i2=0x7bcdefff, int i3=0x7bcdefff, int i4=0x7bcdefff, int i5=0x7bcdefff, int i6=0x7bcdefff, int i7=0x7bcdefff) {
+	int[] ret={i0, i1, i2, i3, i4, i5, i6, i7};
+	for(uint i=0; i<8; i++) {
+		if(ret[i]==0x7bcdefff) {
+			ret.resize(i);
+			return ret;
+		}
+	}
+	return ret;
+}
+
+double[] newDouble(double i0, double i1=0x7bcdefff, double i2=0x7bcdefff, double i3=0x7bcdefff, double i4=0x7bcdefff, double i5=0x7bcdefff, double i6=0x7bcdefff, double i7=0x7bcdefff) {
+	double[] ret={i0, i1, i2, i3, i4, i5, i6, i7};
+	for(uint i=0; i<8; i++) {
+		if(ret[i]==0x7bcdefff) {
+			ret.resize(i);
+			return ret;
+		}
+	}
+	return ret;
+}
+
+string[] string_add(string[] o, string[] n) {
+	uint ol=o.length(), nl=n.length();
+	o.resize(ol+nl);
+	for(uint i=0; i<nl; i++) {
+		o[ol+i]=n[i];
+	}
+	return o;
+}
+
+int[] int_add(int[] o, int[] n) {
+	uint ol=o.length(), nl=n.length();
+	o.resize(ol+nl);
+	for(uint i=0; i<nl; i++) {
+		o[ol+i]=n[i];
+	}
+	return o;
+}
+double[] double_add(double[] o, double[] n) {
+	uint ol=o.length(), nl=n.length();
+	o.resize(ol+nl);
+	for(uint i=0; i<nl; i++) {
+		o[ol+i]=n[i];
+	}
+	return o;
+}

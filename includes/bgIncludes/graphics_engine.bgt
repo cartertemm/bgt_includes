@@ -1,0 +1,145 @@
+// Pretend this makes any sense.
+// I'd wrap a DLL or something if I had one.
+
+
+
+class image {
+	string filename;
+	bool active;
+	float scale_x=1.0;
+	float scale_y=1.0;
+	long mask;
+	int bitdepth;
+	long[] palette; // for 8bit images.
+	long[][] pixel_array;
+	int width;
+	int height;
+	int offset_x;
+	int offset_y;
+	image() {this.init();}
+	image(string filename) {
+		this.init();
+		this.load(filename);
+	}
+	
+	void init() {
+		//initialize values.
+	}
+	
+	bool load(string filename, int target_bitdepth=-1) {
+		// todo: set_image_storage, for packs and paths and such?
+		if(!file_exists(filename)) return false;
+		
+		string ext=string_to_upper_case(string_right(filename, 3));
+		if(string_contains(SUPPORTED_IMAGE_FORMATS, ext, 1)<0) return false;
+		return true;
+	}// Load.
+	
+	
+	
+	void scale(float sx, float sy) {
+		this.scale_x=sx;
+		this.scale_y=sy;
+		// update the pixel array? Seems dangerous.
+	}
+	
+}
+
+
+bool draw_rect(int x, int y, int width, int height, long color=-1, long size=-1) {
+	if(!is_game_window_active()) return false;
+	if(color==-1) color=foreground_color;
+	if(size==-1) size=pen_size;
+	if(size>0) {
+		fill_rect(x, y, width, size);
+		fill_rect(x, y, size, height);
+		fill_rect(x, y+height, width, size);
+		fill_rect(x+width, y, size, height);
+	}// outline.
+	else {
+		fill_rect(x, y, width, height, color);
+	}
+	return true;
+}// draw_rect.
+
+bool draw_line(int x1, int y1, int x2, int y2, long color, int size) {
+	if(!is_game_window_active()) return false;
+	// something something antialiasing.
+	return true;
+}
+
+bool fill_rect(int x, int y, int width, int height, long color=-1) {
+	if(is_game_window_active()) return false;
+	if(color==-1) color=foreground_color;
+	return true;
+}
+
+bool draw_ellipse(int x, int y, int width, int height, long color=-1, int size=-1) {
+	if(!is_game_window_active()) return false;
+	if(color==-1) color=foreground_color;
+	if(size==-1) size=pen_size;
+	return true;
+}// Draw ellipse.
+
+bool is_antialiasing_enabled() {return use_antialiasing;}
+void set_antialiasing_enabled(bool antialias) {use_antialiasing=antialias;}
+void set_foreground_color(long rgb) {
+	foreground_color=rgb;
+}
+void set_foreground_color(int8 r, int8 g, int8 b) {
+	// Warning: recycled code.
+	foreground_color=((r&0xff)|((g&0xff)<<8)|((b&0xff)<<16));
+}
+
+void set_pen_size(int size) {
+	pen_size=size;
+}
+
+void set_background_color(long color) {
+	color=background_color;
+}
+void set_background_color(int r, int g, int b) {
+	background_color=rgb_color(r, g, b);
+}
+void set_color(long color) {
+	set_foreground_color(color);
+}
+void set_color(int r, int g, int b) {
+	set_foreground_color(r, g, b);
+}
+
+// Pixel manipulation.
+// Find a way to optimize this for speed.
+
+
+long rgb_color(int r, int g, int b) {
+	return ((r&0xff)|((g&0xff)<<8)|((b&0xff)<<16));
+}
+long brighter(long color) {
+	// Wow, there needs to be a quicker way to do this.
+	// actually, it's pretty easy:
+	return ((color&~(0x808080))<<2)|(color&0x808080)|0x10101;
+}
+long darker(long color) {
+	return (color&~0x10101)>>2;
+}// darker.
+
+bool draw_image(image@ handle, int x, int y) {
+	if((@handle==null)||(!is_game_window_active())) return false;
+	return true;
+}// Draw image.
+bool draw_image(image@ handle, int destination_x, int destination_y, int source_x, int source_y, int width, int height) {
+	if((@handle==null)||(!is_game_window_active())) return false;
+	return true;
+}// Draw a section of an image.
+
+
+long foreground_color=0xffffff;
+long background_color=0;
+long pen_size=1;
+
+
+// The following should not be modified from the script.
+long[] MASTER_PALETTE; 
+string SUPPORTED_IMAGE_FORMATS="BMP JPG JPEG PNG TIF GIF";
+bool use_antialiasing=true;

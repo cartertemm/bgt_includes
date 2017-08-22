@@ -1,0 +1,454 @@
+#include "2d.bgt"
+
+ // I found this and modified it for BGT. I also modified the distance part to skip extra root/squaring that the original version would have invoked, as the general application for this would be called too often to invoke that sort of unnecessary overhead.
+// by someone going by "Bammer"
+ vector linePointIntersection (vector p1, vector p2, vector pX) {
+
+ double u = ((pX.x - p1.x) * (p2.x - p1.x)) + ((pX.y - p1.y) * (p2.y - p1.y)) + ((pX.z - p1.z) * (p2.z - p1.z));
+//double dist = distance3d (p1, p2);
+ double dist = ((p2.x-p1.x)*(p2.x-p1.x))+((p2.y-p1.y)*(p2.y-p1.y))+((p2.z-p1.z)*(p2.z-p1.z));
+ if(dist==0.0) return pX;
+//alert("FUCK!!", "U: " + u + ". Dist: " + dist + ". If you divide by 0, here, I don\'t even forgetting know.");
+u = u/((dist<=0 or dist==0.159999698400497) ? 0.159999698400497 : dist); // (dist*dist)
+
+vector t(0,0,0);
+t.x = p1.x + u * (p2.x - p1.x);
+t.y = p1.y + u * (p2.y - p1.y);
+t.z = p1.z + u * (p2.z - p1.z);
+return t;
+}
+
+interface form {
+	bool contains(double x, double y, double z);
+	bool contains(vector p);
+	bool intersects(sphere@ s);
+	int get_type();
+	box@ get_bounds();
+	void move(double dx, double dy, double dz);
+	void move(vector d);
+	form@ translate(double dx, double dy, double dz);
+	form@ translate(vector d);
+	form@ rotate(vector o, double theta, double phi);
+	form@ rotate(double theta, double phi);
+	sphere@ get_envelope();
+}
+
+class mesh : form {
+	string name="";
+	shape@ xybounds=null, xzbounds=null, zybounds=null;
+	double theta=0.0, phi=0.0; // Do not even ask. Just rotate whatever we're testing and slowly back away.
+	mesh() {}
+	mesh(string n, shape@ xy=null, shape@ xz=null, shape@ zy=null) {
+		this.name=name;
+		@xybounds=xy;
+		@xzbounds=xz;
+		@zybounds=zy;
+	}
+	
+	bool contains(vector p) {return contains(p.x, p.y, p.z);}
+	bool contains(double x, double y, double z) {
+		// rotate.
+		if(theta!=0.0) {
+			vector o=this.get_center();
+			vector p=::rotate(new_vector(x, y, z), o, theta);
+			x=p.x; y=p.y; z=p.z;
+		}
+		if(phi!=0.0) {
+			vector o=this.get_center();
+			// PHI IS HARD!
+		}
+		return (
+			(@xybounds==null or xybounds.contains(x, y)) and
+			(@xzbounds==null or xzbounds.contains(x, z)) and
+			(@zybounds==null or zybounds.contains(z, y))
+		);
+	}
+	bool intersects(sphere@ s) {
+		if(@s==null) return false;
+		if(@xybounds==null and @xzbounds==null and @zybounds==null) return false;
+		if(theta!=0.0) {
+			vector c=::rotate(s.center, this.get_center(), theta);
+			sphere temp(c.x, c.y, c.z, s.radius);
+			@s=temp;
+		}
+		if(phi!=0.0) {
+
+		}// Umm.
+		circle c(s.center.x, s.center.y, s.radius);
+		if(@xybounds!=null and !c.intersects(xybounds)) return false;
+		c.y=s.center.z;
+		if(@xzbounds!=null and !c.intersects(xzbounds)) return false;
+		c.x=s.center.z;
+		c.y=s.center.y;
+		if(@zybounds!=null and !c.intersects(zybounds)) return false;
+		return true;
+	}
+	
+	vector get_center() {
+		vector ret(0, 0, 0);
+		if(@xybounds!=null) {
+			ret=::get_center(xybounds);
+		}
+		if(@xzbounds!=null) {
+			vector c=::get_center(xzbounds);
+			ret.z=c.y;
+			if(@xybounds!=null) ret.x=(ret.x+c.x)/2;
+			else ret.x=c.x;
+		}
+		if(@zybounds!=null) {
+			vector c=::get_center(zybounds);
+			ret.y=(@xybounds!=null) ? ((ret.y+c.y)/2) : c.y;
+			ret.z=(@xzbounds==null) ? c.z : ((ret.z+c.z)/2);
+		}
+		return ret;
+	}
+	
+	int get_type() {return FORM_MESH;}
+	box@ get_bounds() {
+		vector center, size;
+		if(@xybounds!=null) {
+			rect@ r=xybounds.get_bounds();
+			size.x=r.width;
+			size.y=r.height;
+		}
+		if(@xzbounds!=null) {
+			rect@ r=xzbounds.get_bounds();
+		size.z=r.height;
+			size.x=math_max(size.x, r.width);
+		}
+		if(@zybounds!=null) {
+			rect@ r=zybounds.get_bounds();
+			size.y=math_max(r.height, size.y);
+			size.z=math_max(size.z, r.width);
+		}
+		center=get_center();
+		box ret(center, size);
+		return ret;
+	}
+	void move(double dx, double dy, double dz) {
+		if(@xybounds!=null) @xybounds=xybounds.translate(dx, dy);
+		if(@xzbounds!=null) @xzbounds=xzbounds.translate(dx, dz);
+		if(@zybounds!=null) @zybounds=zybounds.translate(dz, dy);
+	}
+	void move(vector d) {move(d.x, d.y, d.z);}
+	form@ translate(double dx, double dy, double dz) {
+		mesh ret(name, xybounds, xzbounds, zybounds);
+		ret.theta=this.theta;
+		ret.phi=this.phi;
+		ret.move(dx, dy, dz);
+		return ret;
+	}
+	form@ translate(vector d) {return translate(d.x, d.y, d.z);}
+	form@ rotate(double theta, double phi) {
+
+		mesh ret(name, xybounds, xzbounds, zybounds);
+		ret.theta=this.theta+theta;
+		ret.phi=this.phi+phi;
+		return ret.translate(0,0,0);
+	}
+	form@ rotate(vector o, double theta, double phi) {
+		shape@ xy=xybounds, xz=xzbounds, zy=zybounds;
+		if(@xy!=null) @xy=xy.rotate(theta, o.x, o.y);
+		if(@xz!=null) @xz=xz.rotate(theta, o.x, o.z); // This... is where having a middle angle makes sense. Rats.
+		if(@zy!=null) @zy=zy.rotate(phi, o.z, o.y);
+		mesh ret(name, xy, xz, zy);
+		ret.theta=this.theta;
+		ret.phi=this.phi;
+		return ret;
+	}
+	sphere@ get_envelope() {
+		box@ bounds=get_bounds();
+		sphere ret(bounds.center, bounds.size.length()/2);
+		return ret;
+	}
+}
+
+
+class cone : form {
+	vector center, axis;
+	double radius=1.0, truncate=-1.0;
+	
+	cone()  {}
+	cone(vector c, vector a, double r, double t=-1.0) {
+		this.center=c;
+		this.axis=a;
+		this.radius=r;
+		this.truncate=t;
+	}
+	bool contains(double x, double y, double z) {return this.contains(new_vector(x, y, z));}
+	bool contains(vector p) {
+		vector p2=linePointIntersection(this.center, this.center+this.axis, p);
+		box bounds(this.center+(this.axis/2), this.axis); // No. Wrong.
+		if(!bounds.contains(p2)) return false;
+		vector di=p2-this.center; // GAH!
+		double d2=(di.x*di.x)+(di.y*di.y)+(di.z*di.z);
+		if(this.truncate>0.0) {
+			// Avoid sqrt whenever possible. Assume truncate is squared.
+			if(d2>this.truncate) return false;
+		}// truncated.
+		d2=square_root(d2); // Sigh.
+		double r=this.radius-((this.radius/this.axis.length())*d2);
+		vector d=p-p2;
+		return (r*r>=(d.x*d.x)+(d.y*d.y)+(d.z*d.z));
+	}
+	bool intersects(sphere@ s) {
+		if(@s==null) return false;
+		cone temp(this.center, this.axis, this.radius+s.radius);
+		return temp.contains(s.center) or s.contains(this.center) or s.contains(this.center+this.axis);
+	}
+	int get_type() {return FORM_CONE;}
+	box@ get_bounds() {
+		box ret((center+axis)/2, new_vector(absolute(axis.x)+(2*radius), absolute(axis.y)+(2*radius), absolute(axis.z)+(2*radius)));
+		return ret;
+	}
+	void move(double dx, double dy, double dz) {move(new_vector(dx, dy, dz));}
+	void move(vector d) {this.center+=d;}
+	form@ translate(double dx, double dy, double dz) {return translate(new_vector(dx, dy, dz));}
+	form@ translate(vector d) {
+		cone ret(center*1.0, axis*1.0, radius);
+		ret.move(d);
+		return ret;
+	}
+	form@ rotate(double theta, double phi) {
+		cone ret(center, axis, radius);
+		ret.truncate=truncate;
+		ret.axis=::rotate(axis, new_vector(0,0,0), theta);
+		if(phi!=0.0) {ret.axis*=cosine(phi); ret.axis.z=this.axis.z*sine(phi);}// that last one seems wrong, bro.
+		else ret.axis.z=this.axis.z;
+		return ret;
+	}
+	form@ rotate(vector o, double theta, double phi) {
+		vector c=::rotate(this.center, o, theta);
+		if(phi!=0.0) {
+			c*=cosine(phi);
+			c.z=(this.center.z-o.z)*sine(phi);
+		}
+		else c.z=center.z;
+		return this.rotate(theta, phi).translate(c.x-center.x, c.y-center.y, c.z-center.z);
+	}
+	sphere@ get_envelope() {
+		box@ bounds=get_bounds();
+		sphere ret(bounds.center, bounds.size.length()/2); //math_max(bounds.size.x, math_max(bounds.size.y, bounds.size.z))/2);
+		return ret;
+	}
+}
+
+class cylinder : form {
+	bool capsule=false;
+	double radius=1.0;
+	vector center, axis;
+	cylinder() {}
+	cylinder(vector c, vector a, double r=1.0) {
+		this.center=c;
+		this.axis=a;
+		this.radius=r;
+	}
+	bool contains(double x, double y, double z) {return this.contains(new_vector(x, y, z));}
+	bool contains(vector p) {
+		vector p2=linePointIntersection(this.center, this.center+this.axis, p);
+		// Bounds check?
+		double x1=math_min(center.x, center.x+axis.x), x2=math_max(center.x, center.x+axis.x), y1=math_min(center.y, center.y+axis.y), y2=math_max(center.y, center.y+axis.y), z1=math_min(center.z, center.z+axis.z), z2=math_max(center.z, center.z+axis.z);
+		if(p2.x<x1) p2.x=x1; else if(p2.x>x2) p2.x=x2;
+		if(p2.y<y1) p2.y=y1; else if(p2.y>y2) p2.y=y2;
+		if(p2.z<z1) p2.z=z1; else if(p2.z>z2) p2.z=z2;
+		p2=p-p2;
+		if(p2.length()>this.radius) return false; // >.<
+		else if(this.capsule) return true;
+		else {
+			// we want the angle between the axis and p. If it's more than pi/2, we're out of bounds.
+			// but since I don't feel like going anywhere near that, let's try this instead:
+			if(axis.x==0 and axis.y==0) return (p.z>=math_min(center.z, center.z+axis.z) and p2.z<=math_max(center.z, center.z+axis.z));
+			else if(axis.x==0 and axis.z==0) return (p.y>=math_min(center.y, center.y+axis.y) and p.y<=math_max(center.y, center.y+axis.y));
+			else if(axis.y==0 and axis.z==0) return (p.x>=math_min(axis.x+center.x, center.x) and p.x<=math_max(center.x, center.x+axis.x));
+			else {
+				vector end=center+axis;
+				double l=axis.length();
+				vector angle=axis/l; // GAAAAAH!!!! And we want to rotate it by pi/2... which wouldn't be so bad if it was 2d.
+				double ax=absolute(angle.x*radius), ay=absolute(angle.y*radius), az=absolute(angle.z*radius);
+
+				vector[] points={new_vector(center.x-ay, center.y-ax), new_vector(center.x+ay, center.y+ax), new_vector(end.x+ay, end.y+ax), new_vector(end.x-ay, end.y-ax)};
+				if(!convex_contains(points, p)) return false; // That ignores z, right?
+				points[0]=new_vector(center.z-ay, center.y-az); // This makes me nervous.
+				points[1]=new_vector(center.z+ay, center.y+az);
+				points[2]=new_vector(end.z+ay, end.y+az);
+				points[3]=new_vector(end.z-ay, end.y-az);
+				return convex_contains(points, new_vector(p.z, p.y));
+			}// Guh.
+		}// the one that's mildly confusing.
+/*		box bounds(this.center+(this.axis/2), this.axis); // No. Wrong.
+		if(!bounds.contains(p2)) {
+			if(this.capsule) {
+				sphere s(this.center, this.radius);
+				if(s.contains(p)) return true;
+				s.center+=this.axis;
+				return s.contains(p);
+			}// capsule.
+			else return false;
+		}
+		return ((p2.x*p2.x)+(p2.y*p2.y)+(p2.z*p2.z)<=this.radius*this.radius);*/
+	}
+	bool intersects(sphere@ s) {
+		if(@s==null) return false;
+		cylinder temp(this.center, this.axis, this.radius+s.radius);
+		temp.capsule=this.capsule;
+		return temp.contains(s.center) or (!temp.capsule and (s.contains(temp.center) or s.contains(temp.center+temp.axis)));
+	}
+	int get_type() {return FORM_CYLINDER;}
+	box@ get_bounds() {
+		box ret((center+axis)/2, new_vector(absolute(axis.x)+(2*radius), absolute(axis.y)+(2*radius), absolute(axis.z)+(2*radius)));
+		return ret;
+	}
+	void move(double dx, double dy, double dz) {move(new_vector(dx, dy, dz));}
+	void move(vector d) {this.center+=d;}
+	form@ translate(double dx, double dy, double dz) {return translate(new_vector(dx, dy, dz));}
+	form@ translate(vector d) {
+		cylinder ret(center*1.0, axis*1.0, radius);
+		ret.capsule=capsule;
+		ret.move(d);
+		return ret;
+	}
+	form@ rotate(double theta, double phi) {
+		cylinder ret(center, axis, radius);
+		ret.capsule=capsule;
+		ret.axis=::rotate(axis, new_vector(0,0,0), theta);
+		if(phi!=0.0) {ret.axis*=cosine(phi); ret.axis.z=this.axis.z*sine(phi);}// that last one seems wrong, bro.
+		else ret.axis.z=this.axis.z;
+		return ret;
+	}
+	form@ rotate(vector o, double theta, double phi) {
+		vector c=::rotate(this.center, o, theta);
+		if(phi!=0.0) {
+			c*=cosine(phi);
+			c.z=(this.center.z-o.z)*sine(phi);
+		}
+		else c.z=center.z;
+		return this.rotate(theta, phi).translate(c.x-center.x, c.y-center.y, c.z-center.z);
+	}
+	sphere@ get_envelope() {
+		box@ bounds=get_bounds();
+		sphere ret(bounds.center, (axis.length()/2)+radius); //math_max(bounds.size.x, math_max(bounds.size.y, bounds.size.z))/2
+		return ret;
+	}
+}
+
+
+class sphere : form {
+	vector center;
+	double radius=1.0;
+	sphere() {}
+	sphere(double x, double y, double z, double r=1.0) {
+		this.center=new_vector(x, y, z);
+		this.radius=r;
+	}
+	sphere(vector c, double r=1.0) {
+		this.center=c;
+		this.radius=r;
+	}
+	
+	bool contains(double x, double y, double z) {
+		vector p2(x-this.center.x, y-this.center.y, z-this.center.z);
+		return (p2.x*p2.x)+(p2.y*p2.y)+(p2.z*p2.z)<=this.radius*this.radius;
+	}
+	bool contains(vector p) {
+		vector p2=p-this.center;
+		//return p2.length()<=this.radius; // WTF!!!
+		return (p2.x*p2.x)+(p2.y*p2.y)+(p2.z*p2.z)<=this.radius*this.radius;
+	}
+	bool intersects(sphere@ s) {
+		if(@s==null) return false;
+		vector c=s.center-this.center;
+		double r2=s.radius+this.radius;
+		return ((c.x*c.x)+(c.y*c.y)+(c.z*c.z)<=r2*r2);
+	}
+	int get_type() {return FORM_SPHERE;}
+	box@ get_bounds() {
+		box ret(center, new_vector(2*radius, 2*radius, 2*radius));
+		return ret;
+	}
+	void move(double dx, double dy, double dz) {move(new_vector(dx, dy, dz));}
+	void move(vector d) {this.center+=d;}
+	form@ translate(double dx, double dy, double dz) {return translate(new_vector(dx, dy, dz));}
+	form@ translate(vector d) {
+		sphere ret(center+d, radius);
+		return ret;
+	}
+	form@ rotate(double theta, double phi) {return this.translate(new_vector(0,0,0));}
+	form@ rotate(vector o, double theta, double phi) {
+		sphere ret(::rotate(center, o, theta), radius);
+		if(phi!=0.0) {
+			ret.center*=cosine(phi);
+			ret.center.z=(center.z-o.z)*sine(phi) + o.z;
+		}
+		else ret.center.z=center.z;
+		return ret;
+	}
+	sphere@ get_envelope() {return cast<sphere>(translate(0,0,0));}
+}
+
+class box : form {
+	vector center, size;
+	box() {}
+	box(double x, double y, double z, double width, double height, double depth) {
+		this.center=new_vector(x, y, z);
+		this.size=new_vector(width, height, depth);
+	}
+	box(vector c, vector a) {center=c; size=a;}
+	bool contains(double x, double y, double z) {return this.contains(new_vector(x, y, z));}
+	bool contains(vector p) { 
+		vector d=(p-this.center)*2;
+		return (absolute(d.x)<=this.size.x and absolute(d.y)<=this.size.y and absolute(d.z)<=this.size.z);
+	}
+	bool intersects(box@ b) {
+		if(@b==null) return false;
+		box b2;
+		b2.center=b.center-this.center;
+		b2.size=b.size+this.size;
+		return b2.contains(this.center) and b2.contains(b.center); // Wait, is that right? ... or efficient?
+	}
+	bool intersects(sphere@ s) {
+		if(@s==null) return false;
+		double r2=s.radius*2;
+		box temp(this.center.x, this.center.y, this.center.z, this.size.x+r2, this.size.y+r2, this.size.z+r2);
+		return temp.contains(s.center);
+	}
+	
+	int get_type() {return FORM_BOX;}
+	box@ get_bounds() {box ret(center, size); return ret;}
+	void move(double dx, double dy, double dz) {move(new_vector(dx, dy, dz));}
+	void move(vector d) {this.center+=d;}
+	form@ translate(double dx, double dy, double dz) {return translate(new_vector(dx, dy, dz));}
+	form@ translate(vector d) {
+		box ret(center+d, size);
+		
+		return ret;
+	}
+	form@ rotate(double theta, double phi) {
+		box ret(center, size);
+			ret.size=::rotate(size, new_vector(0,0), theta);
+			if(phi!=0.0) {
+			ret.size*=cosine(phi);
+			ret.size.z=size.z*sine(phi); // I still feel like that's wrong. Am I understanding phi right? ... No, actually; I'm not.
+			// I need to get what phi is originally. Since I don't know and don't want to calculate it... and since calculating it is slow as all crap... we're leaving it at this, and if it needs to be better, I'm switching ti matrices.
+		}
+		else ret.size.z=size.z;
+		return ret;
+	}
+	form@ rotate(vector o, double theta, double phi) {
+		vector c=::rotate(center, o, theta);
+		if(phi==0.0) c.z=center.z;
+		else {
+			c*=cosine(phi);
+			c.z=(center.z-o.z)*sine(phi)+o.z;
+		}
+		return this.rotate(theta, phi).translate(c-center);
+	}
+	sphere@ get_envelope() {
+		sphere ret(center, size.length()/2); //math_max(size.x, math_max(size.y, size.z))/2);
+		return ret;
+	}
+}
+
+// type constants:
+enum forms {
+FORM_BOX, FORM_SPHERE, FORM_CONE, FORM_CYLINDER, FORM_MESH, FORM_OTHER
+};

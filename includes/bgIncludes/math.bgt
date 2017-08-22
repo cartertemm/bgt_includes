@@ -1,0 +1,132 @@
+//const double MIN_VALUE = 0x0.0000000000001-1022; 
+// const double MAX_VALUE=0x1.fffffffffffff+1023; 
+const double MAX_VALUE = 1.7976931348623157*power(10, 308);
+ const double MIN_VALUE = 4.9*power(10, -324);
+
+ const double PI=3.1415926535897932384626433832795;
+ const double pi=3.14159265;
+
+int32 vectorhash(vector v, uint depth=10) {
+ if(depth>10) depth=10;
+ int max=1<<depth;
+ int x=v.x; while(x>max) x/=2;
+ int y=v.y; while(y>max) y/=2;
+ int z=v.z; while(z>max) z/=2;
+ return x|(y<<10)|(z<<20);
+}
+
+
+double[] sin_a;
+ double[] cos_a;
+ double[] tan_a;
+ double[] asin_a;
+ double[] acos_a;
+ double[] atan_a;
+
+
+ int radian_index(double theta) {
+ while(theta<0) theta+=2*PI;
+ while(theta>=2*PI) theta-=2*PI;
+ return 180*theta/PI;
+ }// Radian index.
+
+ void init_trig() {
+ tan_a.resize(360);
+ cos_a.resize(360);
+ sin_a.resize(360);
+ atan_a.resize(360);
+ acos_a.resize(360);
+ asin_a.resize(360);
+ for(uint i=0; i<360; i++) {
+ double a=i;
+ a=PI*a/180;
+ cos_a[i]=cosine(a);
+ sin_a[i]=sine(a);
+ tan_a[i]=tangent(a);
+ asin_a[i]=arc_sine(a);
+ acos_a[i]=arc_cosine(a);
+ atan_a[i]=arc_tangent(a);
+ }// Loop, init trig.
+ }
+
+void trigcheck() {
+ if((sin_a.length()<360)||(cos_a.length()<360)||(tan_a.length()<360)||(atan_a.length()<360)||(acos_a.length()<360)||(asin_a.length()<360)) init_trig();
+}
+
+double sin(double theta) {
+ trigcheck();
+ return sin_a[radian_index(theta)];
+}
+
+double asin(double theta) {
+ trigcheck();
+ return asin_a[radian_index(theta)];
+}
+
+
+double cos(double theta) {
+ trigcheck();
+ return cos_a[radian_index(theta)];
+}
+
+double acos(double theta) {
+ trigcheck();
+ return acos_a[radian_index(theta)];
+}
+
+double tan(double theta) {
+ trigcheck();
+ return tan_a[radian_index(theta)];
+}
+
+double atan(double theta) {
+ trigcheck();
+ return atan_a[radian_index(theta)];
+}
+
+double math_max(double a, double b) { return (a>b) ? a : b;}
+ double Math_max(double a, double b) {return math_max(a, b);}
+ double math_min(double a, double b) {return (a<b) ? a : b;}
+ double Math_min(double a, double b) {return math_min(a, b);}
+ double Math_abs(double a) {return absolute(a);}
+ double math_abs(double a) {return absolute(a);}
+double abs(double a) {return absolute(a);}
+
+
+
+ vector rotate(vector p, vector o, double theta) {
+ vector r;
+r.x = (cosine(theta) * (p.x-o.x)) - (sine(theta) * (p.y-o.y)) + o.x;
+r.y = (sine(theta) * (p.x-o.x)) + (cosine(theta) * (p.y-o.y)) + o.y;
+ return r;
+ }// Rotate.
+vector get_vector(double x, double y, double z=0) {vector ret(x, y, z); return ret;}
+
+
+// ! These! Now! Never again!
+vector cross(vector a, vector b) {
+ vector c;
+c.x = (a.y*b.z) - (a.z*b.y);
+c.y = (a.z*b.x) - (a.x*b.z);
+c.z = (a.x*b.y) - (a.y*b.x);
+ return c;
+}
+
+double dot(vector a, vector b) {
+return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
+}
+
+double arc_tangent(double x, double y) {
+
+if(x==0) return (pi/2)*getSign(y);
+double ret=arc_tangent(y/x);
+ if(y<0) return -ret;
+ return ret;
+}
+
+
+double getSign(double x) {
+if(x<0) return -1;
+ if(x==0) return 0;
+ return 1;
+}

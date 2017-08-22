@@ -1,0 +1,52 @@
+#include "c:\\bgIncludes\\sound_positioning.bgt"
+#include "c:\\bgIncludes\\geom.bgt"
+
+
+class InvertedAmb {
+string filename;
+// Bla bla bla properties. This is the most interesting one:
+sound@ snd;
+Shape@[] blocks; // But I'll just do Rectangles and Ellipses for now.
+float start_pan=0.0, start_volume=0.0, start_pitch=100.0;
+InvertedAmb(string fn) {
+filename=fn;
+sound temp; @snd=temp;
+snd.load(fn);
+}
+void play() {snd.play();}
+bool isPlaying() {return snd.playing;}
+void stop() {snd.stop();}
+void play_looped() {snd.play_looped();}
+void loop() {snd.play_looped();}
+ void addBlock(Shape@ s) {blocks.insert_last(s);}
+ void add(double x, double y, double w, double h) {addBlock(newRectangle(x, y, w, h));}
+ void update(float x, float y, float pan_step=1, float volume_step=1, float behind_pitch_decrease=0.5, float behind_volume_decrease=5) {
+float sx=x; float sy=y;
+for(uint i=0; i<blocks.length(); i++) {
+if(blocks[i].contains(x, y)) {
+
+Rectangle@ r=cast<Rectangle>(blocks[i]);
+if(@r==null) @r=blocks[i].getBounds();
+Ellipse2D@ el=cast<Ellipse2D>(blocks[i]);
+if(@el!=null) {
+// Find the edge of the ellipse closest to this point.
+vector c=newPoint(el.getX()+(0.5*el.getWidth()), el.getY()+(0.5*el.getHeight())); // This is slow. Let's not use Ellipse blocks often.
+double theta=(x==c.x) ? PI/2 : arc_tangent((y-c.y)/(x-c.x));
+sx=0.5*el.getWidth()*theta; sy=el.getHeight()*0.5*theta;
+}// Ellipse.
+else if(@r!=null) {
+double hw=r.width/2.0;
+ double hh=r.height/2.0;
+if(x<r.x+hw) sx=r.x;
+else if(x>r.x+hw) sx=r.x+r.width;
+ if(y<r.y+hh) sy=r.y;
+else if(y>r.y+hh) sy=r.y+r.height;
+}// Rectangle.
+else {
+
+}// Other.
+}// Awe snap?
+}
+position_sound_2d(snd, x, y, sx, sy, pan_step, volume_step, behind_pitch_decrease, behind_volume_decrease);
+}// Update.
+}

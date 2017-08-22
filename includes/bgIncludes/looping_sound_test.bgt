@@ -1,0 +1,108 @@
+#include "looping_sound.bgt"
+#include "custom_voice.bgt"
+#include "browser.bgt"
+
+ custom_voice voice;
+
+void main() {
+show_game_window("looping sound test. Press F1 for help.");
+looping_sound snd;
+
+ voice.load_config("voice.cfg");
+ voice.config_path="voice.cfg";
+
+while(!key_pressed(KEY_F4)) {
+ if(key_pressed(KEY_F5)) voice.options_menu();
+
+if(key_pressed(KEY_B)) {string fn=select_file("c:\\", voice);
+ if((fn!="")&&(
+(string_right(fn, 4)==".wav")||(string_right(fn, 4)==".WAV")||(string_right(fn, 4)==".ogg")||(string_right(fn, 4)==".OGG")
+)) snd.load(fn);
+}
+ else if(key_pressed(KEY_S)) {
+ string inp=input_box("Start point", "Enter start position");
+ if(inp!="") snd.loop_start=string_to_number(inp);
+ else voice.speak_interrupt("canceled");
+}// start.
+ else if(key_pressed(KEY_E)) {
+ string inp=input_box("End point", "Enter end position");
+ if(inp!="") snd.loop_end=string_to_number(inp);
+ else voice.speak_interrupt("canceled");
+}// end.
+ else if(key_pressed(KEY_L)) {string inp=input_box("Loop count", "Enter loop count, or -1 for infinity");
+ if(inp!="") snd.loop_count=string_to_number(inp);
+}
+ else if(key_pressed(KEY_SPACE)) {
+ snd.play_pause();
+}
+ else if(key_pressed(KEY_HOME)) {
+ if((key_down(KEY_LSHIFT))||(key_down(KEY_RSHIFT))) snd.seek(snd.loop_start);
+ else snd.seek(0);
+}// home.
+ else if(key_pressed(KEY_END)) {
+ if((key_down(KEY_LSHIFT))||(key_down(KEY_RSHIFT))) snd.seek(snd.loop_end);
+ else snd.seek(snd.length());
+}
+ else if((key_pressed(KEY_LEFT))||(key_pressed(KEY_UP))||(key_pressed(KEY_DOWN))||(key_pressed(KEY_RIGHT))) {
+ double dx=-1000;
+ if((key_down(KEY_RIGHT))||(key_down(KEY_DOWN))) dx=1000;
+ if((key_down(KEY_LSHIFT))||(key_down(KEY_RSHIFT))) dx*=0.1;
+ else if((key_down(KEY_LCONTROL))||(key_down(KEY_RCONTROL))) dx*=10;
+ sound@ handle=snd.get_sound_handle();
+ if(@handle!=null) handle.seek(handle.position+dx);
+}
+ if(key_pressed(KEY_C)) {
+ sound@ handle=snd.get_sound_handle();
+ if((@handle!=null)&&(handle.active)) {
+ voice.speak_interrupt("Current position is " + handle.position);
+ if((key_down(KEY_LCONTROL))||(key_down(KEY_RCONTROL))) clipboard_copy_text("" + handle.position);
+}
+ else voice.speak_interrupt("No sound loaded.");
+}
+ else if(key_pressed(KEY_F1)) help_menu();
+ 
+ if((key_down(KEY_LCONTROL))||(key_down(KEY_RCONTROL))) voice.stop();
+
+ if(snd.is_playing()) snd.update();
+wait(5);
+}
+voice.speak_interrupt("Would you like to copy these settings to the clipboard?");
+ wait(1000);
+ keys_pressed();
+ int res=question("Copy settings", "Copy settings to clipboard?");
+ if(res==1) clipboard_copy_text("filename=\"" + snd.filename + "\";\r\nloop_start=" + snd.loop_start + ";\r\nloop_end=" + snd.loop_end + ";\r\nloop_count=" + snd.loop_count + ";\r\n");
+}
+
+void help_menu() {
+
+ string[] text={
+ "Press escape to close help.",
+ "This program will allow you to load sounds and adjust loop settings, and test how they work.",
+ "Press b to browse for the file to play.",
+ "Press the space bar to play or pause the loaded sound.",
+ "Press l to enter the number of times the sound should loop. A negative value will have the sound loop infinitely.",
+ "press s to enter the start position for the loop. The sound will return to this position whenever it reaches the end of the looping section.",
+ "Press e to enter the end position. The sound will return to the start position when it reaches this point. If this value is negative, the end of the loop will be the end of the sound.",
+ "Use the arrow keys to move back and forward through the sound by 1 second. Hold shift to move a tenth of a second, or control to move 10 seconds.",
+ "Use home and end to move to the beginning or end of the sound. Hold shift with these to move to the start or end of the looping section.",
+ "Press c to hear the current position of the sound. Press control+c to copy the current position to the clipboard.",
+ "Use F5 to adjust voice options, and control to silence speech."
+};
+ voice.speak_interrupt("Use arrow keys to read help. Press enter or escape when done.");
+ keys_pressed();
+ int x=0;
+ while((!key_pressed(KEY_F4))&&(!key_pressed(KEY_RETURN))&&(!key_pressed(KEY_SPACE))) {
+ if((key_down(KEY_LCONTROL))||(key_down(KEY_RCONTROL))) voice.stop();
+ if(key_pressed(KEY_F5)) voice.options_menu();
+ bool speak=true;
+ if((key_pressed(KEY_UP))||(key_pressed(KEY_LEFT))) x--;
+ else if((key_pressed(KEY_RIGHT))||(key_pressed(KEY_DOWN))) x++;
+ else speak=false;
+ if(x<0) x=text.length()-1;
+ else if(x>=text.length()) x=0;
+ if(speak) voice.speak_interrupt(text[x]);
+
+wait(5);
+}
+ voice.speak_interrupt("Done");
+}// Help menu.

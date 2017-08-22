@@ -1,0 +1,498 @@
+void synth_drum(tone_synth@ synth, string note="C", uint o=4) {
+double pose=synth.position_ms;
+double vol=synth.volume;
+synth.waveform_type=3;
+synth.set_edge_fades(8, 20);
+synth.note_bend_ms(note + o, -24, 100, 0, 100);
+synth.seek_ms(pose);
+synth.volume=vol-20;
+synth.waveform_type=4;
+synth.note_bend_ms(note + (o-1), -24, 100, 0, 100);
+synth.volume=vol;
+// pose?
+}// Synth drum.
+
+void noise(tone_synth@ synth, double length_ms, int bottom, int top, int fundamental=-1, int freq_step=1, int bend=0, double bend_start=0, double bend_end=0) {
+double vol=synth.volume;
+double pose=synth.position_ms;
+
+double vol_below=(bottom==fundamental) ? 0.0 : (20.0/(fundamental-bottom));
+double vol_above=(top==fundamental) ? 0.0 : (20.0/(top-fundamental));
+
+for(uint f=bottom; f<=top; f+=freq_step) {
+synth.seek_ms(pose);
+ if(fundamental!=-1) {
+if(f<fundamental) synth.volume=vol-(vol_below*(fundamental-bottom)); // This is stupid.
+else if(f>fundamental) synth.volume=vol-(vol_above*(top-fundamental));
+}// -1 means it's even.
+
+if(bend!=0) {
+synth.freq_bend_ms("" + f, bend, length_ms, bend_start, bend_end);
+}// bend
+else synth.freq_ms("" + f, length_ms);
+
+}// Loop.
+synth.volume=vol;
+//synth.seek_ms(pos);
+}// Noise generation.
+
+void snare_drum(tone_synth@ synth) {
+
+synth.waveform_type=2;
+synth.set_edge_fades(8, 90);
+double pos=synth.position_ms;
+noise(synth, 100, 22, 880, 220, 4, -100, 0, 100);
+synth.seek_ms(pos);
+noise(synth, 100, 44, 220, -1, 8, -100, 0, 100);
+synth.seek_ms(pos);
+}// Snare.
+
+class soundtrack {
+int default_length;
+int default_octave;
+int instrument;
+int tempo;
+int quantization;
+int volume;
+int attack;
+int release;
+int transpose;
+int pan;
+tone_synth@ synth;
+string channel_input;
+int channel_count;
+string freqs;
+string trebble;
+
+soundtrack() {
+tone_synth tempts; @synth=tempts;
+channel_count = 0;
+pan=synth.pan;
+freqs="";
+trebble="";
+int max=55;
+for(uint i=0; i<=max; i++) {
+freqs += "" + (2*i+1); // random(55, 880);
+trebble += "" + (220+(2*i));
+if(i<max) {freqs  += ", "; trebble += ", ";}
+}
+
+}
+
+void add_channel(string commands) {
+default_length = 4;
+default_octave = 4;
+instrument = 1;
+tempo = 120;
+quantization = 8;
+volume = 100;
+attack = 1;
+release = 1;
+transpose = 0;
+channel_count++;
+synth.seek(0);
+uint cursor = process_commands(commands, 0);
+if(cursor < commands.length()) {
+signal_error("End of string expected", cursor);
+}
+}
+
+uint process_commands(string commands, uint cursor) {
+while(cursor < commands.length()) {
+string command = commands[cursor];
+if(command == "o") {
+cursor = cmd_o(commands, cursor);
+}
+else if(command == "<") {
+cursor = cmd_lt(commands, cursor);
+}
+else if(command == ">") {
+cursor = cmd_gt(commands, cursor);
+}
+else if(command == "l") {
+cursor = cmd_l(commands, cursor);
+}
+else if(command == "p") {
+cursor = cmd_p(commands, cursor);
+}
+else if(command>="A" && command<="G") {
+cursor = cmd_note(commands, cursor);
+}
+else if(command == "@") {
+cursor = cmd_at(commands, cursor);
+}
+else if(command == "t") {
+cursor = cmd_t(commands, cursor);
+}
+else if(command == "q") {
+cursor = cmd_q(commands, cursor);
+}
+else if(command == "[") {
+cursor = cmd_repeat(commands, cursor);
+}
+else if(command == "v") {
+cursor = cmd_v(commands, cursor);
+}
+else if(command == "a") {
+cursor = cmd_a(commands, cursor);
+}
+else if(command == "r") {
+cursor = cmd_r(commands, cursor);
+}
+else if(command == "n") {
+cursor = cmd_n(commands, cursor);
+}
+else if(command == "u") {
+cursor = cmd_u(commands, cursor);
+}
+else if(command == "d") {
+cursor = cmd_d(commands, cursor);
+}
+else if(command=="s") {
+cursor=cmd_s(commands, cursor);
+}
+else {
+break;
+}
+}
+return cursor;
+}
+
+uint cmd_o(string channel_input, uint cursor) {
+cursor++; // Skip the o
+uint number_position = cursor;
+cursor = get_number(channel_input, cursor, default_octave);
+if(default_octave < 1 || default_octave > 6) {
+signal_error("Invalid octave " + default_octave + ". Valid octaves are 1-6", number_position);
+}
+return cursor;
+}
+
+uint cmd_lt(string channel_input, uint cursor) {
+cursor++; // Skip the <
+default_octave = (default_octave>1) ? default_octave-1 : 1;
+return cursor;
+}
+
+uint cmd_gt(string channel_input, uint cursor) {
+cursor++; // Skip the >
+default_octave = (default_octave<7) ? default_octave+1 : 7;
+return cursor;
+}
+
+uint cmd_l(string channel_input, uint cursor) {
+cursor++; // Skip the l
+uint number_position = cursor;
+cursor = get_number(channel_input, cursor, default_length);
+if(default_length < 1 || default_length > 64) {
+signal_error("Length " + default_length + " is invalid. Valid lengths are 1-64", number_position);
+}
+return cursor;
+}
+
+uint cmd_p(string channel_input, uint cursor) {
+cursor++; // Skip the p
+int pause_length;
+uint number_position = cursor;
+cursor = get_number(channel_input, cursor, pause_length);
+if(pause_length < 1 || pause_length > 64) {
+signal_error("Length " + pause_length + " is invalid. Valid lengths are 1-64", number_position);
+}
+double beats = 4.0 / pause_length;
+double ms = (60000.0 / tempo) * beats;
+synth.rest_ms(ms);
+return cursor;
+}
+
+uint cmd_note(string channel_input, uint cursor) {
+string note_letter = channel_input[cursor++];
+string to_generate = note_letter;
+if(cursor < channel_input.length() && channel_input[cursor] == "+") {
+to_generate += "#";
+cursor++;
+}
+else if(cursor < channel_input.length() && channel_input[cursor] == "-") {
+to_generate += "b";
+cursor++;
+}
+
+int length = default_length;
+
+if(check_number(channel_input, cursor)) {
+uint number_position = cursor;
+cursor = get_number(channel_input, cursor, length);
+if(length < 1 || length > 64) {
+signal_error("Length " + length + " is invalid. Valid lengths are 1-64", number_position);
+}
+}
+
+double beats = 4.0 / length;
+if(cursor < channel_input.length() && channel_input[cursor] == ".") {
+cursor++;
+beats *= 1.5;
+}
+double ms = (60000.0 / tempo) * beats;
+to_generate += default_octave;
+synth.waveform_type = ((instrument-1)%4)+1;
+synth.volume = volume - 100;
+synth.set_edge_fades(attack*10, release*10);
+synth.note_transpose = transpose;
+int bend_amount=0;
+int bend_start=0;
+int bend_end=0;
+if(cursor < channel_input.length() && channel_input[cursor] == "_") {
+cursor++; // skip the _
+if(check_number(channel_input, cursor)) {
+uint number_position = cursor;
+cursor = get_number(channel_input, cursor, bend_amount);
+bend_amount-=25;
+cursor++;
+cursor = get_number(channel_input, cursor, bend_start);
+cursor++;
+cursor = get_number(channel_input, cursor, bend_end);
+if(bend_start+bend_end>beats*2) {
+signal_error("Pitch bend too long: must be less than or equal to " + (2*beats) + ", instead found " + bend_start + "+" + bend_end + "=" + (bend_start+bend_end) + ".", number_position);
+}
+}
+}
+
+synth.pan=pan;
+
+if(instrument==0) {
+// Percussion.
+if(to_generate=="D2") snare_drum(synth);
+else if(to_generate=="C2" or to_generate=="B1" or to_generate=="Cb2" or to_generate=="E2" or to_generate=="C5" or to_generate=="G5" or to_generate=="A#5" or to_generate=="Bb5" or to_generate=="A5") {
+
+if(default_octave<3) {
+synth.waveform_type=(to_generate=="C2") ? 3 : ((to_generate=="B1")||(to_generate=="Cb2")) ? 4 : 1; // the square version is just loud.
+double v=synth.volume;
+if(to_generate!="B1" and to_generate!="Cb2") synth.volume=v-12; // Umm.
+synth.set_edge_fades(8, 140);
+synth.freq_ms(freqs, 180);
+synth.volume=v;
+}
+else {
+synth.waveform_type=(to_generate=="C5") ? 3 : (to_generate=="G5") ? 4 : (to_generate=="A#5" or to_generate=="Bb5") ? 4 : 1;
+double v=synth.volume;
+synth.volume=v-12; // Umm.
+synth.set_edge_fades(12, 990);
+synth.freq_ms(freqs, 1000);
+synth.volume=v;
+}
+}
+else if(to_generate=="G#5" or to_generate=="Ab5") {
+synth.waveform_type=4;
+synth.set_edge_fades(4, 90);
+double pose=synth.position_ms;
+noise(synth, 1000, 552/10, 552*8, 552, 16);
+}
+else if(to_generate=="D#2" or to_generate=="Eb2" or to_generate=="F#2" or to_generate=="Gb2" or to_generate=="G#2" or to_generate=="Ab2") {
+double vol=synth.volume;
+synth.volume=vol-12;
+synth.waveform_type=1;
+synth.set_edge_fades(4, 994);
+noise(synth, 100, 80, 1760, 440, 16);
+synth.volume=vol;
+}
+else if(to_generate=="A3" or to_generate=="Bb2" or to_generate=="A#2" or to_generate=="D#3" or to_generate=="Eb3") {
+synth.waveform_type=1;
+synth.set_edge_fades(14, 994);
+double vol=synth.volume;
+synth.volume=vol-20;
+noise(synth, 1000, 80, 1760, 440, 1);
+synth.volume=vol;
+}
+else if(to_generate=="E3" or to_generate=="Fb3") {
+synth.waveform_type=1;
+
+synth.set_edge_fades(1000, 1000);
+noise(synth, ms, 55, 1760, 110, 1);
+}
+else if(to_generate=="A4" or to_generate=="A#4" or to_generate=="Bb4") {
+synth.waveform_type=1;
+double vol=synth.volume;
+synth.volume=vol-12;
+synth.set_edge_fades(100, 100);
+noise(synth, ((to_generate=="A4") ? 200 : 100), 55, 1760, 220, 10);
+synth.volume=vol;
+}
+else {
+string note=string_trim_right(to_generate, 1); // Trim the octave.
+synth_drum(synth, note); //, (default_octave<4) ? default_octave+3 : default_octave);
+}
+}
+else if(instrument>4 and instrument<9) {
+synth.set_edge_fades(8, 1000);
+if (bend_amount!=0) synth.note_bend_ms(to_generate, bend_amount, 1000, (bend_start==0) ? 0 : (60000.0 / tempo) * (0.5*bend_start), (60000.0 / tempo) * (bend_end*0.5));
+else synth.note_ms(to_generate, 1000);
+}
+else if(bend_amount!=0) {
+synth.note_bend_ms(to_generate, bend_amount, ms*quantization/8.0, (bend_start==0) ? 0 : (60000.0 / tempo) * (0.5*bend_start), (bend_end==0) ? 0 : (60000.0 / tempo) * (bend_end*0.5));
+}
+else synth.note_ms(to_generate, ms*quantization/8.0);
+
+
+if(cursor >= channel_input.length() || channel_input[cursor] != "&") {
+synth.rest_ms(ms);
+}
+else {
+cursor++;
+}
+return cursor;
+}
+
+void signal_error(string message, uint cursor) {
+alert("Soundtrack error", "Channel " + channel_count + ", column " + (cursor+1) + ": " + message);
+exit();
+}
+
+uint cmd_at(string channel_input, uint cursor) {
+cursor++; // Skip the @
+uint number_position = cursor;
+cursor = get_number(channel_input, cursor, instrument);
+if(instrument<0 || instrument>8) {
+signal_error("Invalid instrument " + instrument + ". Valid instruments are 1-4", number_position);
+}
+return cursor;
+}
+
+uint cmd_t(string channel_input, uint cursor) {
+cursor++; // Skip the t
+uint number_position = cursor;
+cursor = get_number(channel_input, cursor, tempo);
+if(tempo < 60 || tempo > 240) {
+signal_error("Tempo " + tempo + " is invalid. Valid tempi are 60-240", number_position);
+}
+return cursor;
+}
+
+uint cmd_q(string channel_input, uint cursor) {
+cursor++; // Skip the q
+uint number_position = cursor;
+cursor = get_number(channel_input, cursor, quantization);
+if(quantization < 1 || quantization > 100) {
+signal_error("Invalid quantization " + quantization + ". Valid quantizations are 1-100", number_position);
+}
+return cursor;
+}
+
+uint cmd_repeat(string channel_input, uint cursor) {
+cursor++; // Skip the [
+uint cursor2 = process_commands(channel_input, cursor);
+if(cursor2 >= channel_input.length() || channel_input[cursor2] != "]") {
+signal_error("] expected", cursor2);
+}
+cursor2++;
+int repetitions;
+uint number_position = cursor2;
+cursor2 = get_number(channel_input, cursor2, repetitions);
+if(repetitions < 2 || repetitions > 100) {
+signal_error("Invalid repetition count " + repetitions + ". Valid repetition counts are 2-100", number_position);
+}
+repetitions--; // We already did one
+for(int i=0; i<repetitions; i++) {
+process_commands(channel_input, cursor);
+}
+return cursor2;
+}
+
+bool check_number(string channel_input, uint cursor) {
+if(cursor >= channel_input.length() || channel_input[cursor] < "0" || channel_input[cursor] > "9") {
+return false;
+}
+return true;
+}
+
+uint get_number(string channel_input, uint cursor, int &out number) {
+if(!check_number(channel_input, cursor)) {
+signal_error("Number expected", cursor);
+}
+uint saved_cursor = cursor;
+string digits = "";
+do {
+digits += channel_input[cursor++];
+} while(check_number(channel_input, cursor));
+if(digits.length() > 3) {
+signal_error("Number too long; please restrict to three decimal digits", saved_cursor);
+}
+number = string_to_number(digits);
+return cursor;
+}
+
+uint cmd_v(string channel_input, uint cursor) {
+cursor++; // Skip the v
+uint number_position = cursor;
+cursor = get_number(channel_input, cursor, volume);
+if(volume>100) {
+signal_error("Invalid volume " + volume + ". Valid volumes are 0-100", number_position);
+}
+return cursor;
+}
+
+uint cmd_a(string channel_input, uint cursor) {
+cursor++; // Skip the a
+uint number_position = cursor;
+cursor = get_number(channel_input, cursor, attack);
+if(attack > 100) {
+signal_error("Invalid attack value " + attack + ". Valid attack values are 0-100", number_position);
+}
+return cursor;
+}
+
+uint cmd_r(string channel_input, uint cursor) {
+cursor++; // Skip the r
+uint number_position = cursor;
+cursor = get_number(channel_input, cursor, release);
+if(release > 100) {
+signal_error("Invalid release value " + release + ". Valid release values are 0-100", number_position);
+}
+return cursor;
+}
+
+uint cmd_n(string channel_input, uint cursor) {
+cursor++; // Skip the n
+transpose = 0;
+return cursor;
+}
+
+uint cmd_u(string channel_input, uint cursor) {
+cursor++; // Skip the u
+uint number_position = cursor;
+cursor = get_number(channel_input, cursor, transpose);
+if(transpose < 1 || transpose > 11) {
+signal_error("Invalid transpose value " + transpose + ". Valid transpose values are 1-11", number_position);
+}
+return cursor;
+}
+
+uint cmd_d(string channel_input, uint cursor) {
+cursor++; // Skip the d
+uint number_position = cursor;
+cursor = get_number(channel_input, cursor, transpose);
+if(transpose < 1 || transpose > 11) {
+signal_error("Invalid transpose value " + transpose + ". Valid transpose values are 1-11", number_position);
+}
+transpose = -transpose;
+return cursor;
+}
+
+uint cmd_s(string channel_input, uint cursor) {
+cursor++; // Skip the s
+uint number_position = cursor;
+cursor = get_number(channel_input, cursor, pan);
+pan-=100;
+if(pan<-100 or pan>100) {
+signal_error("Invalid pan " + default_octave + ". Valid values are between -100 and 100", number_position);
+}
+return cursor;
+}
+
+
+bool write(string filename) {
+return synth.write_wave_file(filename);
+}
+
+sound@ write_sound() {
+return synth.write_wave_sound();
+}
+}

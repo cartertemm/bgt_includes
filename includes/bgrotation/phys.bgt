@@ -1,0 +1,291 @@
+#include "object.bgt"
+
+// Solidity constants:
+enum OS {
+	s_solid, // obey's rigid body physics.
+	s_liquid, // Hopefully obeys fluid dynamics or something. Solids that intersect a liquid are affected by boyancy and current and drag.
+	s_hole, // Anything can pass through these, even if it has hit something solid before. I have a problem with this on the grounds that it means we can't quickly get out of a collision loop.
+	s_special, // Something special happens when something touches these. Fire, clouds of certain chemicals, swarms of bees, etc.
+	s_intangible // Does not participate in collision. Mostly for decorative things, like ambience. Probably not for events; those are better handled by s_special.
+};
+
+bool collide(form@ f1, form@ f2) {
+	if(@f1==null or @f2==null or !f1.intersects(f2.get_envelope()) or !f2.intersects(f1.get_envelope())) return false;
+	int s1=f1.get_type(), s2=f2.get_type();
+	if(s1==FORM_SPHERE or s2==FORM_SPHERE) return true; // Is that correct?
+	if(s1==FORM_BOX) {
+		if(s2==FORM_BOX) {
+			return f1.get_bounds().intersects(cast<box>(f2));
+		}// boxes are easy, so long as they're axis-aligned.
+		else if(s2==FORM_CYLINDER) return collide_bcy(f1, cast<cylinder>(f2));
+		else if(s2==FORM_CONE) return collide_bco(cast<box>(f1), cast<cone>(f2));
+		else if(s2==FORM_MESH) return collide_bm(f1.get_bounds(), cast<mesh>(f2));
+		
+	}// box.
+	else if(s1==FORM_CYLINDER) {
+		if(s2==FORM_BOX) return collide_bcy(f2, cast<cylinder>(f1));
+		else if(s2==FORM_CONE) return collide_cyco(cast<cylinder>(f1), cast<cone>(f2));
+		else if(s2==FORM_CYLINDER) {
+			cylinder@ cy=cast<cylinder>(f1), cy2=cast<cylinder>(f2);
+			return segs_intersection3d(cy.center, cy.axis, cy2.center, cy2.axis).z<=cy.radius+cy2.radius;
+		}// cylinder-cylinder collision? Find the intersections and see if they're inside the cylinders?
+		else if(s2==FORM_MESH) return collide_bcy(f2, cast<cylinder>(f1));
+	}// cylinders are harder.
+	else if(s1==FORM_CONE) {
+		if(s2==FORM_CYLINDER) return collide_cyco(cast<cylinder>(f2), cast<cone>(f1));
+		else if(s2==FORM_BOX) return collide_bco(f2.get_bounds(), cast<cone>(f1));
+		else if(s2==FORM_CONE) {
+			cone@ co=cast<cone>(f1), co2=cast<cone>(f2);
+			vector col2d=segs_intersection3d(co.center, co.axis, co2.center, co2.axis);
+			double dt=(co.axis.x==0) ? (co.axis.y==0) ? (co.axis.z==0) ? 0 :  col2d.z/co.axis.z : (col2d.y-co.center.y)/co.axis.y : (col2d.x-co.center.x)/co.axis.x;
+			if(dt<0 or dt>absolute(co.truncate)) return false;
+			double r1=co.radius*dt;
+dt=(co2.axis.x==0) ? (co2.axis.y==0) ? (co2.axis.z==0) ? 0 :  col2d.z/co2.axis.z : (col2d.y-co2.center.y)/co2.axis.y : (col2d.x-co.center.x)/co.axis.x;
+			if(dt<0 or dt>absolute(co2.truncate)) return false;
+			double r2=co2.radius*dt;
+			return absolute(col2d.z)<=r1+r2;
+		}
+		else if(s2==FORM_MESH) return collide_bco(f2, cast<cone>(f2));
+	}// Cones
+	else if(s1==FORM_MESH) {
+		if(s2==FORM_MESH) {
+			// If they don't have the same bounding shapes, things get weird.
+			int cols=0;
+			mesh@ m1=cast<mesh>(f1), m2=cast<mesh>(f2);
+			if(@(m1.xybounds)!=null and @(m2.xybounds)!=null) cols=(m1.xybounds.intersects(m2.xybounds)) ? 1 : -3;
+			if(@(m1.xzbounds)!=null and @(m2.xzbounds)!=null) cols=(m1.xzbounds.intersects(m2.xzbounds)) ? (cols+1) : -3;
+			if(@(m1.zybounds)!=null and @(m2.zybounds)!=null) cols=(m1.zybounds.intersects(m2.zybounds)) ? (cols+1) : -3;
+			if(cols>=0) {
+				if(!((m1.xybounds is null and @(m2.xybounds)!=null) or (m1.xzbounds is null and @(m2.xzbounds)!=null) or (m1.zybounds is null and @(m2.zybounds)!=null) or
+				(m2.xybounds is null and @(m1.xybounds)!=null) or (m2.xzbounds is null and @(m2.xzbounds)!=null) or (m2.zybounds is null and @(m2.zybounds)!=null))) return true;
+			}// We really should have a way to get all the verteces, but that's rather troublesome.
+			else return false;
+		//return cols>0;
+		}
+		else if(s2==FORM_BOX) return collide_bm(f2.get_bounds(), cast<mesh>(f1));
+		else if(s2==FORM_CYLINDER) return collide_bcy(f1, cast<cylinder>(f2));
+		else if(s2==FORM_CONE) return collide_bco(f1, cast<cone>(f2));
+	}
+	return f1.get_bounds().intersects(f2.get_bounds());
+}
+
+// This is a slow, slow function. Avoid as much as possible.
+bool collide_bcy(form@ b, cylinder@ cy) {
+	if(@b==null or @cy==null) return false;
+	sphere@ s=new_sphere(cy.center, cy.radius);
+	if(b.intersects(s)) return true;
+	vector end=cy.center+cy.axis, dt=s.radius*cy.axis/((cy.axis.length()==0) ? 10.0 : (4.0*cy.axis.length()));
+	while(dt.length()>absolute(s.radius)) dt*=0.5;
+	while ((end-s.center).length()>=cy.radius) {
+		s.center+=dt;
+		if(b.intersects(s)) return true;
+	}
+	return false;
+}
+
+bool collide_bco(form@ b, cone@ co) {
+	if(@b==null or @co==null) return false;
+	sphere@ s=new_sphere(co.center, co.radius);
+	vector end=co.center+(absolute(co.truncate)*co.axis), dt=0.1*co.axis;
+	double dr=-absolute(co.radius)/(co.axis.length())*0.1;
+	while(dt.length()>absolute(s.radius)) {dt*=0.5; dr*=0.5;}
+	while (s.radius>0 and round(s.center.x, 3)!=round(end.x, 3)) {
+		if(b.intersects(s)) return true;
+		s.center+=dt;
+		s.radius+=dr;
+	}
+	return false;
+}
+
+bool collide_bm(box@ b, mesh@ m) {
+	mesh@ m2=new_mesh(new_rect(b.center.x, b.center.y, b.size.x, b.size.y), new_rect(b.center.x, b.center.z, b.size.x, b.size.z), new_rect(b.center.z, b.center.y, b.size.z, b.size.y));
+
+	int cols=(@(m.xybounds)!=null and m.xybounds.intersects(m2.xybounds)) ? 1 : 0;
+	if(@(m.xzbounds)!=null and m.xzbounds.intersects(m2.xzbounds)) cols++;
+	if(@(m.zybounds)!=null and m.zybounds.intersects(m2.zybounds)) cols++;
+	int bounds=0;
+	if(@(m.xybounds)!=null) bounds++;
+	if(@(m.xzbounds)!=null) bounds++;
+	if(@(m.zybounds)!=null) bounds++;
+	return cols>=bounds; // Is that safe? It feels unsafe.
+}
+
+bool collide_cyco(cylinder@ cy, cone@ co) {
+	// Find the projected intersection.
+	// determine if that point is contained in both forms.
+	double r2=co.radius;
+	vector col2d=segs_intersection3d(cy.center, cy.axis, co.center, co.axis);
+	double dt=(co.axis.x==0) ? (co.axis.y==0) ? (co.axis.z==0) ? 0 :  col2d.z/co.axis.z : (col2d.y-co.center.y)/co.axis.y : (col2d.x-co.center.x)/co.axis.x;
+	if(dt<0 or dt>absolute(co.truncate)) return false;
+	r2=cy.radius+(r2*dt);
+	return absolute(col2d.z)<=r2;
+}
+
+vector segs_intersection3d(vector p1, vector a1, vector q1, vector a2) {
+	vector col2d=segs_intersection(p1, p1+a1, q1, q1+a2);
+	double m=(a1.x==0) ? MAX_VALUE : (a1.z/a1.x);
+	double m2=(a2.x==0) ? MAX_VALUE : (a2.z/a2.x);
+	if(m==m2) return new_vector(col2d.x, col2d.y, q1.z-p1.z);
+	double z1=(m*(col2d.x-p1.x))+p1.z;
+	double z2=(m2*(col2d.x-q1.x))+q1.z;
+	if(a1.x==0) z1=p1.z;
+	if(a2.x==0) z2=q1.z;
+	// But, shouldn't we try y if x is a nonstarter?
+	col2d.z=z2-z1;
+	return col2d;
+}
+
+// returns true if f1 completely contains f2
+bool contains(form@ f1, form@ f2) {
+	if(@f1==null or @f2==null) return false;
+	box@ b=f2.get_bounds();
+	vector dim=b.size/2; // That gets so old.
+	vector cent=b.center;
+	if(
+		f1.contains(cent.x-dim.x, cent.y-dim.y, cent.z-dim.z) and
+		f1.contains(cent.x-dim.x, cent.y-dim.y, cent.z+dim.z) and
+		f1.contains(cent.x-dim.x, cent.y+dim.y, cent.z-dim.z) and
+		f1.contains(cent.x-dim.x, cent.y+dim.y, cent.z+dim.z) and
+		f1.contains(cent.x+dim.x, cent.y-dim.y, cent.z-dim.z) and
+		f1.contains(cent.x+dim.x, cent.y-dim.y, cent.z+dim.z) and
+		f1.contains(cent.x+dim.x, cent.y+dim.y, cent.z-dim.z) and
+		f1.contains(dim.x+cent.x, cent.y+dim.y, cent.z+dim.z)
+	) return true;
+	int type=f2.get_type();
+	if(type==FORM_MESH) {
+
+	}// Meshes are surprisingly easy?
+	else if(type==FORM_SPHERE) {
+		// Not _as_ tough? Maybe I should have included this in the box thing?
+		// This is not necessarily true for corner cases. Let's just assume the objects are flexible, not perfectly spherical, or have enlarged boundaries for easier aiming. I guess we're doing it for a diamond-type thing.
+		return (
+			f1.contains(cent.x, cent.y, cent.z-dim.z) and
+			f1.contains(cent.x, cent.y, cent.z+dim.z) and
+			f1.contains(cent.x, cent.y+dim.y, cent.z) and
+			f1.contains(cent.x, cent.y-dim.y, cent.z) and
+			f1.contains(cent.x+dim.x, cent.y, cent.z) and
+			f1.contains(cent.x-dim.x, cent.y, cent.z)
+		);
+	}// spheres.
+	else if(type==FORM_CYLINDER) {
+		cylinder@ cy=cast<cylinder>(f2);
+		if(cy.capsule) {
+			cent=cy.center;
+			dim=new_vector(cy.radius, cy.radius, cy.radius);
+			if(!(
+			f1.contains(cent.x, cent.y, cent.z-dim.z) and
+			f1.contains(cent.x, cent.y, cent.z+dim.z) and
+			f1.contains(cent.x, cent.y+dim.y, cent.z) and
+			f1.contains(cent.x, cent.y-dim.y, cent.z) and
+			f1.contains(cent.x+dim.x, cent.y, cent.z) and
+			f1.contains(cent.x-dim.x, cent.y, cent.z)
+			)) return false;
+			cent+=cy.axis;
+return (
+			f1.contains(cent.x, cent.y, cent.z-dim.z) and
+			f1.contains(cent.x, cent.y, cent.z+dim.z) and
+			f1.contains(cent.x, cent.y+dim.y, cent.z) and
+			f1.contains(cent.x, cent.y-dim.y, cent.z) and
+			f1.contains(cent.x+dim.x, cent.y, cent.z) and
+			f1.contains(cent.x-dim.x, cent.y, cent.z)
+			);
+		}// contains on spheres, but let's not repeat it because that would be annoying.
+		return f1.contains(cy.center) and f1.contains(cy.center+cy.axis);
+	}// This is kinda annoying.
+	else if(type==FORM_CONE) {
+		cone@ co=cast<cone>(f2);
+		return (f1.contains(co.axis) and f1.contains(co.center+(absolute(co.truncate)*co.axis)));
+	}
+	return false;
+}
+
+// returns an integer containing the following bits:
+// 1: there exists a space such that c|1&~b
+// 2: there exists a space such that c|b&~a
+// 4: there exists a space such that c|a|b
+// 8: there exists a space such that neither c|a nor c|b.
+// Since the primary use of this function is to get c|a&~b, 
+//   the "all" parameter must be set to true to do a thorough check;
+// if all is false, the function will return as soon as it finds a vertex which satisfies c|a&~b.
+// The purpose of the all flag is for a performance increase in common operations; specifically, when c is a capsule, as the answer can often be determined within <30 iterations, rather than the full 78.
+uint8 contact_spaces(form@ a, form@ b, form@ c, bool all=false) {
+	if(a is null or b is null or c is null) return 0;
+	uint8 ret=0;
+	// We need verteces on c.
+	vector[] points;
+	int type=c.get_type();
+	if(type==FORM_BOX) {
+		box@ b2=c.get_bounds();
+		vector cent=b2.center, dim=b2.size/2;
+		vector[] p={
+		new_vector(cent.x-dim.x, cent.y-dim.y, cent.z-dim.z),
+		new_vector(cent.x-dim.x, cent.y-dim.y, cent.z+dim.z),
+		new_vector(cent.x-dim.x, cent.y+dim.y, cent.z-dim.z),
+		new_vector(cent.x-dim.x, cent.y+dim.y, cent.z+dim.z),
+		new_vector(cent.x+dim.x, cent.y-dim.y, cent.z-dim.z),
+		new_vector(cent.x+dim.x, cent.y-dim.y, cent.z+dim.z),
+		new_vector(cent.x+dim.x, cent.y+dim.y, cent.z-dim.z),
+		new_vector(dim.x+cent.x, cent.y+dim.y, cent.z+dim.z)
+		};
+		points=p;
+	}
+	else if(type==FORM_SPHERE) {
+		points=sphere_points(c.get_envelope());
+	}// spheres are ... interesting.
+	else if(type==FORM_CYLINDER) {
+		cylinder@ cy=cast<cylinder>(c);
+		sphere@ s=new_sphere(cy.center, cy.radius);
+		vector[] s1=sphere_points(s);
+		s.center+=cy.axis;
+		points.reserve(s1.length()*3);
+		for(uint i=0; i<s1.length(); i++) {
+			if(!cy.capsule and !cy.contains(s1[i])) continue;
+			if(!all and a.contains(s1[i]) and !b.contains(s1[i])) return 5;
+			points.insert_last(s1[i]);
+		}
+		s1=sphere_points(s);
+		for(uint i=0; i<s1.length(); i++) {
+			if(!cy.capsule and !cy.contains(s1[i])) continue;
+			if(!all and a.contains(s1[i]) and !b.contains(s1[i])) return 5;
+			points.insert_last(s1[i]);
+		}
+		s.center-=(cy.axis/2);
+		ret=contact_spaces(a, b, s, all);
+		if(!all) return ret;
+		/*s1=sphere_points(s);
+		for(uint i=0; i<s1.length(); i++) {
+			points.insert_last(s1[i]);
+		}*/
+	}//Cylinder.
+	else return contact_spaces(a, b, c.get_bounds(), all);
+	
+	for(uint i=0; i<points.length(); i++) {
+		if(!all) {
+				if(a.contains(points[i]) and !b.contains(points[i])) return 5;
+				continue;
+			}
+		if((ret&5!=5) and a.contains(points[i])) {
+			if(b.contains(points[i])) ret|=4; else ret|=1;
+		}// a.
+		else if((ret&2)==0 and b.contains(points[i])) ret|=2;
+		else if((ret&8)==0 and (!a.contains(points[i])) and !(b.contains(points[i]))) ret|=8;
+		if(ret==15) return ret;
+	}
+	return ret;
+}
+
+vector[] sphere_points(sphere@ s) {
+	vector[] ret(26);
+	uint i=0;
+	for(double theta=0; theta<pi; theta+=pi/4) {
+		for(double phi=0; phi<2*pi; phi+=pi/4) {
+			if(i>4 and (phi==0 or phi==pi)) continue; // We can save 6 iterations/slots this way.
+			if(i>=26 and i>=ret.length()) ret.resize(ret.length()*2);
+			//else if(i>=32) ret.resize(64);
+			ret[i]=new_vector(s.center.x+(s.radius*cosine(theta)*cosine(phi)), s.center.y+(s.radius*sine(theta)*cosine(phi)), s.center.z+(s.radius*sine(phi)));
+			i++;
+		}// phi.
+	}// theta.
+	clipboard_copy_text(ret.length() + " points in sphere_points. If this makes it into a release, someone\'s been slacking.");
+	return ret;
+}

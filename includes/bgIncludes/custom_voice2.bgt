@@ -1,0 +1,438 @@
+//#include "sound_positioning.bgt"
+//#include "c:\\bgIncludes\\custom_pool.bgt"
+
+
+class custom_voice {
+
+ bool sapi;
+ bool braille;
+ tts_voice voice;
+ double screen_reader_wait_factor;
+ bool sr_speaking;
+ int pitch;
+ string config_path;
+ //word_speaker@ speaker; // added 4:34 PM 7/9/2012.
+ bool clipboard=false;
+ voice_callback@ callback=null;
+ custom_voice() {sapi=true; braille=false; screen_reader_wait_factor=10.0; sr_speaking=false; pitch=0; config_path="";}
+ custom_voice(string cp) {config_path=cp; load_config();}
+ string getSML() {
+ if(pitch==0) return "";
+ else if(pitch<0) {
+ return "<voice/><pitch middle=\"" + pitch + "\"/>";
+}
+ return "<voice/><pitch middle=\"+" + pitch + "\"/>";
+ }
+ void options_menu() {
+ speak_interrupt("Voice options. Use up and down to select sapi voice or screen reader. Use left and right to adjust the speaking rate. Use page up, or page down, to adjust pitch. Press enter to save changes, or escape to cancel.");
+ voice.refresh_voice_list();
+ string[] vn=voice.get_voice_names();
+ tts_voice v2; // So changes to voice aren't permanent.
+ v2.rate=voice.rate;
+  bool save_changes=false;
+ int options_x=0;
+ if(!sapi) options_x=-1;
+ bool cont=true;
+ double srwf=screen_reader_wait_factor;
+ int bup=pitch;
+ //word_speaker@ ws=speaker;
+ while(cont) {
+ if(@callback!=null) {int result=callback(this);}
+ if((key_down(KEY_LCONTROL))||(key_down(KEY_RCONTROL))) {stop(); v2.stop();}
+ bool speakme=true;
+ if(key_pressed(KEY_UP)) options_x--;
+ else if(key_pressed(KEY_DOWN)) options_x++;
+ else if(key_pressed(KEY_LEFT)) {
+ if(options_x>=0) {v2.rate=v2.rate-1; v2.speak_interrupt(getSML() + "Slower. Rate is " + v2.rate + ". ");}
+ else {screen_reader_wait_factor--; bool backupSapi=sapi; sapi=false; speak_interrupt("Screen reader rate facter decreased to " + screen_reader_wait_factor + ". "); sapi=backupSapi;}
+ speakme=false;
+ }// Left.
+ else if(key_pressed(KEY_RIGHT)) {
+ if(options_x>=0) {v2.rate=v2.rate+1; v2.speak_interrupt(getSML() + "Faster. Rate is " + v2.rate + ". ");}
+ else {screen_reader_wait_factor++; bool backupSapi=sapi; sapi=false; speak_interrupt("Screen reader rate facter increased to " + screen_reader_wait_factor + ". "); sapi=backupSapi;}
+ speakme=false;
+ }// Right.
+ else if(key_pressed(KEY_PRIOR)) {pitch++; if(options_x>=0) v2.speak_interrupt(getSML() + "Pitch increased to " + pitch + "."); else {bool backupSapi=sapi; sapi=false; speak_interrupt("Pitch increased to " + pitch + "."); sapi=backupSapi;} speakme=false;}
+ else if(key_pressed(KEY_NEXT)) {pitch--; speakme=false; if(options_x>=0) v2.speak_interrupt(getSML() + " pitch decreased to " + pitch + ". "); else {bool backupSapi=sapi; sapi=false; speak_interrupt("Pitch decreased to " + pitch + ". "); sapi=backupSapi;}}
+ else if(key_pressed(KEY_RETURN)) {save_changes=true; speakme=false; cont=false;}
+ else if((key_pressed(KEY_ESCAPE))||((key_down(KEY_LMENU))&&(key_down(KEY_F4)))) {cont=false; save_changes=false; speakme=false;}
+ else speakme=false;
+ if(options_x>=vn.length()) options_x=-2; else if(options_x<-2) options_x=vn.length()-1;
+ if(options_x!=-2) clipboard=false; //@ws=null; // Meh?
+ if(speakme) {
+ if(options_x!=-2) clipboard=false; // Umm.
+ if(options_x<0) {
+ bool backupSapi=sapi;
+ sapi=false;
+ if(options_x<-1) {
+ /*if(@ws==null) {
+  v2.speak_interrupt("Select a directory and press enter, or press space to enter an absolute path. Press escape to cancel.");
+ string[] dirs=find_directories("*");
+ // Find sub directories.
+ for(uint i=0; i<dirs.length(); i++) {
+ string[] subs=find_directories(dirs[i] + "\\*");
+ for(uint j=0; j<subs.length(); j++) dirs.insert_last(dirs[i] + "\\" + subs[j]);
+ }// Loop.
+
+ bool cont2=true;
+ int x2=0;
+ while(cont2) {
+ if((key_pressed(KEY_LCONTROL))||(key_pressed(KEY_RCONTROL))) v2.stop();
+ bool speak2=true;
+ if((key_pressed(KEY_ESCAPE))||(key_pressed(KEY_F4))) {cont2=false; speak2=false;}
+ if((key_pressed(KEY_LEFT))||(key_pressed(KEY_UP))) x2--;
+ else if((key_pressed(KEY_RIGHT))||(key_pressed(KEY_DOWN))) x2++;
+ else if(key_pressed(KEY_SPACE)) {
+ v2.speak_interrupt("Enter path and press enter, or escape to cancel.");
+ string inp=input_box("Path", "Enter path and press enter, or escape to cancel.");
+ if(inp!="") {
+ speak2=false; cont2=false;
+ word_speaker tempws(inp);
+
+tempws.start_pitch=pitch+100;
+ // test.
+ tempws.speak("I want pizza"); tempws.update();
+// clipboard_copy_text("" + ws.current_words.length());
+ wait(1000); tempws.update();
+// clipboard_copy_text("" + ws.current_words.length());
+ @ws=tempws;
+ }// Yes.
+ 
+ }// Enter manually.
+ else if(key_pressed(KEY_RETURN)) {
+ cont2=false;
+ word_speaker tempws(dirs[x2]);
+ tempws.speak("I want pizza"); tempws.update(); wait(300); tempws.update(); wait(300); tempws.update(); wait(300); tempws.update();
+ @ws=tempws;
+ }// Selected.
+else speak2=false;
+ if(x2<0) x2=dirs.length()-1; else if(x2>=dirs.length()) x2=0;
+ if(speak2) v2.speak_interrupt(dirs[x2]);
+ wait(5);
+ }// Loop.
+
+ }// Create a new word_speaker.
+ if(@ws!=null) {ws.start_pitch=pitch+100; ws.speak_interrupt("Hello");  }
+ */
+  clipboard=true;
+ }// word_speaker.
+ else speak_interrupt("Screen reader.");
+ sapi=backupSapi;
+}
+ else {v2.stop(); v2.set_current_voice(options_x); v2.speak_interrupt(getSML() + "" + vn[options_x] + ". ");}
+ }
+wait(5);}// Loop
+ if(save_changes) {
+ voice.rate=v2.rate;
+ if(options_x<0) {sapi=false; /*@speaker=ws; if(@speaker!=null) speaker.start_pitch=pitch+100;*/ }
+ else {sapi=true; voice.set_current_voice(options_x);}
+ if(config_path!="") save_config(options_x);
+ speak_interrupt_wait("Changes saved.");
+// if(@speaker!=null) clipboard_copy_text(speaker.current_text + ", " + speaker.current_words.length());
+ }
+ else {
+ screen_reader_wait_factor=srwf;
+ pitch=bup;
+ speak_interrupt_wait("Canceled.");
+}
+ }// Options.
+
+ void speak(string text) {
+ if(sapi) voice.speak(getSML() + text);
+ //else if(@speaker!=null) speaker.speak(text);
+ else if(clipboard) clipboard_copy_text(text);
+ else {
+ if(screen_reader_is_running(JAWS)) screen_reader_speak(JAWS, text);
+ else if(screen_reader_is_running(WINDOW_EYES)) screen_reader_speak(WINDOW_EYES, text);
+ else if(screen_reader_is_running(SYSTEM_ACCESS)) screen_reader_speak(SYSTEM_ACCESS, text);
+ else if(screen_reader_is_running(NVDA)) screen_reader_speak(NVDA, text);
+ else show_game_window(text);
+ sr_speaking=true; sr_timer.restart(); sr_timer.resume();
+ }
+}// Speak.
+ void speak_interrupt(string text) {
+ if(sapi) voice.speak_interrupt(getSML() + text);
+ //else if(@speaker!=null) speaker.speak_interrupt(text);
+ else if(clipboard) clipboard_copy_text(text);
+ else {
+ if(screen_reader_is_running(JAWS)) screen_reader_speak_interrupt(JAWS, text);
+ else if(screen_reader_is_running(WINDOW_EYES)) screen_reader_speak_interrupt(WINDOW_EYES, text);
+ else if(screen_reader_is_running(SYSTEM_ACCESS)) screen_reader_speak_interrupt(SYSTEM_ACCESS, text);
+ else if(screen_reader_is_running(NVDA)) screen_reader_speak_interrupt(NVDA, text);
+ else show_game_window(text);
+ sr_speaking=true; sr_timer.restart(); sr_timer.resume();
+ }// Screen readers.
+ }
+ void speak_wait(string text) {
+ if(sapi) voice.speak_wait(getSML() + text);
+ /*else if(@speaker!=null) {
+ speaker.speak(text);
+ while(speaker.current_words.length()>0) {speaker.update(); wait(50);}
+ }// Speak_wait for the monster.
+ */
+ else {
+ speak(text);
+ wait(screen_reader_wait_factor*text.length());
+ sr_speaking=false;
+ }// Screen reader.
+ }
+void speak_interrupt_wait(string text) {
+ if(sapi) voice.speak_interrupt_wait(getSML() + text);
+ //else if(@speaker!=null) {speaker.stop(); speak_wait(text);}
+ else {
+ speak_interrupt(text);
+ wait(screen_reader_wait_factor*text.length());
+ sr_speaking=false;
+}
+}
+ void stop() {
+ if(sapi) voice.stop();
+ //else if(@speaker!=null) speaker.stop();
+ else {
+ for(uint i=1; i<5; i++) {if(screen_reader_is_running(i)) screen_reader_stop_speech(i);}
+ sr_speaking=false;
+ }
+}
+ timer sr_timer;
+ void update() {
+ //if(@speaker!=null) speaker.update();
+ if(!sapi) {
+  if((sr_speaking)&&(sr_timer.elapsed>5000)) sr_speaking=false;
+ }// Something something screen reader something something.
+ }
+ bool speaking() {
+ if(sapi) return voice.speaking;
+ //else if(@speaker!=null) { speaker.update(); return (speaker.current_words.length()>0);}
+ else return sr_speaking; // Because there's no way to tell.
+ }
+ void set_rate(double r) {
+ if(sapi) voice.rate=r;
+ else screen_reader_wait_factor=r;
+}// Set Rate.
+
+ bool load_config() {
+ return load_config(config_path);
+ }
+  bool load_config(string cp) {
+ file fin; if(!fin.open(cp, "r")) return false;
+ string text=fin.read(0);
+ string[] lines=string_split(text, "\n", true);
+ double[] vals;
+ for(uint i=0; i<lines.length(); i++) {
+  vals.insert_last(string_to_number(lines[i]));
+ }// Loop.
+ if(vals.length()<4) return false;
+ if(vals[0]<-1) clipboard=true;
+ if(vals[0]<0) sapi=false;
+ /*else if(lines[0].length()>3) { //alert("Word speaker found in" + config_path, "Lines[0] is " + lines[0] + ". It has a length of " + lines[0].length() + ", which is greater than 3.");
+ word_speaker ws(lines[0]);
+ @speaker=ws;
+ }// No word_speakers can be saved if the path is less than three characters in length (allowing for up to 1000 sapi voices).
+ */
+ else {
+// voice.refresh_voice_list();
+// string[] names=voice.get_voice_names();
+ voice.set_current_voice(vals[0]); sapi=true;
+ }
+ voice.rate=vals[1];
+ screen_reader_wait_factor=vals[2];
+ pitch=vals[3]; /*if(@speaker!=null) speaker.start_pitch=pitch+100;*/
+ return true;
+ }// Load.
+ void save_config(int x) {save_config(config_path, x);}
+ void save_config(string cp, int x) {
+ string text="" + x + "\n" + voice.rate + "\n" + screen_reader_wait_factor + "\n" + pitch;
+ /*if((x<-1)||(@speaker!=null)) {
+text="" + speaker.dir + "\n" + voice.rate + "\n" + screen_reader_wait_factor + "\n" + pitch;
+ }// For word_speaker.
+ */
+ file fout; fout.open(cp, "w");
+ fout.write(text);
+
+ }// Save config.
+ 
+ void set_callback(voice_callback@ vcb) {@callback=vcb;}
+}// Custom_voice.
+
+
+// 4:27 PM 7/9/2012: word_speaker is added to this file.
+
+ // This method returns the last index of a given string, or -1 if the queery cannot be found.
+ int lastIndexOf(string s, string q) {
+ int ret=-1;
+ if(s.length()<q.length()) return -1;
+  if((s=="")||(q=="")) return -1;
+ if((s.length()==q.length())&&(s==q)) return 0;
+ for(int i=s.length()-1; i>=0; i--) {
+ string mid=string_mid(s, i, q.length());
+ if(mid==q) return i;
+ }// Loop.
+return ret;
+ }// Last index of.
+
+
+/*
+ * This class will attempt to speak text, given user input.
+ * It will search for files of the indicated filetype (default is .wav) in the specified directory.
+ * It should parse sentences in such a way as to pick the longest phrase possible, optionally using punctuation.
+ * It uses the sound_positioning functions, making it possible to move the sound-source and such.
+ * The optional "auto_inflect" flag can be used to make the program attempt to adjust pitch and volume of parts of a given string to simulate inflection.
+ */
+/* word_speaker@ newWord_speaker() {word_speaker ret; return ret;}
+
+ class word_speaker {
+ sound@ player; // This object is saved by the speaker so that it can continue playing.
+ string current_text; // The text in progress.
+ string[] current_words; // Words that have yet to be spoken. The speak methods should parse an incoming sentence and populate current_words before speech begins.
+ vector source; // Position of this sound.
+ vector listener; // Position of the listener.
+ float pan_step; float volume_step; float behind_pitch_decrease; float behind_volume_decrease; float angle;
+ float start_pan; float start_volume; float start_pitch;
+ bool auto_inflect; // Flag that determines whether the speak methods should attempt to alter pitch/volume to simulate inflection.
+ string dir;
+ string extention;
+
+ // The following can be used to add pauses corresponding to punctuation.
+ timer pause_timer; // This timer should not be altered from outside of this class.
+ // Set the following values to 0 if you do not want to automatically pause for punctuation.
+ double comma_pause; // The same delay is used for parentheses, brackets, etc.
+ double period_pause; // Used for misc punctuation, such as ? and !.
+ double semi_pause;
+ double colon_pause;
+
+// Default constructor.
+ word_speaker() {init();}
+
+ // Constructs a word_speaker with the specified root directory.
+ word_speaker(string d) {init(); dir=d;}
+ void init() {
+ sound snd; @player=snd;
+
+ current_text="";
+ current_words.resize(0);
+ source.x=0; source.y=0;
+ listener.x=0; listener.y=0;
+ sound_pool pool; // We're harvesting the properties from this pool, and will dispose of it when this method completes.
+ pan_step=pool.pan_step; volume_step=pool.volume_step; behind_pitch_decrease=pool.behind_pitch_decrease; behind_volume_decrease=pool.behind_volume_decrease; angle=pool.last_listener_angle;
+ start_pan=0; start_volume=0; start_pitch=100;
+ auto_inflect=false;
+ dir="";
+ extention=".wav";
+
+ comma_pause;
+ period_pause;
+ semi_pause=0;
+ colon_pause=0;
+
+ }// Initialize.
+
+ // Speaks an individual token, already formatted.
+ bool speak_token(string token, float vol=0, float pitch=0) {
+ player.stop();
+ if(!player.load(dir + "/" + token + extention)) return false;
+ position_sound_custom_2d(player, listener.x, listener.y, source.x, source.y, pan_step, volume_step, behind_pitch_decrease, behind_volume_decrease, start_pan, vol+start_volume, pitch+start_pitch);
+ player.play();
+ return true;
+ }// Speak_token.
+
+ // Updates the word_speaker, keeping the list of tokens updated and speaking the latest in the list.
+ // This method also uses position_sound_custom_2d, and attempts to keep consistent inflection-based offsets in volume and pitch.
+ void update() {
+ float vol=0; float pitch=0;
+// if(!player.playing) {
+ if(current_words.length()>0) {
+ string token=current_words[0];
+ if(auto_inflect) {
+ string punc=string_right(token, 1);
+ bool remove=true;
+ if(punc==".") pitch=-3;
+ else if(punc=="?") pitch=5;
+ else if(punc=="!") {pitch=2; vol=5;}
+ else remove=false;
+ if(remove) token=string_left(token, token.length()-1);
+}// Adjust for inflection.
+ if(!player.playing) {
+ speak_token(token, vol, pitch);
+ current_words.remove_at(0);
+}// Load.
+ }
+ else {
+ if(current_text!="") current_text="";
+ }// We've run out of things to say.
+//}// Load next token.
+ if(player.playing) position_sound_custom_2d(player, listener.x, listener.y, source.x, source.y, pan_step, volume_step, behind_pitch_decrease, behind_volume_decrease, start_pan, vol+start_volume, pitch+start_pitch);
+}
+
+
+ // This method does the speaking.
+ // It appends the desired text to any text that hasn't been spoken.
+ void speak(string text) {
+ string str=string_replace(text, " ", "_", true);
+ current_text += str;
+// string[] words=string_split(text, " ", true);
+
+ // Important: there are some symbols that cannot exist in file names. If these are found, remove them.
+ string bads="<>?/:\"|\\*";
+ for(uint i=0; i<bads.length(); i++) {str=string_replace(str, bads[i], "", true);}
+//alert("Debug", "String ready for searching: " + str);
+ string formatted=str;
+ while(formatted.length()>0) {
+ // Search the string for an existing file until we either come to the first word, or we find a file.
+ bool found=false;
+// alert("Debug", "Searching " + formatted + " For files.");
+ while((!found)&&(string_contains(formatted, "_", 1)>0)) {
+
+ // Does formatted exist in its current form?
+ if(file_exists(dir + "/" + formatted + extention)) found=true;
+ // If not, try searching without the last character, if the last character is punctuation that we can adjust for.
+ else if((formatted.length()>1)&&(file_exists(dir + "/" + string_left(formatted, formatted.length()-1) + extention))) found=true;
+ // If that still doesn't work, trim the last word and try again.
+ else {
+formatted=string_left(formatted, lastIndexOf(formatted, "_")-1);
+// alert("Debug", "File not found. Trim search to " + formatted);
+ }
+}// Search.
+
+ // We now have the formatted string. add it to words,
+ current_words.insert_last(formatted);
+// alert("Debug", "Added token " + formatted);
+ // Then set formatted to the remainder of the string.
+ formatted=string_right(str, str.length()-formatted.length()); // Of questionable effectiveness.
+ if((formatted.length()>0)&&(formatted[0]=="_")) formatted=string_right(formatted, formatted.length()-1);
+// alert("Debug", "Token added. Remaining string is " + formatted);
+ str=formatted; // Oopse.
+ }// Loop.
+
+ // This should have gotten everything working. To be sure, let's run an update:
+ update();
+// alert("Debug", "There are " + current_words.length() + " tokens to be processed.");
+}// Speak.
+ 
+ // Stops all speech before speaking the given string.
+ void speak_interrupt(string text) {
+ stop();
+ speak(text);
+ }
+
+ // Stops any speech in progress and clears any text waiting to be spoken.
+ void stop() {
+ player.stop();
+ current_text="";
+ current_words.resize(0);
+ }
+
+ // This method sets the sound_positioning properties of this word_speaker to match those of the given sound_pool.
+
+ void set_positioning_properties(sound_pool@ pool) {
+ if(@pool==null) return;
+ behind_pitch_decrease=pool.behind_pitch_decrease;
+ behind_volume_decrease=pool.behind_volume_decrease;
+ pan_step=pool.pan_step;
+ volume_step=pool.volume_step;
+ angle=pool.last_listener_angle;
+}
+
+ }// Class.
+*/
+
+funcdef int voice_callback(custom_voice@ v);

@@ -1,0 +1,127 @@
+
+ double math_random() {
+ return 0.01*random(0, 100);
+ }// Math_random.
+
+
+ // KeyC bridges poll-based and event-based keyboard input,
+ // And enables custom keyboard configurations.
+
+ // Constants:
+const int START=128, L=1, R=2, U=4, D=8, A=16, B=32, C=64, none=-1;
+ // 1:56 PM 4/8/2010: START was originally 0, but since this makes it impossible to determine if start has or hasn't been pressed (and this was causing problems with game controllers), it's been changed to 128.
+ const int X=256, Y=512, Z=1024; // Added 10:35 AM 5/24/2010.
+const int KeyC_START=128, KeyC_L=1, KeyC_R=2, KeyC_U=4, KeyC_D=8, KeyC_A=16, KeyC_B=32, KeyC_C=64, KeyC_none=-1;
+ // 1:56 PM 4/8/2010: START was originally 0, but since this makes it impossible to determine if start has or hasn't been pressed (and this was causing problems with game controllers), it's been changed to 128.
+ const int KeyC_X=256, KeyC_Y=512, KeyC_Z=1024; // Added 10:35 AM 5/24/2010.
+
+
+
+ KeyC@ MyKeyC() {
+ KeyC ret(); //=new KeyC();
+ ret.l=KEY_A;
+ ret.r = KEY_S;
+ ret.u=KEY_W;
+ ret.d=KEY_Z;
+ ret.a=KEY_F;
+ ret.b=KEY_G;
+ ret.c=KEY_H;
+ ret.start=KEY_SPACE;
+ // X, Y and Z added 10:37 AM 5/24/2010:
+ ret.x=KEY_R;
+ ret.y=KEY_T;
+ ret.z=KEY_Y;
+ return ret;
+}//I use this one a lot...
+
+
+ class KeyC {
+ // Mapping variables to KeyCodes:
+ int l;
+int r;
+int u;
+int d;
+int a;
+int b;
+int c;
+int start;
+
+ int x; int y; int z; // 10:36 AM 5/24/2010.
+ int flags; // Keyup/keydown bits. Note that this prevents start from being caught.
+ int lastPressed; //7:13 AM 2/14/2010. To determine if a key being released is the last key that was pressed.
+
+ KeyC() {init();}
+ void init() {
+ l=KEY_LEFT; r=KEY_RIGHT; d=KEY_DOWN; u=KEY_UP;
+ a=KEY_NUMPAD1; b=KEY_NUMPAD2; c=KEY_NUMPAD3; start=KEY_RETURN;
+ x=KEY_NUMPAD4; y=KEY_NUMPAD5; z=KEY_NUMPAD6;
+ flags=0; // Keyup/keydown bits. Note that this prevents start from being caught.
+ lastPressed=-1; //7:13 AM 2/14/2010. To determine if a key being released is the last key that was pressed.
+
+
+ }// Initialize.
+
+ int getKey(int k) {
+ if(k==a) return A;
+ else if(k==b) return B;
+ else if(k==c) return C;
+ else if(k==x) return X;
+ else if(k==y) return Y;
+ else if(k==z) return Z;
+ else if(k==start) return START;
+ else if(k==l) return L;
+ else if (k==r) return R;
+ else if(k==u) return U;
+ else if(k==d) return D;
+ return none;
+}//Key.
+
+bool isKeyPressed(int k) {
+ if(k<=0) return false;
+ return (flags&k)!=0;
+}
+
+ int press(int ke) {
+ int k=getKey(ke);
+
+ if(k<=0) return k;
+else if( (flags & k)!=0) return none;
+ flags|=k;
+  lastPressed=k;
+ return k;
+}//Assuming we don't know what k is from the start.
+ int release(int ke) {
+ int k=getKey(ke);
+ if(k<=0) return k;
+ else if( (flags & k)==0) return none;
+ // I always get confused on turning off a bit.
+ flags = ~ ( (~flags) |k);
+ // So that flips flags. We ensure that k is 0, with absolutely no answer for the rest. We flip it back. K turns to 0, everything else is as it was. Is there a quicker way to do that? :P. Maybe &~k?
+ return k;
+}//Releasing an unknown key.
+ // I can't help but think I'm forgetting something. :P.
+} //Heh! This used to be a private class...
+
+
+// 11:40 PM 2/11/2016: I'm tired of writing this every time I make a new game:
+string KeyC_save(KeyC@ k) {
+	if(@k==null) return "";
+	return "" + k.l + " " + k.r + " " + k.u + " " + k.d + " " + k.a + " " + k.b + " " + k.c + " " + k.x + " " + k.y + " " + k.z + " " + k.start;
+}
+KeyC@ KeyC_load(string txt, KeyC@ k=null) {
+	if(@k==null){KeyC temp; @k=temp;}
+	string[] parts=string_split(txt, " ", true);
+	if(parts.length()<11) {alert("Load Error", "Invalid key config: " + txt + "\nShould contain 11 entries, delineated by ascii 32.\nCurrently contains " + parts.length() + " entries."); return k;}
+	k.l=string_to_number(parts[0]);
+	k.r=string_to_number(parts[1]);
+	k.u=string_to_number(parts[2]);
+	k.d=string_to_number(parts[3]);
+	k.a=string_to_number(parts[4]);
+	k.b=string_to_number(parts[5]);
+	k.c=string_to_number(parts[6]);
+	k.x=string_to_number(parts[7]);
+	k.y=string_to_number(parts[8]);
+	k.z=string_to_number(parts[9]);
+	k.start=string_to_number(parts[10]);
+	return k;
+}

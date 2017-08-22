@@ -1,0 +1,583 @@
+#include "math.bgt"
+#include "linedist.bgt"
+
+vector new_vector(double x, double y, double z=0) {
+	vector ret(x, y, z);
+	return ret;
+}
+double rad_limit(double theta) {
+	while(theta<0) theta+=2*PI;
+	while(theta>=2*PI) theta-=2*PI;
+	return theta;
+}
+
+
+// Shape type constants. If you want to create a unique shape class, pay attention to how to use these:
+const int SHAPE_UNKNOWN=0,
+    SHAPE_RECT=1,
+    SHAPE_ROUND=2, // Any value with this bit set should not call get_points()!
+    SHAPE_POLY=4,
+    SHAPE_TRI=5, // unspecified triangle
+    SHAPE_OTHER=8, // For shapes that don't fit anywhere else.
+    SHAPE_ROUND_OTHER=SHAPE_OTHER|SHAPE_ROUND, // Misc round shape.
+    SHAPE_RIGHT_TRIANGLE=13,
+    SHAPE_STAR=16;
+
+/* An interface for representing 2D shapes.
+ * To avoid wasteful type checks, the get_type method should always return an accurate value.
+ * Notice: rectangles here specify the center, rather than a corner, to speed up hit detection. Use the rect_tl function to generate a rectangle from corner coordinates.
+ */
+interface shape {
+	
+	shape@ translate(double tx, double ty);
+	shape@ rotate(double theta, double ox, double oy);
+	shape@ scale(double sx, double sy);
+	
+	// Return the bounding box of this shape.
+	rect@ get_bounds();
+	
+	// Return the type constant that best matches this shape.
+	// if the return value contains SHAPE_ROUND (SHAPE_ROUND_OTHER, for example), the get_points method of tis shape should not be used.
+	int get_type();
+	
+	// Returns an array of vectors pointing at each vertex of this shape.
+	// When a shape's get_type method returns a value with the SHAPE_ROUND bit set, that shape should not invoke this method.
+	// The points should be arranged in counterclockwise order, where negative y is up (screen coordinates).
+	vector[] get_points();
+	
+	// Returns true if this shape intersects the line segment defined by (p1, p2), false otherwise.
+	// See segs_intersect(p1, p2, q1, q2).
+	bool seg_intersects(vector p1, vector p2);
+	
+	// Returns true if this shape contains the point (x, y), false otherwise.
+	// See triangle_contains and convex_contains.
+	bool contains(double x, double y);
+	bool contains(vector p);
+	
+	// Returns true if this shape intersects the given shape, false otherwise.
+	// This implimentation only requires that this shape intersects the bounding box of s, but more accurate detection is encouraged.
+	bool intersects(shape@ s);
+}
+
+
+
+
+// Returns the z value of a vector perpendicular to (v1, v2, v3)
+// In practice, the sign of the return value tells you the direction of v3 relative to the segmant (v2, v3),
+// And the magnitude is twice the area of the triangle formed by (v1, v2, v3)
+double marmy(vector v1, vector v2, vector v3) {
+return v1.x*(v2.y-v3.y) + v2.x*(v3.y-v1.y) + v3.x*(v1.y-v2.y);
+}
+
+// Returns true if the segments represented by (p1, p2) and (q1, q2) intersect, false otherwise.
+bool segs_intersect(vector p1, vector p2, vector q1, vector q2) {
+	return (
+	((marmy(p1, p2, q1)<=0)!=(marmy(p1, p2, q2)<0)) and 
+	((marmy(q1, q1, p1)<=0)!=(marmy(q1, q2, p2)<0))
+	);
+}
+
+// Returns true if the triangle represented by (a, b, c) contains the point at p, false otherwise.
+bool triangle_contains(vector a, vector b, vector c, vector p) {
+	bool dir=(marmy(a, b, p)<=0);
+	// Note: should we return true if it is 0, even if it's clockwise for the others?
+	return (
+	((marmy(b, c, p)<=0)==dir) and ((marmy(c, a, p)<=0)==dir)
+	);
+}
+
+// adds the specified point to the array and returns it.
+vector[] addPoint(vector[] points, double x, double y) {
+vector v(x, y);
+points.insert_last(v);
+return points;
+}
+
+// Returns true if the convex polygon described by the points in the array contains the point at p, false otherwise.
+// This function only works on simple convex polygons--that is, all internal angles are less than 180 degrees (<pi) and it never intersects itself.
+bool convex_contains(vector[] points, vector p) {
+	uint l=points.length();
+	if(l<3) return false;
+	bool dir=(marmy(points[l-1], points[0], p)<=0);
+	for(uint i=1; i<l; i++) {
+		if(p==points[i]) return true;
+		if((marmy(points[i-1], points[i], p)<=0)!=dir) return false;
+	}
+	return true;
+}
+
+
+class Rect {
+	double x=0, y=0;
+	double width=0, height=0;
+	Rect() {}
+	Rect(double xx, double yy, double w, double h) {
+		this.x=xx;
+		this.y=yy;
+		this.width=w;
+		this.height=h;
+	}
+	
+	bool collide_center(Rect@ r) {
+		return (
+(absolute(this.x-r.x)*2<=(this.width+r.width))&&
+(absolute(this.y-r.y)*2<=this.height+r.height)
+);
+	}
+	
+	bool contains_center(vector p) {
+		return this.contains_center(p.x, p.y);
+	}
+	
+	bool contains_center(double x, double y) {
+		return (
+		(absolute(x-this.x)*2<=this.width) and 
+		(absolute(y-this.y)*2<=this.height)
+		);
+	}
+	
+	bool seg_intersects(vector a, vector b) {
+		if(this.contains_center(a.x, a.y) or this.contains_center(b.x, b.y)) return true;
+		double w=this.width/2;
+		double h=this.height/2;
+		vector topleft(this.x-w, this.y-h);
+		vector topright(this.x+w, this.y-h);
+		vector bottomleft(this.x-w, this.y+h);
+		vector bottomright(this.x+w, this.y+h);
+		return (segs_intersect(a, b, bottomright, topright)) or (segs_intersect(a, b, topright, topleft)) or (segs_intersect(a, b, topleft, bottomleft)) or (segs_intersect(a, b, bottomleft, bottomright));
+	}
+	
+	bool seg_intersects(double x1, double y1,  double x2, double y2) {
+		vector a(x1, y1);
+		vector b(x2, y2);
+		return this.seg_intersects(a, b);
+	}
+	
+	bool triangle_intersects(vector a, vector b, vector c) {
+		if((this.contains_center(a)) or (this.contains_center(b)) or (this.contains_center(c))) return true;
+		vector center(this.x, this.y);
+		if(triangle_contains(a, b, c, center)) return true;
+		return this.seg_intersects(a, b) or this.seg_intersects(b, c) or this.seg_intersects(c, a);
+	}
+}
+Rect@ newRect(int x, int y, int w, int h) {Rect ret(x, y, w, h); return ret;}
+
+class rect : Rect, shape {
+	
+	rect(double x, double y, double w, double h) {
+		super(x, y, w, h);
+	}
+	
+	int get_type() {return SHAPE_RECT;}
+	bool contains(double x, double y) {
+		return this.contains_center(x, y);
+	}
+	bool contains(vector p) {
+		return this.contains_center(p.x, p.y);
+	}
+	
+	vector[] get_points() {
+		double w=this.width/2;
+		double h=this.height/2;
+		double x1=this.x-w;
+		double x2=this.x+w;
+		double y1=this.y-h;
+		double y2=this.y+h;
+		vector[] ret = {new_vector(x1, y1), new_vector(x1, y2), new_vector(x2, y2), new_vector(x2, y1)};
+		return ret;
+	}
+	
+	shape@ translate(double tx, double ty) {
+		rect ret(this.x+tx, this.y+ty, this.width, this.height);
+		return ret;
+	}
+	rect@ get_bounds() {
+		rect ret(this.x, this.y, this.width, this.height);
+		return ret;
+	}
+	
+	shape@ rotate(double theta, double ox=0, double oy=0) {
+		theta=rad_limit(theta);
+		// Catch the easy cases:
+		if(ox==this.x and oy==this.y) {
+			if(theta==0 or theta==pi or theta==PI) return this.get_bounds();
+			if(theta==PI/2 or theta==pi/2 or theta==3*pi/2 or theta==3*PI/2) {
+				rect ret(this.x, this.y, this.height, this.width);
+				return ret;
+			}
+		}
+		
+		if(theta==0) return this.get_bounds();
+		vector[] points=this.get_points();
+		vector o(ox, oy);
+		for(uint i=0; i<4; i++) points[i]=::rotate(points[i], o, theta);
+		convex ret();
+		ret.points=points;
+		ret.npoints=4;
+		return ret;
+	}
+	
+	shape@ scale(double sx, double sy) {
+		rect ret(this.x, this.y, this.width*sx, this.y*sy);
+		return ret;
+	}
+	
+	bool intersects(shape@ s) {
+		if(@s==null) return false;
+		
+		if(s.get_type()==SHAPE_RECT) {
+			return this.collide_center(cast<rect>(s));
+		}
+		else if(((s.get_type())&SHAPE_ROUND)==SHAPE_ROUND) return s.intersects(this);
+		
+		vector[] points=this.get_points();
+		vector center(this.x, this.y);
+		vector[] opoints=s.get_points();
+		vector lastp=opoints[opoints.length()-1];
+		for(uint i=0; i<opoints.length(); i++) {
+			if(this.contains_center(opoints[i])) return true;
+			if(this.seg_intersects(lastp, opoints[i])) return true;
+			lastp=opoints[i];
+		}
+		
+		return false;
+	}
+	
+	
+}
+
+rect@ new_rect(double x, double y, double w, double h) {rect ret(x, y, w, h); return ret;}
+rect@ rect_tl(double x, double y, double w, double h) {return new_rect(x+(w/2), y+(h/2), w, h);}
+
+
+class convex : shape {
+	vector[] points;
+	uint npoints;
+	rect@ bounds=null;
+	convex() {npoints=0; points.resize(0); @bounds=null;}
+	void addPoint(double x, double y) {
+		this.points.insert_last(new_vector(x, y));
+		this.npoints++;
+		@(this.bounds)=null;
+	}
+	rect@ get_bounds() {
+		if(@(this.bounds)==null) {
+			if(this.npoints==0) return new_rect(0,0,0,0);
+			else if(this.npoints==1) return new_rect(this.points[0].x, this.points[0].y, 0, 0);
+			double leftx=this.points[0].x;
+			double bottom=this.points[0].y;
+				double rightx=leftx;
+				double top=bottom;
+			for(uint i=1; i<npoints; i++) {
+				if(this.points[i].x<leftx) leftx=this.points[i].x;
+				if(this.points[i].x>rightx) rightx=this.points[i].x;
+				if(this.points[i].y<top) top=this.points[i].y;
+				if(this.points[i].y>bottom) bottom=this.points[i].y;
+			}
+				@(this.bounds)=rect_tl(leftx, top, rightx-leftx, bottom-top);
+		}// Generate bounds.
+		
+		return this.bounds;
+	}
+	
+	vector[] get_points() {
+		return this.points;
+	}
+	
+	int get_type() {
+		return SHAPE_POLY;
+	}
+	
+	shape@ translate(double tx, double ty) {
+		convex ret;
+		ret.points.resize(this.npoints);
+		ret.npoints=this.npoints;
+		for(uint i=0; i<this.npoints; i++) {
+			ret.points[i]=new_vector(this.points[i].x+tx, this.points[i].y+ty);
+		}
+		return ret;
+	}
+	
+	shape@ rotate(double theta, double ox, double oy) {
+		theta=rad_limit(theta);
+		if(theta==0) return this; // !
+		vector o(ox, oy);
+		convex ret;
+		ret.points.resize(this.npoints);
+		ret.npoints=this.npoints;
+		for(uint i=0; i<this.npoints; i++) {
+			ret.points[i]=::rotate(this.points[i], o, theta);
+		}
+		return ret;
+	}
+	
+	shape@ scale(double sx, double sy) {
+		// Do we scale about the center?
+		// That's hard!
+		rect@ b=this.get_bounds();
+		convex ret;
+		ret.points.resize(this.npoints);
+		ret.npoints=this.npoints;
+		for(uint i=0; i<this.npoints; i++) {
+			vector p(this.points[i].x, this.points[i].y);
+			p.x=b.x+((p.x-b.x)*sx);
+			p.y=b.y+((p.y-b.y)*sy);
+			ret.points[i]=p;
+		}
+		return ret;
+	}
+	
+	bool contains(vector p) {
+		return convex_contains(this.points, p);
+	}
+	bool contains(double x, double y) {
+		return convex_contains(this.points, new_vector(x, y));
+	}
+	
+	bool seg_intersects(vector p1, vector p2) {
+		// Annoying? Annoying.
+		if(this.contains(p1) or this.contains(p2)) return true;
+		vector lastp=this.points[this.npoints-1];
+		for(uint i=0; i<this.npoints; i++) {
+			if(segs_intersect(lastp, this.points[i], p1, p2)) return true;
+			lastp=this.points[i];
+		}
+		return false;
+	}
+	
+	bool intersects(shape@ s) {
+		if(@s==null) return false;
+		if(this.get_bounds().collide_center(s.get_bounds())==false) return false;
+		
+		if(((s.get_type())&SHAPE_ROUND)==SHAPE_ROUND) return s.intersects(this);
+		
+		vector[] opoints=s.get_points();
+		vector lastp=opoints[opoints.length()-1];
+		for(uint i=0; i<opoints.length(); i++) {
+			if(this.seg_intersects(lastp, opoints[i])) return true;
+			lastp=opoints[i];
+		}
+		
+		return false;
+	}
+	
+}
+
+convex new_convex() {convex ret; return ret;}
+convex new_convex(vector[] points) {
+	convex ret;
+	ret.points=points;
+	ret.npoints=points.length();
+	return ret;
+}
+convex new_convex(convex src) {return new_convex(src.points);}
+
+class circle : shape {
+	// Do not change r directly. Use the set_radius method instead.
+	double x=0, y=0, r=1, r2=1;
+	circle() {}
+	circle(double cx, double cy, double rr) {
+		this.x=cx;
+		this.y=cy;
+		this.r=rr;
+		this.r2=r*r;
+	}
+	
+	int get_type() {
+		return SHAPE_ROUND;
+	}
+	
+	void set_radius(double nr) {
+		this.r=nr;
+		this.r2=r*r;
+	}
+
+	bool contains(double xx, double yy) {
+		double d2=((xx-this.x)*(xx-this.x)) + ((yy-this.y)*(yy-this.y));
+		return d2<=r2;
+	}
+	bool contains(vector v) {
+		return this.contains(v.x, v.y);
+	}
+	
+	rect@ get_bounds() {
+		return new_rect(x, y, r*2, r*2);
+	}
+	
+	bool seg_intersects(vector p1, vector p2) {
+		return Line2D_ptSegDistSq(p1.x, p1.y, p2.x, p2.y, this.x, this.y)<=this.r2;
+	}
+	
+	shape@ translate(double tx, double ty) {
+		circle ret(this.x+tx, this.y+ty, this.r);
+		return ret;
+	}
+	shape@ rotate(double theta, double ox, double oy) {
+		if(ox==this.x and oy==this.y) return this; // ! ?
+		vector p=::rotate(new_vector(this.x, this.y), new_vector(ox, oy), theta);
+		circle ret(p.x, p.y, this.r);
+		return ret;
+	}
+	shape@ scale(double sx, double sy) {
+		if(sx==sy) {
+			circle ret(this.x, this.y, this.r*sy);
+			return ret;
+		}
+		
+		// Needs to be an ellipse.
+		return null; // Change!
+	}
+	
+	bool intersects(shape@ s) {
+		if(@s==null) return false;
+		if(this.get_bounds().intersects(s.get_bounds())==false) return false;
+		
+		if(((s.get_type())&SHAPE_ROUND)==SHAPE_ROUND) {
+			circle@ c=cast<circle>(s);
+			if(@c!=null) {
+				double d2=((c.x-this.x)*(c.x-this.x))+((c.y-this.y)*(c.y-this.y));
+				return d2<=((this.r+c.r)*(this.r+c.r));
+			}
+			else return true; // If we don't know for sure, assume the bounds check was sufficient.
+		}// Round shapes are annoying.
+		
+		if(s.contains(this.x, this.y)) return true;
+		if(s.get_type()==SHAPE_RECT) {
+			rect@ b=cast<rect>(s);
+			if(this.contains(b.x, b.y)) return true;
+			// Otherwise, use the boring point method.
+		}
+		
+		vector[] opoints=s.get_points();
+		vector lastp=opoints[opoints.length()-1];
+		for(uint i=0; i<opoints.length(); i++) {
+			if(this.contains(lastp.x, lastp.y)) return true; // This is sufficiently fast as to be a speed boost.
+			if(this.seg_intersects(lastp, opoints[i])) return true;
+			lastp=opoints[i];
+		}
+		
+		return false;
+	}
+	
+	vector[] get_points() {
+		return this.get_points(10);
+	}
+	vector[] get_points(int count) {
+		vector[] ret(count);
+		for(uint i=0; i<count; i++) {
+			ret[i]=new_vector(this.x+(this.r*cosine(i*pi/count)), this.y+(this.r*sine(i*pi/count)));
+		}
+		return ret;
+	}
+}
+circle@ new_circle(double x, double y, double r) {circle ret(x, y, r); return ret;}
+
+class right_triangle : shape {
+	vector a, b;
+	
+	right_triangle() {}
+	right_triangle(double x1, double y1, double x2, double y2) {
+		this.a=new_vector(x1, y1);
+		this.b=new_vector(x2, y2);
+	}
+	right_triangle(vector p1, vector p2) {
+		this.a=p1;
+		this.b=p2;
+	}
+	
+	vector[] get_points() {
+		vector[] ret={this.a, this.b, new_vector(this.b.x, this.a.y)};
+		return ret;
+	}
+	
+	shape@ translate(double tx, double ty) {
+		right_triangle ret(this.a.x+tx, this.a.y+ty, this.b.x+tx, this.b.y+ty);
+		return ret;
+	}
+	
+	shape@ rotate(double theta, double ox, double oy) {
+		// eep!
+		return new_convex(this.get_points()).rotate(theta, ox, oy);
+	}
+	rect@ get_bounds() {
+		double leftx=(a.x<b.x) ? a.x : b.x;
+		double rightx=(a.x<b.x) ? b.x : a.x;
+		double top=(a.y<b.y) ? a.y : b.y;
+		double bottom=(a.y<b.y) ? b.y : a.y;
+		return rect_tl(leftx, top, rightx-leftx, bottom-top);
+	}
+	
+	shape@ scale(double sx, double sy) {
+		// Does this scale from its center, or from a, or... from the center of the triangle's bounding box, which happens to be on the hypotenuse?
+		// I'd prefer the midpoint between bounds.center and c, actually.
+		rect@ r=this.get_bounds();
+		vector c(b.x, a.y);
+		vector center=(new_vector(r.x, r.y)+c)/2;
+		vector a2(center.x+(sx*(a.x-center.x)), center.y+(sy*(a.y-center.y)));
+		vector b2(center.x+(sx*(b.x-center.x)), center.y+(sy*(b.y-center.y)));
+		right_triangle ret(a2, b2);
+		return ret;
+	}
+	
+	bool seg_intersects(vector p1, vector p2) {
+		vector c(b.x, a.y);
+		return (triangle_contains(a, b, c, p1) or triangle_contains(a, b, c, p2) or segs_intersect(a, b, p1, p2) or segs_intersect(b, c, p1, p2) or segs_intersect(c, a, p1, p2));
+	}
+	
+	bool intersects(shape@ s) {
+		
+		if(@s==null) return false;
+		vector c(b.x, a.y);
+		if(s.get_bounds().triangle_intersects(this.a, this.b, c)==false) return false;
+		if(s.get_type()==SHAPE_RECT) return true;
+		if(((s.get_type())&SHAPE_ROUND)==SHAPE_ROUND) return s.intersects(this); // So lazy.
+		
+		// I don't feel good about this, but:
+		vector[] opoints=s.get_points();
+		vector lastp=opoints[opoints.length()-1];
+		for(uint i=0; i<opoints.length(); i++) {
+			if(this.seg_intersects(lastp, opoints[i])) return true;
+			lastp=opoints[i];
+		}
+		return false;
+	}
+	
+	bool seg_hypotenuse(vector p1, vector p2) {
+		return segs_intersect(a, b, p1, p2);
+	}
+	bool contains(double x, double y) {
+		return triangle_contains(this.a, this.b, new_vector(this.b.x, this.a.y), new_vector(x, y));
+	}
+	
+	bool contains(vector p) {
+		return triangle_contains(this.a, this.b, new_vector(this.b.x, this.a.y), p);
+	}
+	int get_type() {
+		return SHAPE_RIGHT_TRIANGLE;
+	}
+}
+
+
+// Returns an array of verteces in s2 that are endpoints on segments that intersect s1.
+// If s1 and s2 do not intersect, or either shape fully contains the other, the returned array will be empty.
+vector[] get_intersections(shape@ s1, shape@ s2) {
+	vector[] ret;
+	if(@s1==null or @s2==null) return ret;
+	
+	if(((s2.get_type())&SHAPE_ROUND)==SHAPE_ROUND) {
+		// pass
+	}// Round shapes are weird.
+	
+	vector[] opoints=s2.get_points();
+	uint l=opoints.length();
+	vector lastp=opoints[l-1];
+	for(uint i=0; i<l; i++) {
+		if(s1.seg_intersects(opoints[i], lastp)) {
+			if(ret.is_empty() or ret[ret.length()-1]!=lastp) ret.insert_last(lastp);
+			ret.insert_last(opoints[i]);
+		}
+		lastp=opoints[i];
+	}
+	
+	return ret;
+}

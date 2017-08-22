@@ -1,0 +1,38 @@
+#include "clock.bgt"
+
+class game {
+clock@ game_clock;
+bool allow_alt_f4=true;
+
+game() {reset(50);}
+game(double frames_per_second) {
+this.reset(frames_per_second);
+}
+void reset(double fps) {
+clock temp(fps);
+@game_clock=temp;
+}
+void start(string title="BGT Game Window") {
+show_game_window(title);
+while(true) {
+tick(game_clock.delay);
+int[] keys=keys_pressed();
+for(uint i=0; i<keys.length(); i++) {
+this.key_pressed(keys[i]);
+}
+keys=keys_released();
+for(uint i=0; i<keys.length(); i++) {
+this.key_released(keys[i]);
+}
+// So on for mouse and joystick.
+
+game_clock.tick();
+}
+}
+void key_pressed(int k) {
+if(allow_alt_f4 and key_down(KEY_LMENU) and k==KEY_F4) exit();
+}
+void key_released(int k) {}
+void tick(double dt) {}
+}
+
