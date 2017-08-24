@@ -1,0 +1,39 @@
+#include "menu_tree.bgt"
+
+tts_voice voice;
+
+bool tree_callback(menu_tree@ object, int event, string path, string user_data)
+{
+if(event==menu_tree_event_navigate)
+voice.speak(path);
+if(event==menu_tree_event_select)
+voice.speak(path);
+if(event==menu_tree_event_unselect)
+voice.speak(path);
+if(event==menu_tree_event_shrink)
+voice.speak(path);
+if(event==menu_tree_event_expand)
+voice.speak(path);
+return true;
+}
+
+void main()
+{
+install_keyhook();
+show_game_window("Menu Tree");
+menu_tree tree;
+tree.set_callback(tree_callback, "");
+tree.add("", "1", "1.wav");
+tree.add("", "2", "2.wav");
+tree.add("", "3", "3.wav");
+
+tree.add("1", "1", "1_1.wav");
+tree.add("1", "2", "1_2.wav");
+
+tree.add("2", "1", "2_1.wav");
+tree.add("2", "2", "2_2.wav");
+tree.show("");
+string[] result=tree.get_selections();
+for(int i=0;i<result.length();i++)
+alert("Selection", result[i]);
+}

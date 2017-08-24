@@ -1,0 +1,103 @@
+class score_item
+{
+int score;
+string name;
+string email;
+string country;
+
+score_item()
+{
+score=0;
+}
+}
+
+string post_score(string url, string channel, string channel_password, int score, string name, string email, string country)
+{
+string result=url_post(url, "action=initauth");
+string auth="";
+int error=get_last_error();
+if(error!=0)
+{
+if(error==-29)
+{
+return result;
+}
+return "error unknown";
+}
+if(string_left(result, 6)=="error ")
+{
+return result;
+}
+if(string_left(result, 3)!="bss")
+{
+return "error unknown";
+}
+auth=result;
+result+=channel_password;
+string authkey=string_hash(result, 1, false);
+name=url_encode(name);
+email=url_encode(email);
+country=url_encode(country);
+result=url_post(url, "action=auth&channel=" + channel + "&auth=" + auth + "&authkey=" + authkey + "&username=" + name + "&usermail=" + email + "&usercountry=" + country + "&userscore=" + score);
+error=get_last_error();
+if(error!=0)
+{
+if(error==-29)
+{
+return result;
+}
+return "error unknown";
+}
+if(string_left(result, 6)=="error ")
+{
+return result;
+}
+if(string_left(result, 5)!="rank ")
+{
+return "error unknown";
+}
+string[] list=string_split(result, " ", false);
+return list[1];
+}
+
+string list_scores(string url, string channel, int limit, score_item[]@ items)
+{
+if(@items==null)
+{
+return "error invalid handle";
+}
+items.resize(0);
+string result=url_post(url, "action=list&channel=" + channel + "&entries=" + limit);
+int error=get_last_error();
+if(error!=0)
+{
+if(error==-29)
+{
+return result;
+}
+return "error unknown";
+}
+if(string_left(result, 6)=="error ")
+{
+return result;
+}
+string[] list=string_split(result, "\n", false);
+if(list[0]!="list")
+{
+return "error unknown";
+}
+if(list.length()<5)
+{
+return "";
+}
+score_item temp;
+for(uint i=1;i<list.length();i+=4)
+{
+temp.name=string_trim_left(list[i], 2);
+temp.score=string_to_number(string_trim_left(list[i+1], 2));
+temp.email=string_trim_left(list[i+2], 2);
+temp.country=string_trim_left(list[i+3], 2);
+items.insert_last(temp);
+}
+return "";
+}

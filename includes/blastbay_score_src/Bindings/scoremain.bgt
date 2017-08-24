@@ -1,0 +1,20 @@
+#include "score.bgt"
+
+void main()
+{
+string url="http://www.blastbay.com/score_api.php";
+alert("Starting", "Starting process.");
+string result=post_score(url, "palacepunchup", "anka", -1, "Philip", "philip@blastbay.com", "Sweden");
+alert("Result", result);
+score_item[] scores;
+result=list_scores(url, "testgame", 10, scores);
+if(result!="")
+{
+alert("Result", result);
+exit();
+}
+for(uint i=0;i<scores.length();i++)
+{
+alert("Rank " + (i+1), "Name: " + scores[i].name + "\nEmail: " + scores[i].email + "\nCountry: " + scores[i].country + "\nScore: " + scores[i].score);
+}
+}
