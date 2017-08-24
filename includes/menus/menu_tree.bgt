@@ -1,0 +1,367 @@
+class tree_node
+{
+tree_node@ parent;
+tree_node@[] children;
+string name;
+string filename;
+bool checked;
+}
+
+const int menu_tree_event_none=0;
+const int menu_tree_event_navigate=1;
+const int menu_tree_event_select=2;
+const int menu_tree_event_unselect=3;
+const int menu_tree_event_expand=4;
+const int menu_tree_event_shrink=5;
+
+class menu_tree
+{
+string shrink_filename;
+string expand_filename;
+string select_filename;
+string unselect_filename;
+string edge_filename;
+string already_selected_filename;
+string expandable_filename;
+
+menu_tree()
+{
+@output=output_sound;
+@event=event_sound;
+}
+
+void set_output_sound_handle(sound@ handle)
+{
+if(@handle==null)
+@output=output_sound;
+else
+@output=handle;
+}
+
+void set_event_sound_handle(sound@ handle)
+{
+if(@handle==null)
+@event=event_sound;
+else
+@event=handle;
+}
+
+bool add(string path, string item_name, string item_filename, bool item_checked=false)
+{
+if(item_name=="" or item_filename=="")
+return false;
+tree_node@ current=find_node(path);
+if(@current==null)
+return false;
+tree_node new_node;
+new_node.name=item_name;
+new_node.filename=item_filename;
+new_node.checked=item_checked;
+@new_node.parent=@current;
+current.children.insert_last(new_node);
+return true;
+}
+
+bool set_callback(menu_tree_callback@ callback, string user_data)
+{
+@callback_handle=@callback;
+callback_data=user_data;
+return true;
+}
+
+
+string[]@ get_selections()
+{
+string[] returned;
+if(items.children.length()==0)
+return returned;
+list_children(items, "", @returned);
+return returned;
+}
+
+bool select_all()
+{
+if(items.children.length()==0)
+return false;
+set_selections(items, true);
+return true;
+}
+
+bool unselect_all()
+{
+if(items.children.length()==0)
+return false;
+set_selections(items, false);
+return true;
+}
+
+void reset()
+{
+items.children.resize(0);
+}
+
+int show(string intro_filename)
+{
+if(items.children.length()==0)
+return -1;
+if(@output==null or @event==null)
+return -1;
+if(intro_filename!="")
+{
+output.stream(intro_filename);
+output.play();
+}
+int position=-1;
+int[] history;
+history.insert_last(0);
+tree_node@ current=@items;
+bool speak_item=false;
+string[] names;
+names.insert_last("");
+int current_event=menu_tree_event_none;
+while(true)
+{
+if(speak_item==true)
+{
+speak_item=false;
+if(current.children[position].checked==true and already_selected_filename!="")
+{
+event.load(already_selected_filename);
+event.play();
+}
+else if(current.children[position].children.length()>0 and expandable_filename!="")
+{
+event.load(expandable_filename);
+event.play();
+}
+output.stream(current.children[position].filename);
+output.play();
+names[names.length()-1]=current.children[position].name;
+history[history.length()-1]=position;
+}
+if(invoke_callback(current_event, @names)==false)
+return 0;
+if(current_event!=menu_tree_event_none)
+current_event=menu_tree_event_none;
+if(key_pressed(KEY_ESCAPE))
+{
+output.close();
+event.close();
+unselect_all();
+return 0;
+}
+if(key_pressed(KEY_RETURN))
+{
+output.close();
+event.close();
+return 1;
+}
+if(key_pressed(KEY_UP))
+{
+if(position==-1)
+position=1;
+if(position<1)
+{
+if(edge_filename!="")
+{
+event.load(edge_filename);
+event.play_wait();
+}
+position=0;
+speak_item=true;
+continue;
+}
+position-=1;
+speak_item=true;
+current_event=menu_tree_event_navigate;
+continue;
+}
+if(key_pressed(KEY_DOWN))
+{
+if(position>=current.children.length()-1)
+{
+if(edge_filename!="")
+{
+event.load(edge_filename);
+event.play_wait();
+}
+position=current.children.length()-1;
+speak_item=true;
+continue;
+}
+position+=1;
+speak_item=true;
+current_event=menu_tree_event_navigate;
+continue;
+}
+if(key_pressed(KEY_LEFT))
+{
+if(position==-1)
+continue;
+if(history.length()>1)
+{
+@current=@current.parent;
+history.remove_last();
+names.remove_last();
+position=history[history.length()-1];
+if(shrink_filename!="")
+{
+event.load(shrink_filename);
+event.play_wait();
+}
+speak_item=true;
+current_event=menu_tree_event_shrink;
+continue;
+}
+}
+if(key_pressed(KEY_RIGHT))
+{
+if(position==-1)
+continue;
+if(current.children[position].children.length()>0)
+{
+@current=@current.children[position];
+position=0;
+history.insert_last(0);
+names.insert_last(current.children[0].name);
+if(expand_filename!="")
+{
+event.load(expand_filename);
+event.play_wait();
+}
+speak_item=true;
+current_event=menu_tree_event_expand;
+continue;
+}
+}
+if(key_pressed(KEY_SPACE))
+{
+if(position==-1)
+continue;
+if(current.children[position].children.length()>0)
+continue;
+if(current.children[position].checked==false)
+{
+if(select_filename!="")
+{
+event.load(select_filename);
+event.play_wait();
+}
+current.children[position].checked=true;
+current_event=menu_tree_event_select;
+}
+else
+{
+if(unselect_filename!="")
+{
+event.load(unselect_filename);
+event.play_wait();
+}
+current.children[position].checked=false;
+current_event=menu_tree_event_unselect;
+}
+}
+wait(5);
+}
+return 1;
+}
+
+
+private sound@ output;
+private sound@ event;
+private sound output_sound;
+private sound event_sound;
+private tree_node items;
+private menu_tree_callback@ callback_handle;
+private string callback_data;
+
+private tree_node@ find_node(string path)
+{
+if(path=="")
+return @items;
+string[] names=string_split(path, ".", true);
+tree_node@ current=@items;
+for(uint i1=0;i1<names.length();i1++)
+{
+bool found=false;
+for(uint i2=0;i2<current.children.length();i2++)
+{
+if(current.children[i2].name==names[i1])
+{
+@current=@current.children[i2];
+found=true;
+break;
+}
+}
+if(found==false)
+return null;
+}
+return @current;
+}
+
+private void list_children(tree_node@ current, string prepend, string[]@ output)
+{
+for(uint i=0;i<current.children.length();i++)
+{
+if(current.children[i].checked==true)
+{
+if(prepend=="")
+output.insert_last(current.children[i].name);
+else
+output.insert_last(prepend+ "." + current.children[i].name);
+}
+}
+for(uint i=0;i<current.children.length();i++)
+{
+if(current.children[i].children.length()>0)
+{
+if(prepend=="")
+list_children(current.children[i], current.children[i].name, @output);
+else
+list_children(current.children[i], prepend+ "." + current.children[i].name, @output);
+}
+}
+}
+
+private bool invoke_callback(int the_event, string[]@ names)
+{
+if(@callback_handle==null)
+return true;
+bool returned;
+if(the_event==menu_tree_event_none)
+{
+returned=callback_handle(this, the_event, "", callback_data);
+}
+else
+{
+string path;
+for(uint i=0;i<names.length();i++)
+{
+if(path!="")
+path+=".";
+path+=names[i];
+}
+returned=callback_handle(this, the_event, path, callback_data);
+}
+if(returned==false)
+{
+output.close();
+event.close();
+unselect_all();
+return false;
+}
+return true;
+}
+
+private void set_selections(tree_node@ current, bool selection)
+{
+for(uint i=0;i<current.children.length();i++)
+{
+current.children[i].checked=selection;
+set_selections(current.children[i], selection);
+}
+}
+
+}
+
+funcdef bool menu_tree_callback(menu_tree@, int, string, string);
