@@ -1,0 +1,59 @@
+class msound
+{
+string id,soundloop,map;
+int x,y,loopint;
+msound(string i, string l, int c1, int c2,string cm)
+{
+id=i;
+soundloop=l;
+x=c1;
+y=c2;
+if(cm==mapname) loopint=p2.play_2d(soundloop,me.x,me.y,x,y,true);
+else loopint=-5;
+this.map=cm;
+}
+void updateme(int c1, int c2)
+{
+x=c1;
+y=c2;
+if(mapname==this.map&&loopint==-5) loopint=p2.play_2d(soundloop,me.x,me.y,x,y,true);
+if(mapname!=this.map&&loopint!=-5) p2.pause_sound(loopint);
+if(mapname==this.map&&loopint!=-5)
+{
+if(p2.sound_is_playing(loopint)) p2.resume_sound(loopint);
+p2.update_sound_2d(loopint,x,y);
+}
+}
+}
+msound@[] msounds;
+void createmsound(string id, string loop, int x, int y,string map)
+{
+msound m1(id,loop,x,y,map);
+msounds.insert_last(m1);
+}
+void updatemsound(string id, int x, int y)
+{
+for(uint i=0; i<msounds.length; i++)
+{
+if(msounds[i].id==id) msounds[i].updateme(x,y);
+}
+}
+void destroymsound(string id)
+{
+for(uint i=0; i<msounds.length; i++)
+{
+if(msounds[i].id==id)
+{
+p2.destroy_sound(msounds[i].loopint);
+msounds.remove_at(i);
+continue;
+}
+}
+}
+void destroy_all_msounds()
+{
+for(uint i=0; i<msounds.length; i++)
+{
+destroymsound(msounds[i].id);
+}
+}

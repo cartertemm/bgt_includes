@@ -1,0 +1,165 @@
+class msound
+{
+string id,soundloop,map,owner;
+int x,y,z;
+double pitch;
+msound(string i, string l, int c1, int c2,int c3,string cm,string own="",int p=100)
+{
+id=i;
+soundloop=l;
+x=c1;
+y=c2;
+z=c3;
+map=cm;
+owner=own;
+pitch=p;
+}
+void updateme(int c1, int c2, int c3,double p=-1)
+{
+x=c1;
+y=c2;
+z=c3;
+if(p!=-1) pitch=p;
+}
+}
+msound@[] msounds;
+string spawn_moving_sound(string loop, int x, int y,int z,string map,string owner="",double pitch=100)
+{
+string id;
+bool breakit=false;
+while(true)
+{
+id=randomstring();
+breakit=true;
+for(uint i=0; i<msounds.length; i++)
+{
+if(msounds[i].id==id) breakit=false;
+}
+if(breakit) break;
+}
+msound m1(id,loop,x,y,z,map,owner,pitch);
+msounds.insert_last(m1);
+if(owner=="") send_reliable(0,"createmsound "+id+" "+loop+" "+x+" "+y+" "+z+" "+map+" "+pitch,4);
+else
+{
+for(uint i=0; i<players.length; i++)
+{
+if(players[i].name!=owner) send_reliable(players[i].peer_id,"createmsound "+id+" "+loop+" "+x+" "+y+" "+z+" "+map+" "+pitch,4);
+}
+}
+return id;
+}
+void update_moving_sound(string id, int x, int y,int z,double pitch=-1)
+{
+for(uint i=0; i<msounds.length; i++)
+{
+if(msounds[i].id==id)
+{
+msounds[i].updateme(x,y,z,pitch);
+if(msounds[i].owner=="") send_unreliable(0,"updatemsound "+id+" "+x+" "+y+" "+z+" "+msounds[i].pitch,4);
+else
+{
+for(uint j=0; j<players.length; j++)
+{
+if(players[j].name!=msounds[i].owner) send_unreliable(players[j].peer_id,"updatemsound "+id+" "+x+" "+y+" "+z+" "+msounds[i].pitch,4);
+}
+}
+}
+}
+}
+void destroy_moving_sound(string id)
+{
+for(uint i=0; i<msounds.length; i++)
+{
+if(msounds[i].id==id)
+{
+send_reliable(0,"destroymsound "+id,4);
+msounds.remove_at(i);
+continue;
+}
+}
+}
+/*this code may be adapted to 3d at a later date, right now only the moving sound core is implemented
+class automover
+{
+int sx,sy,fx,fy,x,y,speed,damage;
+string id,loop,start,stop,hitsound,damname,map;
+timer speedtimer;
+automover(int s1, int s2, int f1, int f2, int sp, string l,string sta="", string sto="",int dam=0,string damsound="",string name="",string mapname="main")
+{
+sx=s1;
+sy=s2;
+x=sx;
+y=sy;
+fx=f1;
+fy=f2;
+speed=sp;
+loop=l;
+map=mapname;
+id=spawn_moving_sound(loop,x,y,map);
+start=sta;
+stop=sto;
+damage=dam;
+hitsound=damsound;
+damname=name;
+if(start!="") send_reliable(0,"play "+start+" "+x+" "+y+" "+map,0);
+}
+bool dead=false;
+void move()
+{
+if(speedtimer.elapsed>=speed)
+{
+speedtimer.restart();
+if(fx<x) x--;
+if(fx>x) x++;
+if(fy<y) y--;
+if(fy>y) y++;
+update_moving_sound(id,x,y);
+if(this.damage>0)
+{
+for(uint i=0; i<players.length; i++)
+{
+if(players[i].x==x&&players[i].y==y&&players[i].supersafe==false&&players[i].map==map&&players[i].afk==false)
+{
+send_reliable(0,"impact "+hitsound+" "+x+" "+y+" "+map,0);
+send_reliable(0,"inithurt "+players[i].charname+" "+players[i].x+" "+players[i].y+" "+players[i].voice+" "+players[i].pitch+" "+players[i].map,0);
+players[i].health-=damage;
+write_to(players[i].charname,"health.usr",players[i].health);
+players[i].lasthit="automover "+id;
+players[i].amdam=damname;
+}
+}
+}
+}
+if(x==fx&&y==fy)
+{
+destroy_moving_sound(id);
+if(stop!="") send_reliable(0,"play "+stop+" "+x+" "+y+" "+map,0);
+dead=true;
+}
+}
+}
+automover@[] ams;
+void amcheck()
+{
+for(uint i=0; i<ams.length; i++)
+{
+if(ams[i].dead)
+{
+ams.remove_at(i);
+continue;
+}
+ams[i].move();
+}
+}
+*/
+string randomstring(uint length=10)
+{
+string temp="abcdefghijklmnopqrstuvwxyz1234567890";
+string ret;
+for(uint i=0; i<length; i++)
+{
+ret=ret+temp[random(0,(temp.length()-1))];
+}
+return ret;
+}
