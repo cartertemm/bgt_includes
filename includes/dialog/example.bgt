@@ -1,0 +1,9 @@
+#include"dialog.bgt"
+void main() {
+show_game_window("dialog");
+dialog info;
+info.opens="sounds/open.wav";
+info.closes="sounds/close.wav";
+info.time=8000;
+info.create("This is an information dialog box.");
+}

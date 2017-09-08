@@ -1,0 +1,114 @@
+class dialog {
+tts_voice v;
+string closes;
+string opens;
+sound close;
+sound open;
+bool copyable=true;
+int mode=0;
+int timeleft;
+int time;
+bool speak_instruction=true;
+void create(string text) {
+if(!opens.is_empty()) {
+open.load(opens);
+open.play();
+}
+if(!closes.is_empty()) {
+close.load(closes);
+}
+timer texttimer;
+if(time<=0) {
+texttimer.pause();
+texttimer.force(0);
+}
+if(time>0) {
+timeleft=round(time/1000,0)-round(texttimer.elapsed/1000,0);
+texttimer.resume();
+}
+if(speak_instruction==true) {
+if(time>0) {
+if(mode==0){
+v.speak_interrupt(text+" Press space to repeat, c to copy this information to the clipboard if applycable, or enter or escape to close. This dialog will close within "+timeleft+" seconds.");
+}
+if(mode>0){
+screen_reader_speak_interrupt(mode,text+" Press space to repeat, c to copy this information to the clipboard if applycable, or enter or escape to close. This dialog will close within "+timeleft+" seconds.");
+}
+}
+}
+if(time<=0) {
+if(mode==0){
+v.speak_interrupt(text+" Press space to repeat, c to copy this information to the clipboard if applycable, or enter or escape to close.");
+}
+if(mode>0){
+screen_reader_speak_interrupt(mode,text+" Press space to repeat, c to copy this information to the clipboard if applycable, or enter or escape to close.");
+}
+}
+if(speak_instruction==false) {
+if(time>0) {
+if(mode==0){
+v.speak_interrupt(text+" This dialog will close within "+timeleft+" seconds.");
+}
+if(mode>0){
+screen_reader_speak_interrupt(mode,text+" This dialog will close within "+timeleft+" seconds.");
+}
+}
+if(time<=0) {
+if(mode==0){
+v.speak_interrupt(text);
+}
+if(mode>0){
+screen_reader_speak_interrupt(mode,text);
+}
+}
+}
+while(true) {
+timeleft=round(time/1000,0)-round(texttimer.elapsed/1000,0);
+if(key_pressed(KEY_SPACE)) {
+if(time>0) {
+if(mode==0){
+v.speak_interrupt(text+" This dialog will close within "+timeleft+" seconds.");
+}
+if(mode>0){
+screen_reader_speak_interrupt(mode,text+" This dialog will close within "+timeleft+" seconds.");
+}
+}
+if(time<=0) {
+if(mode==0){
+v.speak_interrupt(text);
+}
+if(mode>0){
+screen_reader_speak_interrupt(mode,text);
+}
+}
+}
+if(key_pressed(KEY_C)) {
+if(copyable==true){
+clipboard_copy_text(text);
+if(mode==0){
+v.speak_interrupt("Copied to clipboard.");
+}
+if(mode>0){
+screen_reader_speak_interrupt(mode,"Copied to clipboard.");
+}
+}
+}
+if((((key_pressed(KEY_RETURN))or(key_pressed(KEY_ESCAPE))or(texttimer.elapsed>=time)&&(time>0)))) {
+if(mode==0){
+v.stop();
+}
+if(mode>0){
+screen_reader_stop_speech(mode);
+}
+if(!closes.is_empty()) {
+close.play_wait();
+}
+break;
+}
+wait(5);
+}
+}
+void set_speech_mode(int reader){
+mode=reader;
+}
+}
