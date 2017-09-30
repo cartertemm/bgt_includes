@@ -1,0 +1,49 @@
+#include "sound_pooll.bgt"
+sound_pool p;
+vector me;
+bool wallsound;
+string[] map;
+void spawn_tile(int x1, int x2, int y1, int y2, int z1, int z2, string tile)
+{
+map.insert_last(x1+":"+x2+":"+y1+":"+y2+":"+z1+":"+z2+":"+tile);
+}
+
+string gt(int x, int y, int z)
+{
+string mt;
+for(uint i=0; i<map.length(); i++)
+{
+string[] sd=string_split(map[i], ":", true);
+if(sd.length()==7)
+{
+int x1=stn(sd[0]);
+int x2=stn(sd[1]);
+int y1=stn(sd[2]);
+int y2=stn(sd[3]);
+int z1=stn(sd[4]);
+int z2=stn(sd[5]);
+string tile=sd[6];
+if(x1<=x&&x2>=x&&y1<=y&&y2>=y&&z1<=z&&z2>=z)
+mt=tile;
+}
+}
+return mt;
+}
+void playstep()
+{
+if(string_contains(gt(me.x, me.y, me.z), "wall", 1)>-1)
+{
+if(!wallsound)
+{
+p.play_3d(gt(me.x, me.y, me.z)+".ogg", old.x, old.y, old.z, me.x, me.y, me.z, calculate_theta(facing), false);
+wallsound=true;
+}
+me=old;
+}
+else
+{
+old=me;
+p.play_stationary(gt(me.x, me.y, me.z)+" "+random(1,8)+".ogg", false);
+wallsound=false;
+}
+}
