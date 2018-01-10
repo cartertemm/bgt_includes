@@ -1,0 +1,35 @@
+/*
+* Json util for bgt
+* By @NicklasMCHD From Accessiware.com
+*
+* You are free to use this script in your game or what ever. Just don't claim that you've made this script
+*/
+
+
+string json_encode(dictionary@ unparsed_data) {
+string parsed_data;
+parsed_data = "{";
+for (uint x = 0; x<unparsed_data.get_keys().length; x++) {
+string key = unparsed_data.get_keys()[x];
+string value;
+unparsed_data.get(key, value);
+parsed_data = parsed_data + "\"" + key + "\":\"" + value + "\",";
+}
+
+parsed_data = string_trim_right(parsed_data, 1);
+parsed_data = parsed_data + "}";
+return parsed_data;
+}
+
+dictionary@ json_decode(string json) {
+dictionary parsed_data;
+json = string_trim_left(json, 1);
+json = string_trim_right(json, 1);
+string[] json_data = string_split(json,",",false);
+for (uint x = 0; x<json_data.length; x++) {
+string data = string_replace(json_data[x], "\"", "", true);
+string[] dataset = string_split(data, ":", false);
+parsed_data.set(dataset[0], dataset[1]);
+}
+return parsed_data;
+}
